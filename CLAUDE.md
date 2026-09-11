@@ -2,7 +2,11 @@
 
 NexWatch is a native Android companion app for a Zeblaze GTR 3 Pro smartwatch. The watch uses the FitCloudPro platform, and this app replaces the vendor app. It is a personal, single-user, single-watch, Android-only app, written in Kotlin with Jetpack Compose.
 
-The full design rationale is in `docs/implementation-plan.md`. Read the relevant section before starting any milestone. The ordered work list is in `docs/HANDOFF.md`.
+The full design rationale is in `docs/implementation-plan.md`. **§12 (Phases) is the source of truth for direction and progress** — it says what's done, what's next, and what "done" means for the phase you're on. Read the relevant section before starting any work, and read [Workflow](#workflow) below before touching a phase.
+
+Visual design is driven by `docs/design-prompt.md` (tokens, layout rules, and the Part C motion system) and, for onboarding, `docs/design/NexWatch B1 Onboarding and Pairing (polished).html` — open it in a browser, it's the real reference, not a screenshot. Later batches get their own polished HTML file under `docs/design/` following the same pattern; a raw Claude Design export is a discarded first pass, never the reference to build from.
+
+`docs/HANDOFF.md` holds the original per-session prompts this project was bootstrapped from; treat it as historical context, not the live plan — `docs/implementation-plan.md` §12 supersedes it for ordering and status.
 
 ## Stack
 
@@ -74,5 +78,18 @@ Enforce these rules through Gradle dependencies. If a module doesn't declare a d
 
 - Build: `./gradlew assembleDebug`. Unit tests: `./gradlew test`. Lint: `./gradlew lint`.
 - After each task, run the build and tests and fix failures before reporting done.
-- Keep changes scoped to the current session in `docs/HANDOFF.md`. If the plan needs to change, update `docs/implementation-plan.md` in the same change.
 - Base package: `com.nexwatch` (for example `com.nexwatch.core.model`).
+
+### Phases and branches
+
+Work happens one phase of `docs/implementation-plan.md` §12 at a time, never two at once.
+
+- Each phase lives on its own branch, cut from `main` after the previous phase has merged (branch names are in the §12 table).
+- Work the phase's exit criteria to completion, verify them for real (run the build, the tests, the soak — don't take a green compile as done), then the user merges the branch into `main`. Don't merge it yourself unless asked to.
+- The next phase branches from `main` after that merge, so it always starts from what actually shipped, not from another in-progress branch.
+- **`docs/implementation-plan.md` §12 is the living source of truth for this project.** The moment a phase's status changes — started, blocked, done — update its row and checklist in the same change, before that change is considered finished. An out-of-date plan is worse than no plan, because the next session trusts it.
+- If a phase's scope turns out to be wrong once you're in it, fix §12 (and the referenced sections) in the same change rather than drifting silently from what's written.
+
+### Code style
+
+- Do not add comments that restate what the code already says. A comment earns its place by explaining *why* — a non-obvious constraint, an SDK quirk, an invariant from this file — not *what* the next line does.

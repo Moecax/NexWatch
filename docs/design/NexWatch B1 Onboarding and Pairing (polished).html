@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NexWatch — B1 Onboarding &amp; Pairing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     Tokens — mirrors :core:designsystem / docs/design-prompt.md.
+     Nothing below hardcodes a hex outside this block.
+     ============================================================ */
+  :root{
+    --electric-blue:#168CFF;
+    --deep-blue:#1554D1;
+    --sky-blue:#28B8FF;
+    --cyan:#16D9E3;
+    --aqua:#43F2C5;
+    --mint:#38E8A5;
+
+    --midnight:#050816;
+    --deep-navy:#080D20;
+    --navy:#0D1428;
+    --blue-navy:#121B35;
+    --border:#243252;
+
+    --text-primary:#F7FAFF;
+    --text-secondary:#A8B4CC;
+    --text-muted:#687590;
+
+    --success:#20D889;
+    --warning:#FFB52E;
+    --error:#FF4969;
+
+    --heart:#FF4775;
+    --activity:#25D98B;
+    --sleep:#7655E8;
+    --sleep-text:#9A82FF;
+    --calories:#FF8A32;
+
+    --on-primary:#050816;
+
+    /* Motion: strong, intentional curves — never the built-in weak ones. */
+    --ease-out: cubic-bezier(.23,1,.32,1);
+    --ease-in-out: cubic-bezier(.77,0,.175,1);
+    --ease-drawer: cubic-bezier(.32,.72,0,1);
+
+    --radius-card:22px;
+    --radius-control:14px;
+    --radius-pill:999px;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  ::selection{ background:var(--electric-blue); color:var(--on-primary); }
+
+  html{ color-scheme:dark; }
+  body{
+    background:var(--midnight);
+    font-family:'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color:var(--text-primary);
+    -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* Themed browser chrome — the cheapest signal a page was actually built. */
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--deep-navy); }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:var(--radius-pill); border:2px solid var(--deep-navy); }
+  ::-webkit-scrollbar-thumb:hover{ background:#324268; }
+  *{ scrollbar-color:var(--border) var(--deep-navy); scrollbar-width:thin; }
+
+  :focus-visible{
+    outline:2px solid var(--sky-blue);
+    outline-offset:3px;
+    border-radius:4px;
+  }
+
+  button, input{ font:inherit; color:inherit; }
+  button{ cursor:pointer; -webkit-tap-highlight-color:transparent; }
+
+  /* ============================================================
+     Document chrome — this is annotation around the artifact,
+     not app UI, so it can carry a page title.
+     ============================================================ */
+  .doc-header{
+    max-width:1400px;
+    margin:0 auto;
+    padding:64px 32px 24px;
+  }
+  .doc-header h1{
+    font-size:28px;
+    font-weight:700;
+    letter-spacing:-0.02em;
+    color:var(--text-primary);
+  }
+  .doc-header p{
+    margin-top:8px;
+    max-width:62ch;
+    font-size:15px;
+    line-height:1.6;
+    color:var(--text-secondary);
+  }
+
+  .doc-page{
+    background:
+      radial-gradient(1200px 480px at 15% -10%, rgba(22,140,255,.10), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(118,85,232,.08), transparent 55%),
+      var(--midnight);
+    min-height:100vh;
+  }
+
+  .gallery{
+    max-width:1400px;
+    margin:0 auto;
+    padding:16px 32px 120px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:56px 40px;
+    align-items:flex-start;
+  }
+
+  .frame{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:14px;
+  }
+  .frame-label{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    font-size:12.5px;
+    font-weight:600;
+    letter-spacing:.01em;
+    color:var(--text-muted);
+    padding-left:4px;
+  }
+  .frame-label b{ color:var(--text-secondary); font-weight:600; }
+
+  /* ============================================================
+     Phone frame
+     ============================================================ */
+  .phone-shell{
+    width:412px;
+    height:915px;
+    border-radius:52px;
+    background:linear-gradient(160deg,#1a2340,#0a0f22 55%);
+    padding:10px;
+    box-shadow:
+      0 40px 80px -32px rgba(0,0,0,.65),
+      0 1px 0 rgba(255,255,255,.04) inset;
+    position:relative;
+  }
+  .phone-screen{
+    position:relative;
+    width:100%;
+    height:100%;
+    border-radius:44px;
+    overflow:hidden;
+    background:linear-gradient(180deg,#050816 0%, #0D1428 55%, #111B38 100%);
+    display:flex;
+    flex-direction:column;
+  }
+  .status-bar{
+    height:44px;
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 26px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--text-primary);
+    opacity:.9;
+  }
+  .status-bar .dots{ display:flex; gap:5px; align-items:center; }
+  .status-bar .dots span{ width:4px; height:4px; border-radius:50%; background:var(--text-primary); opacity:.7; }
+  .home-indicator{
+    position:absolute;
+    bottom:9px; left:50%;
+    transform:translateX(-50%);
+    width:120px; height:4px;
+    border-radius:var(--radius-pill);
+    background:rgba(247,250,255,.32);
+  }
+
+  .screen-body{
+    flex:1 1 auto;
+    padding:8px 20px 28px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .screen-body::-webkit-scrollbar{ width:0; height:0; }
+
+  /* Entrance choreography: one authored moment per frame, staggered,
+     played once when the frame enters view. Disabled under reduced motion. */
+  .reveal{
+    opacity:0;
+    transform:translateY(10px);
+    filter:blur(6px);
+    transition:
+      opacity 560ms var(--ease-out),
+      transform 560ms var(--ease-out),
+      filter 560ms var(--ease-out);
+  }
+  .in-view .reveal{ opacity:1; transform:translateY(0); filter:blur(0); }
+  .in-view .reveal.d1{ transition-delay:60ms; }
+  .in-view .reveal.d2{ transition-delay:120ms; }
+  .in-view .reveal.d3{ transition-delay:180ms; }
+  .in-view .reveal.d4{ transition-delay:240ms; }
+  .in-view .reveal.d5{ transition-delay:300ms; }
+  .in-view .reveal.d6{ transition-delay:360ms; }
+
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ transform:none; filter:none; transition:opacity 220ms ease; }
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; }
+  }
+
+  /* ============================================================
+     Typography
+     ============================================================ */
+  .headline{
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:-0.02em;
+    line-height:1.15;
+    color:var(--text-primary);
+  }
+  .subtext{
+    margin-top:10px;
+    font-size:14.5px;
+    line-height:1.55;
+    color:var(--text-secondary);
+    max-width:34ch;
+  }
+  .metric{
+    font-size:44px;
+    font-weight:700;
+    letter-spacing:-0.03em;
+    color:var(--text-primary);
+    line-height:1;
+  }
+  .metric .unit{
+    font-size:16px;
+    font-weight:600;
+    color:var(--text-secondary);
+    letter-spacing:0;
+    margin-left:6px;
+  }
+
+  /* ============================================================
+     Buttons
+     ============================================================ */
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    height:52px;
+    border-radius:var(--radius-control);
+    border:none;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+    transition:transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), background-color 200ms var(--ease-out), opacity 200ms var(--ease-out);
+  }
+  .btn:active{ transform:scale(.97); }
+
+  .btn-primary{
+    background:linear-gradient(180deg, var(--electric-blue), var(--deep-blue));
+    color:var(--on-primary);
+    box-shadow:0 10px 20px -10px rgba(0,0,0,.55);
+  }
+  .btn-primary:disabled{
+    background:var(--blue-navy);
+    color:var(--text-muted);
+    box-shadow:none;
+    opacity:1;
+    pointer-events:none;
+  }
+  .btn-secondary{
+    background:var(--blue-navy);
+    color:var(--text-primary);
+    border:1px solid rgba(36,50,82,.9);
+  }
+  .btn-text{
+    background:transparent;
+    color:var(--text-secondary);
+    height:44px;
+    font-weight:600;
+  }
+  .btn-danger{
+    background:transparent;
+    color:var(--error);
+    border:1px solid rgba(255,73,105,.35);
+  }
+
+  /* ============================================================
+     Surfaces / list rows (Operate-mode: one container, divided rows —
+     not a wall of identical floating icon+title+text cards)
+     ============================================================ */
+  .surface{
+    background:var(--navy);
+    border:1px solid rgba(36,50,82,.55);
+    border-radius:var(--radius-card);
+    box-shadow:0 18px 40px -28px rgba(0,0,0,.6);
+  }
+  .row-list .row{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    padding:16px 18px;
+    border-top:1px solid rgba(36,50,82,.45);
+  }
+  .row-list .row:first-child{ border-top:none; }
+
+  .icon-badge{
+    flex:0 0 auto;
+    width:40px; height:40px;
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(22,140,255,.12);
+    color:var(--electric-blue);
+  }
+  .icon-badge svg{ width:20px; height:20px; }
+
+  .row-text{ flex:1 1 auto; min-width:0; }
+  .row-title{ font-size:15px; font-weight:600; color:var(--text-primary); }
+  .row-desc{ margin-top:2px; font-size:13px; line-height:1.45; color:var(--text-secondary); }
+
+  .status-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:12.5px;
+    font-weight:700;
+    padding:5px 10px 5px 8px;
+    border-radius:var(--radius-pill);
+  }
+  .status-chip.success{ background:rgba(32,216,137,.14); color:var(--success); }
+  .status-chip.warning{ background:rgba(255,181,46,.14); color:var(--warning); }
+  .status-chip svg{ width:13px; height:13px; }
+
+  .grant-btn{
+    flex:0 0 auto;
+    height:34px;
+    padding:0 16px;
+    border-radius:var(--radius-pill);
+    background:var(--blue-navy);
+    color:var(--electric-blue);
+    border:1px solid rgba(22,140,255,.35);
+    font-size:13px;
+    font-weight:700;
+    transition:transform 140ms var(--ease-out), background 200ms var(--ease-out), color 200ms var(--ease-out), border-color 200ms var(--ease-out);
+  }
+  .grant-btn:active{ transform:scale(.95); }
+
+  /* Check pop-in when a permission is granted live */
+  @keyframes checkPop{
+    0%{ transform:scale(.55); opacity:0; }
+    60%{ transform:scale(1.12); opacity:1; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+  .status-chip.just-granted svg{ animation:checkPop 360ms var(--ease-out); }
+
+  /* ============================================================
+     Progress bar (permission checklist)
+     ============================================================ */
+  .progress-track{
+    height:6px;
+    border-radius:var(--radius-pill);
+    background:var(--blue-navy);
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:100%;
+    border-radius:var(--radius-pill);
+    background:linear-gradient(90deg, var(--electric-blue), var(--cyan));
+    transform-origin:left center;
+    transform:scaleX(.6);
+    transition:transform 480ms var(--ease-out);
+  }
+
+  /* ============================================================
+     Welcome screen — watch hero
+     ============================================================ */
+  .hero-stage{
+    flex:1 1 auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+  }
+  .hero-glow{
+    position:absolute;
+    width:360px; height:360px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(22,140,255,.22), transparent 70%);
+    filter:blur(2px);
+  }
+  .watch-render{ position:relative; width:220px; height:264px; }
+  .watch-strap{
+    position:absolute; left:50%; transform:translateX(-50%);
+    width:96px; height:64px;
+    background:linear-gradient(180deg,#161d33,#0c1122);
+    border-radius:18px;
+  }
+  .watch-strap.top{ top:0; }
+  .watch-strap.bottom{ bottom:0; }
+  .watch-bezel{
+    position:absolute; top:32px; left:10px;
+    width:200px; height:200px;
+    border-radius:50%;
+    background:conic-gradient(from 200deg, #3a4468, #131a30 40%, #4c5a86 60%, #131a30 85%, #3a4468);
+    box-shadow:0 24px 48px -18px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04) inset;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .watch-face{
+    width:172px; height:172px;
+    border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, #10182e, #050914 72%);
+    box-shadow:0 0 0 1px rgba(22,140,255,.22), 0 0 22px rgba(22,140,255,.10) inset;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .watch-face svg{ width:64%; height:64%; }
+  .watch-btn{ position:absolute; right:-4px; width:5px; border-radius:3px; background:#2a3454; }
+  .watch-btn.b1{ top:72px; height:22px; }
+  .watch-btn.b2{ top:104px; height:14px; }
+
+  .wordmark{
+    display:flex; align-items:center; gap:10px;
+    margin-top:6px;
+  }
+  .wordmark .mark{
+    width:30px; height:30px; border-radius:9px;
+    background:linear-gradient(160deg, var(--electric-blue), var(--sleep));
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wordmark .mark svg{ width:16px; height:16px; }
+  .wordmark span{ font-size:15px; font-weight:700; letter-spacing:-0.01em; }
+
+  /* ============================================================
+     Profile screen — stepper
+     ============================================================ */
+  .segmented{
+    position:relative;
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    background:var(--blue-navy);
+    border-radius:var(--radius-control);
+    padding:4px;
+    height:48px;
+  }
+  .segmented .thumb{
+    position:absolute;
+    top:4px; bottom:4px;
+    left:4px;
+    width:calc(50% - 4px);
+    border-radius:10px;
+    background:var(--electric-blue);
+    transition:transform 260ms var(--ease-in-out);
+  }
+  .segmented[data-index="1"] .thumb{ transform:translateX(100%); }
+  .segmented button{
+    position:relative; z-index:1;
+    background:transparent; border:none;
+    font-size:14px; font-weight:700;
+    color:var(--text-secondary);
+    transition:color 200ms var(--ease-out);
+  }
+  .segmented button.active{ color:var(--on-primary); }
+
+  .stepper-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 4px;
+    border-top:1px solid rgba(36,50,82,.45);
+  }
+  .stepper-row:first-of-type{ border-top:none; }
+  .stepper-label{ font-size:13px; font-weight:600; letter-spacing:.01em; color:var(--text-muted); text-transform:uppercase; }
+  .stepper-control{ display:flex; align-items:center; gap:18px; }
+  .stepper-value{
+    min-width:78px;
+    text-align:center;
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:-0.02em;
+    transition:filter 180ms var(--ease-out), opacity 180ms var(--ease-out);
+  }
+  .stepper-value .u{ font-size:13px; font-weight:600; color:var(--text-secondary); margin-left:2px; }
+  .stepper-value.mid-change{ filter:blur(3px); opacity:.55; }
+  .stepper-btn{
+    width:36px; height:36px; border-radius:50%;
+    background:var(--blue-navy);
+    border:1px solid rgba(36,50,82,.9);
+    color:var(--text-primary);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:700;
+    transition:transform 140ms var(--ease-out), background 200ms var(--ease-out);
+  }
+  .stepper-btn:active{ transform:scale(.9); background:var(--navy); }
+
+  /* ============================================================
+     Find your watch — radar
+     ============================================================ */
+  .radar{
+    position:relative;
+    width:180px; height:180px;
+    margin:8px auto 4px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .radar-ring{
+    position:absolute;
+    border-radius:50%;
+    border:1.5px solid var(--electric-blue);
+    animation:radarPulse 2.6s var(--ease-out) infinite;
+    opacity:0;
+  }
+  .radar-ring.r1{ width:60px; height:60px; animation-delay:0s; }
+  .radar-ring.r2{ width:60px; height:60px; animation-delay:.75s; }
+  .radar-ring.r3{ width:60px; height:60px; animation-delay:1.5s; }
+  @keyframes radarPulse{
+    0%{ width:60px; height:60px; opacity:.65; }
+    100%{ width:180px; height:180px; opacity:0; }
+  }
+  .radar-core{
+    width:60px; height:60px; border-radius:50%;
+    background:radial-gradient(circle, rgba(22,140,255,.35), rgba(22,140,255,.08));
+    display:flex; align-items:center; justify-content:center;
+    color:var(--electric-blue);
+  }
+  .radar-core svg{ width:26px; height:26px; }
+
+  .found-row{
+    display:flex; align-items:center; gap:12px;
+    padding:14px 16px;
+  }
+  .signal-bars{ display:flex; align-items:flex-end; gap:2px; height:16px; }
+  .signal-bars span{ width:3px; border-radius:1px; background:var(--border); }
+  .signal-bars span.on{ background:var(--electric-blue); }
+  .signal-bars span:nth-child(1){ height:5px; }
+  .signal-bars span:nth-child(2){ height:9px; }
+  .signal-bars span:nth-child(3){ height:13px; }
+  .signal-bars span:nth-child(4){ height:16px; }
+
+  .tip-row{ display:flex; gap:10px; align-items:flex-start; padding:12px 4px; }
+  .tip-row svg{ width:16px; height:16px; flex:0 0 auto; margin-top:2px; color:var(--text-muted); }
+  .tip-row p{ font-size:13px; line-height:1.5; color:var(--text-secondary); }
+
+  /* ============================================================
+     Pair confirmation — warning banner + checkbox
+     ============================================================ */
+  .banner-warning{
+    display:flex; gap:12px;
+    padding:16px;
+    border-radius:16px;
+    background:rgba(255,181,46,.10);
+  }
+  .banner-warning .icon-badge{ background:rgba(255,181,46,.16); color:var(--warning); }
+  .banner-warning p{ font-size:13.5px; line-height:1.55; color:var(--text-secondary); }
+  .banner-warning strong{ color:var(--text-primary); }
+
+  .checkbox-row{
+    display:flex; align-items:center; gap:12px;
+    padding:16px 4px;
+  }
+  .checkbox{
+    width:22px; height:22px; flex:0 0 auto;
+    border-radius:7px;
+    border:1.5px solid var(--text-muted);
+    display:flex; align-items:center; justify-content:center;
+    background:transparent;
+    transition:background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 140ms var(--ease-out);
+  }
+  .checkbox:active{ transform:scale(.9); }
+  .checkbox.checked{ background:var(--electric-blue); border-color:var(--electric-blue); }
+  .checkbox svg{ width:13px; height:13px; color:var(--on-primary); }
+  .checkbox svg path{
+    stroke-dasharray:16;
+    stroke-dashoffset:16;
+    transition:stroke-dashoffset 260ms var(--ease-out);
+  }
+  .checkbox.checked svg path{ stroke-dashoffset:0; }
+  .checkbox-row label{ font-size:14px; font-weight:600; color:var(--text-primary); }
+
+  /* ============================================================
+     Pairing progress — ring + steps
+     ============================================================ */
+  .ring-stage{ display:flex; align-items:center; justify-content:center; padding:20px 0 8px; }
+  .progress-ring{ position:relative; width:168px; height:168px; }
+  .progress-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .progress-ring circle{ fill:none; stroke-width:8; }
+  .progress-ring .track{ stroke:var(--blue-navy); }
+  .progress-ring .fill{
+    stroke:var(--electric-blue);
+    stroke-linecap:round;
+    stroke-dasharray:452;
+    stroke-dashoffset:452;
+    transition:stroke-dashoffset 900ms var(--ease-in-out);
+  }
+  .in-view .progress-ring .fill{ stroke-dashoffset:187; }
+  .ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ring-center svg{ width:36px; height:36px; color:var(--electric-blue); }
+
+  .step-row{ display:flex; align-items:center; gap:12px; padding:13px 4px; }
+  .step-dot{
+    width:22px; height:22px; border-radius:50%; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--border);
+  }
+  .step-row.done .step-dot{ background:var(--success); border-color:var(--success); }
+  .step-row.done .step-dot svg{ width:12px; height:12px; color:var(--midnight); }
+  .step-row.active .step-dot{ border-color:var(--electric-blue); }
+  .step-row.active .step-dot .spin{
+    width:10px; height:10px; border-radius:50%;
+    border:2px solid rgba(22,140,255,.25);
+    border-top-color:var(--electric-blue);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .step-row .step-label{ font-size:14px; font-weight:600; color:var(--text-muted); }
+  .step-row.active .step-label, .step-row.done .step-label{ color:var(--text-primary); }
+
+  .success-mark{
+    width:80px; height:80px; margin:8px auto 0;
+    border-radius:50%;
+    background:rgba(32,216,137,.14);
+    display:flex; align-items:center; justify-content:center;
+    animation:checkPop 420ms var(--ease-out);
+  }
+  .success-mark svg{ width:36px; height:36px; color:var(--success); }
+
+  .detail-line{ display:flex; align-items:center; justify-content:space-between; padding:13px 4px; border-top:1px solid rgba(36,50,82,.45); }
+  .detail-line:first-child{ border-top:none; }
+  .detail-line .k{ font-size:13.5px; color:var(--text-secondary); }
+  .detail-line .v{ font-size:13.5px; font-weight:700; color:var(--text-primary); }
+
+  /* ============================================================
+     Keep it running — small connected-status pulse (meaningful,
+     continuous, reserved for the one place status truly repeats)
+     ============================================================ */
+  .live-dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--success);
+    position:relative;
+    flex:0 0 auto;
+  }
+  .live-dot::after{
+    content:'';
+    position:absolute; inset:-6px;
+    border-radius:50%;
+    border:1.5px solid var(--success);
+    animation:livePulse 2.2s var(--ease-out) infinite;
+  }
+  @keyframes livePulse{
+    0%{ transform:scale(.4); opacity:.9; }
+    100%{ transform:scale(1.6); opacity:0; }
+  }
+
+  .manufacturer-hint{
+    margin-top:10px;
+    font-size:12.5px;
+    color:var(--text-muted);
+    background:var(--midnight);
+    border:1px solid rgba(36,50,82,.6);
+    border-radius:10px;
+    padding:9px 11px;
+    line-height:1.5;
+  }
+  .manufacturer-hint b{ color:var(--text-secondary); }
+
+  .cta-row{ display:flex; gap:10px; }
+
+  .flex-spacer{ flex:1 1 auto; min-height:16px; }
+  .stack{ display:flex; flex-direction:column; gap:14px; }
+  .stack-tight{ display:flex; flex-direction:column; gap:8px; }
+  .mt-24{ margin-top:24px; }
+  .mt-16{ margin-top:16px; }
+  .mt-12{ margin-top:12px; }
+</style>
+</head>
+<body>
+<div class="doc-page">
+  <div class="doc-header">
+    <h1>NexWatch — B1 Onboarding &amp; Pairing</h1>
+    <p>Reference mockups for <code>:feature:onboarding</code>, redrawn from the Claude Design export as plain, inspectable markup. Motion is authored per‑moment (see the design's own state — scroll a frame into view, tap a control) rather than decorative; every animation here has a job. Implement idiomatically in Compose, don't port this structure literally.</p>
+  </div>
+
+  <div class="gallery">
+
+    <!-- 1. Welcome -->
+    <div class="frame">
+      <p class="frame-label"><b>Welcome</b> · Default</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body" style="padding-bottom:32px;">
+            <div class="hero-stage reveal">
+              <div class="hero-glow"></div>
+              <div class="watch-render">
+                <div class="watch-strap top"></div>
+                <div class="watch-strap bottom"></div>
+                <div class="watch-bezel">
+                  <div class="watch-face">
+                    <svg viewBox="0 0 100 100" fill="none">
+                      <circle cx="50" cy="50" r="38" stroke="#243252" stroke-width="2"/>
+                      <circle cx="50" cy="50" r="38" stroke="#168CFF" stroke-width="2" stroke-dasharray="60 179" stroke-linecap="round"/>
+                      <line x1="50" y1="50" x2="50" y2="26" stroke="#F7FAFF" stroke-width="2.5" stroke-linecap="round"/>
+                      <line x1="50" y1="50" x2="66" y2="58" stroke="#A8B4CC" stroke-width="2.5" stroke-linecap="round"/>
+                      <circle cx="50" cy="50" r="3" fill="#168CFF"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="watch-btn b1"></div>
+                <div class="watch-btn b2"></div>
+              </div>
+            </div>
+            <div class="reveal d1">
+              <div class="wordmark">
+                <div class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 13h3l2-6 3 12 2-6h6" stroke="#F7FAFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <span>NexWatch</span>
+              </div>
+              <p class="headline mt-16">Your watch.<br>Your data. On your phone.</p>
+              <p class="subtext">Everything NexWatch reads stays on this device — export it, or share it, on your terms.</p>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary reveal d2">Get started</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 2. Profile -->
+    <div class="frame">
+      <p class="frame-label"><b>Your profile</b> · Default</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal">
+              <p class="headline">Your profile</p>
+              <p class="subtext">Used only for calorie and distance calculations on the watch.</p>
+            </div>
+
+            <div class="mt-24 reveal d1">
+              <p class="stepper-label" style="margin-bottom:8px;">Sex</p>
+              <div class="segmented" data-index="0" id="segmented">
+                <div class="thumb"></div>
+                <button class="active" data-seg="0">Female</button>
+                <button data-seg="1">Male</button>
+              </div>
+            </div>
+
+            <div class="mt-16 reveal d2">
+              <div class="stepper-row">
+                <span class="stepper-label">Age</span>
+                <div class="stepper-control">
+                  <button class="stepper-btn" data-step="age" data-dir="-1">–</button>
+                  <span class="stepper-value" id="val-age">29<span class="u">yr</span></span>
+                  <button class="stepper-btn" data-step="age" data-dir="1">+</button>
+                </div>
+              </div>
+              <div class="stepper-row">
+                <span class="stepper-label">Height</span>
+                <div class="stepper-control">
+                  <button class="stepper-btn" data-step="height" data-dir="-1">–</button>
+                  <span class="stepper-value" id="val-height">168<span class="u">cm</span></span>
+                  <button class="stepper-btn" data-step="height" data-dir="1">+</button>
+                </div>
+              </div>
+              <div class="stepper-row">
+                <span class="stepper-label">Weight</span>
+                <div class="stepper-control">
+                  <button class="stepper-btn" data-step="weight" data-dir="-1">–</button>
+                  <span class="stepper-value" id="val-weight">61<span class="u">kg</span></span>
+                  <button class="stepper-btn" data-step="weight" data-dir="1">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary reveal d3">Continue</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 3. Permissions -->
+    <div class="frame">
+      <p class="frame-label"><b>Permissions checklist</b> · 3 of 5 granted</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal">
+              <p class="headline">Let's get you connected</p>
+              <p class="subtext">NexWatch needs a few permissions to talk to your watch.</p>
+            </div>
+
+            <div class="mt-16 reveal d1 stack-tight">
+              <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:var(--text-secondary);">
+                <span id="grant-count">3 of 5 granted</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" id="grant-progress"></div></div>
+            </div>
+
+            <div class="surface row-list mt-16 reveal d2" id="perm-list">
+              <div class="row">
+                <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div class="row-text"><p class="row-title">Nearby devices</p><p class="row-desc">Find and connect to your watch over Bluetooth.</p></div>
+                <span class="status-chip success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Granted</span>
+              </div>
+              <div class="row">
+                <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M12 4v3m0 13a2 2 0 002-2H10a2 2 0 002 2zM6 10a6 6 0 1112 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="row-text"><p class="row-title">Notifications</p><p class="row-desc">Let NexWatch show sync and connection status.</p></div>
+                <span class="status-chip success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Granted</span>
+              </div>
+              <div class="row">
+                <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="3" stroke="currentColor" stroke-width="2"/><path d="M9 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div class="row-text"><p class="row-title">Notification access</p><p class="row-desc">Forward phone notifications to your wrist.</p></div>
+                <span class="status-chip success"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Granted</span>
+              </div>
+              <div class="row">
+                <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3l3 6-2 2c1 3 3 5 6 6l2-2 6 3v3a2 2 0 01-2 2C11 22 2 13 2 5a2 2 0 012-2h2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+                <div class="row-text"><p class="row-title">Phone &amp; contacts</p><p class="row-desc">Show caller ID and let the watch reject calls.</p></div>
+                <button class="grant-btn" data-grant>Grant</button>
+              </div>
+              <div class="row">
+                <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.1 7-11.5A7 7 0 105 9.5C5 14.9 12 21 12 21z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.4" stroke="currentColor" stroke-width="2"/></svg></div>
+                <div class="row-text"><p class="row-title">Location <span style="color:var(--text-muted); font-weight:500;">· optional</span></p><p class="row-desc">Used only to push local weather to the watch.</p></div>
+                <button class="grant-btn" data-grant>Grant</button>
+              </div>
+            </div>
+
+            <div class="flex-spacer"></div>
+            <button class="btn btn-secondary reveal d3">Continue</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 4. Find your watch — scanning -->
+    <div class="frame">
+      <p class="frame-label"><b>Find your watch</b> · Scanning, 1 found</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal">
+              <p class="headline">Finding your watch</p>
+              <p class="subtext">Keep it within 1 m and make sure it isn't already connected to another app.</p>
+            </div>
+
+            <div class="radar reveal d1">
+              <div class="radar-ring r1"></div>
+              <div class="radar-ring r2"></div>
+              <div class="radar-ring r3"></div>
+              <div class="radar-core"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            </div>
+
+            <div class="surface row-list mt-24 reveal d2">
+              <div class="found-row">
+                <div class="icon-badge" style="background:rgba(37,217,139,.14); color:var(--activity);"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div class="row-text">
+                  <p class="row-title">GTR 3 Pro</p>
+                  <p class="row-desc">…A4F2</p>
+                </div>
+                <div class="signal-bars"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div>
+              </div>
+            </div>
+
+            <div class="flex-spacer"></div>
+            <p class="reveal d3" style="font-size:12.5px; color:var(--text-muted); text-align:center;">Tap a watch to pair with it</p>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 4b. Find your watch — nothing found -->
+    <div class="frame">
+      <p class="frame-label"><b>Find your watch</b> · Nothing found after 30s</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal">
+              <p class="headline">Still looking</p>
+              <p class="subtext">Nothing found in 30 seconds.</p>
+            </div>
+
+            <div class="radar reveal d1" style="opacity:.5;">
+              <div class="radar-core" style="background:var(--blue-navy); color:var(--text-muted);"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            </div>
+
+            <div class="surface mt-24 reveal d2" style="padding:6px 14px;">
+              <div class="tip-row">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <p>Make sure the watch isn't connected to another app.</p>
+              </div>
+              <div class="tip-row">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <p>Keep it within 1 m of your phone.</p>
+              </div>
+            </div>
+
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary reveal d3">Scan again</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 5. Pair confirmation -->
+    <div class="frame">
+      <p class="frame-label"><b>Pair confirmation</b> · Data‑wipe warning</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal">
+              <p class="headline">Pair with GTR 3 Pro?</p>
+              <p class="subtext">This sets up the watch for this phone.</p>
+            </div>
+
+            <div class="banner-warning mt-24 reveal d1">
+              <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 16H3l9-16z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+              <p><strong>Pairing as a new user clears the data currently stored on the watch.</strong> Anything already on NexWatch stays right where it is.</p>
+            </div>
+
+            <div class="checkbox-row reveal d2">
+              <button class="checkbox" id="confirm-check">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <label for="confirm-check">I understand</label>
+            </div>
+
+            <div class="flex-spacer"></div>
+            <div class="cta-row reveal d3">
+              <button class="btn btn-secondary" style="width:auto; padding:0 22px;">Cancel</button>
+              <button class="btn btn-primary" id="pair-btn" disabled>Pair watch</button>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 6. Pairing in progress -->
+    <div class="frame">
+      <p class="frame-label"><b>Pairing in progress</b> · Authenticating</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal" style="text-align:center;">
+              <p class="headline">Pairing your watch</p>
+              <p class="subtext" style="max-width:none;">Keep NexWatch open and the watch nearby.</p>
+            </div>
+
+            <div class="ring-stage reveal d1">
+              <div class="progress-ring">
+                <svg viewBox="0 0 160 160">
+                  <circle class="track" cx="80" cy="80" r="72"/>
+                  <circle class="fill" cx="80" cy="80" r="72"/>
+                </svg>
+                <div class="ring-center"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+              </div>
+            </div>
+
+            <div class="surface row-list mt-16 reveal d2" style="padding:2px 16px;">
+              <div class="step-row done"><div class="step-dot"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="step-label">Connecting</span></div>
+              <div class="step-row active"><div class="step-dot"><div class="spin"></div></div><span class="step-label">Authenticating</span></div>
+              <div class="step-row"><div class="step-dot"></div><span class="step-label" style="color:var(--text-muted);">Reading watch features</span></div>
+              <div class="step-row"><div class="step-dot"></div><span class="step-label" style="color:var(--text-muted);">First sync</span></div>
+            </div>
+
+            <div class="flex-spacer"></div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 6b. Pairing — connected -->
+    <div class="frame">
+      <p class="frame-label"><b>Pairing</b> · Connected</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal" style="text-align:center; margin-top:12px;">
+              <div class="success-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <p class="headline mt-16">Connected</p>
+              <p class="subtext" style="max-width:none;">GTR 3 Pro is paired with this phone.</p>
+            </div>
+
+            <div class="surface mt-24 reveal d1">
+              <div class="detail-line"><span class="k">Battery</span><span class="v">86%</span></div>
+              <div class="detail-line"><span class="k">Firmware</span><span class="v">v2.14.0</span></div>
+              <div class="detail-line"><span class="k">Address</span><span class="v">…A4F2</span></div>
+            </div>
+
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary reveal d2">Continue</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <!-- 7. Keep it running -->
+    <div class="frame">
+      <p class="frame-label"><b>Keep it running</b> · Default</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="dots"><span></span><span></span><span></span></div></div>
+          <div class="screen-body">
+            <div class="reveal">
+              <p class="headline">Keep it running</p>
+              <p class="subtext">Android may try to stop background apps. A couple of settings keep the connection alive.</p>
+            </div>
+
+            <div class="surface row-list mt-24 reveal d1">
+              <div class="row" style="align-items:center;">
+                <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 3.5v6c0 5-3 8.5-7 10.5-4-2-7-5.5-7-10.5v-6L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div>
+                <div class="row-text"><p class="row-title">Unrestricted battery use</p><p class="row-desc">Stops Android from pausing the connection.</p></div>
+                <button class="grant-btn">Allow</button>
+              </div>
+              <div class="row" style="align-items:center;">
+                <div class="icon-badge"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18m9-9H3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div class="row-text">
+                  <p class="row-title">Autostart</p>
+                  <p class="row-desc">Lets NexWatch relaunch itself after a reboot.</p>
+                  <p class="manufacturer-hint"><b>Tecno / Infinix / Xiaomi:</b> Settings → Apps → NexWatch → Autostart → On.</p>
+                </div>
+                <button class="grant-btn">Enable</button>
+              </div>
+              <div class="row" style="align-items:center;">
+                <div class="icon-badge"><span class="live-dot"></span></div>
+                <div class="row-text"><p class="row-title">Background connection</p><p class="row-desc">Runs a quick check with the watch out of view.</p></div>
+                <button class="grant-btn">Test</button>
+              </div>
+            </div>
+
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary reveal d2">Done</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // Play each frame's entrance choreography once, when it's actually visible.
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.35 });
+  document.querySelectorAll('[data-observe]').forEach(function(el){ observer.observe(el); });
+
+  // Segmented control — sliding thumb, not a re-render.
+  var seg = document.getElementById('segmented');
+  if (seg) {
+    seg.addEventListener('click', function(e){
+      var btn = e.target.closest('button[data-seg]');
+      if (!btn) return;
+      seg.dataset.index = btn.dataset.seg;
+      seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b === btn); });
+    });
+  }
+
+  // Steppers — blur-mask crossfade on value change (Emil's technique for
+  // masking an instant swap so it doesn't read as two objects overlapping).
+  var values = { age: 29, height: 168, weight: 61 };
+  var bounds = { age: [13, 99], height: [120, 220], weight: [30, 180] };
+  document.querySelectorAll('[data-step]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var key = btn.dataset.step;
+      var dir = parseInt(btn.dataset.dir, 10);
+      var next = Math.min(bounds[key][1], Math.max(bounds[key][0], values[key] + dir));
+      if (next === values[key]) return;
+      values[key] = next;
+      var el = document.getElementById('val-' + key);
+      var unit = el.querySelector('.u').outerHTML;
+      el.classList.add('mid-change');
+      setTimeout(function(){
+        el.innerHTML = next + unit;
+        el.classList.remove('mid-change');
+      }, 90);
+    });
+  });
+
+  // Permissions — grant live, pop the check in, animate the progress bar.
+  var grantCount = 3, totalCount = 5;
+  var countEl = document.getElementById('grant-count');
+  var fillEl = document.getElementById('grant-progress');
+  document.querySelectorAll('#perm-list [data-grant]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var chip = document.createElement('span');
+      chip.className = 'status-chip success just-granted';
+      chip.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Granted';
+      btn.replaceWith(chip);
+      grantCount = Math.min(totalCount, grantCount + 1);
+      countEl.textContent = grantCount + ' of ' + totalCount + ' granted';
+      fillEl.style.transform = 'scaleX(' + (grantCount / totalCount) + ')';
+    });
+  });
+
+  // Pair confirmation — checkbox draws its check, unlocks the primary button.
+  var check = document.getElementById('confirm-check');
+  var pairBtn = document.getElementById('pair-btn');
+  if (check) {
+    check.addEventListener('click', function(){
+      var isChecked = check.classList.toggle('checked');
+      pairBtn.disabled = !isChecked;
+    });
+  }
+})();
+</script>
+</body>
+</html>

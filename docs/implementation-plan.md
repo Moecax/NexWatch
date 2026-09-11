@@ -517,18 +517,119 @@ Health data lives in app-private storage, which Android's file-based encryption 
 
 ---
 
-## 12. Milestones
+## 12. Phases
 
-| Milestone | Scope | Exit criteria |
-|---|---|---|
-| **M0 Recon** | Run the SDK sample app on your watch. Dump `FcDeviceInfo` features. Capture raw payloads of each type. Verify timestamp semantics by changing the phone timezone and checking what arrives. Take the 24-hour FitCloudPro baseline. Capture an HCI snoop log for reference. | Known capability list, fixture payloads, baseline numbers, and open questions (§14) answered |
-| **M1 Foundation** | Module skeleton, vendored SDK with verification, `WatchClient` and its FitCloud implementation, CDM pairing, identity and bind/login guards, basic dashboard, release-build smoke test | Pair once, then reconnect via LOGIN after an app restart and after a reboot; release build works |
-| **M2 Always-on** | Foreground service, boot and presence handling, notification forwarder with the full filter pipeline, telephony, media, find phone, OEM onboarding, debug screen | 48-hour soak: notifications and calls arrive with the app swiped away, and the battery and memory budgets hold |
-| **M3 Data core** | Journal, normalisers, full schema with triggers, aggregator, `WatchSyncWorker`, health screens with SQL-bucketed charts | No gaps across 7 days; replaying the journal reproduces the tables exactly; migration and trigger tests green |
-| **M4 Export/Import** | JSONL+ZIP exporter, CSV and GPX, importer, optional auto-backup | Round-trip test green; exporting a year of data uses constant memory |
-| **M5 Control** | Watch settings, alarms, reminders, DND, units, weather push, camera, contacts | Each setting round-trips (set, then read back from the watch) and only supported features appear |
-| **M6 Sync framework** | `SyncProvider` API, SyncEngine, change-log compaction, Health Connect provider | Enabling Health Connect backfills all history; later records appear within minutes; no duplicates after forced retries |
-| **M7 Extras and hardening** | Custom watchfaces, firmware update (last, with battery and connection preconditions), stress tests, polish | Firmware update tested only after a full export; one-week soak with no data gaps |
+This is the source of truth for what's done and what's next. **Keep the status column current** — update it in the same change that finishes a phase's exit criteria, before merging. Do not start a phase whose predecessor isn't `Done`; phases are sequential, not parallel, and none overlaps another in scope.
+
+Each phase is one branch, cut from `main` after the previous phase has merged, and merged back to `main` only once every exit criterion in the table is met. Branch name suggestions are one word so they're easy to type; use them or something equally short.
+
+| # | Phase | Branch | Status |
+|---|---|---|---|
+| 0 | Scaffold | `phase-0-scaffold` | Not started |
+| 1 | Fake watch & app state | `phase-1-fake-watch` | Not started |
+| 2 | Onboarding design system & UI | `phase-2-onboarding` | Not started |
+| 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
+| 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
+| 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
+| 6 | Data core (M3) | `phase-6-data-core` | Not started |
+| 7 | Export / import (M4) | `phase-7-export-import` | Not started |
+| 8 | Watch control (M5) | `phase-8-watch-control` | Not started |
+| 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Not started |
+| 10 | Extras and hardening (M7) | `phase-10-hardening` | Not started |
+
+Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
+
+### Phase 0 — Scaffold
+
+Turn the repo into a building Android project: `gradle/libs.versions.toml` with the latest mutually-compatible stable versions (§3.2), `build-logic/` convention plugins, every module's `build.gradle.kts` wired to the dependency rules in `CLAUDE.md`, the Gradle wrapper, `.gitignore`, R8 for release. `:app` gets `MainActivity` with edge-to-edge, the theme, and a 4-tab `NavHost` (Today, Health, Watch, Data) with placeholder screens.
+
+**Exit criteria**
+- [ ] `./gradlew assembleDebug assembleRelease test lint` all pass.
+- [ ] The app installs and shows all four placeholder tabs on the premium gradient background.
+- [ ] Every module boundary in the `CLAUDE.md` table is enforced — an illegal import fails the build, not just a code review.
+
+### Phase 1 — Fake watch & app state
+
+Implement `FakeWatchClient` in `:core:watch-fake` against the `WatchClient` contract (§4.2): simulated scanning, bind/login with realistic delay, every `WatchState`, battery level, a sync that emits progress, live heart rate, and a debug control that forces any state on demand. Add the DataStore-backed `WatchIdentityStore` in `:core:data` (§4.4). Bind `WatchClient` to `FakeWatchClient` via Hilt.
+
+**Exit criteria**
+- [ ] Unit tests cover `FakeWatchClient` and `WatchIdentityStore`.
+- [ ] A debug menu can force the app through every `WatchState` without touching real Bluetooth.
+
+### Phase 2 — Onboarding design system & UI
+
+Reconcile `:core:designsystem` against `docs/design-prompt.md` (tokens, spacing, radii, the Part C motion system) and the polished B1 reference (`docs/design/NexWatch B1 Onboarding and Pairing (polished).html`). Add any missing tokens or shared components there first. Implement the B1 flow in `:feature:onboarding` as idiomatic Compose — Welcome, Profile, Permissions, Find your watch, Pair confirmation, Pairing progress, Keep it running — driven by one `OnboardingViewModel` state machine over `WatchClient` (`FakeWatchClient` for now), with real runtime permission requests. `@Preview` for every screen and state. Onboarding shows only when `WatchIdentityStore.isBound` is false.
+
+**Exit criteria**
+- [ ] `:core:designsystem` carries every token and component the polished reference uses; no screen hardcodes a hex value.
+- [ ] The full onboarding flow works end to end against the fake client and matches the polished reference's states and motion.
+- [ ] Every screen and state has a `@Preview`.
+
+### Phase 3 — Recon (M0)
+
+Needs the physical watch; not something Claude Code can do unattended. Vendor the SDK per `third_party/maven/README.md`. Run the SDK's sample app and record in `docs/recon.md`: the watch's supported features, a raw payload sample for every data type, and answers to every question in §14. Record a 24-hour FitCloudPro battery and memory baseline.
+
+**Exit criteria**
+- [ ] `docs/recon.md` has the capability list, fixture payloads for every data type, the baseline numbers, and every §14 question answered.
+- [ ] The vendored SDK is in `third_party/maven/` with dependency verification passing.
+
+### Phase 4 — FitCloudWatchClient (M1)
+
+Enable `:core:watch-fitcloud`. Implement `FitCloudWatchClient` per §4: `FcSDK` init in `Application`, state mapping, Rx→Flow adapters, the command `Mutex` with timeouts, capability detection, guarded bind vs. login. No custom reconnect logic. Switch the Hilt binding to the real client for release builds; debug builds keep a fake/real toggle. Add R8 keep rules for the SDK.
+
+**Exit criteria**
+- [ ] The watch pairs once, then reconnects in LOGIN mode after an app restart and after a phone reboot.
+- [ ] `./gradlew assembleRelease` succeeds with the SDK's keep rules in place.
+
+### Phase 5 — Always-on service (M2)
+
+Implement §8 in `:core:service`: `WatchConnectionService` (foreground, `connectedDevice`, `START_STICKY`, debounced sync on `Ready`), CDM association and presence on API 31+, `BootReceiver`, `NotificationForwarder` with the full §8.5 filter pipeline, telephony via `FcBuiltInFeatures`, find-phone and camera handling. Add the Diagnostics screen.
+
+**Exit criteria**
+- [ ] A 48-hour soak passes with the app swiped away: notifications and calls still arrive.
+- [ ] Battery and memory stay within the §9.1 budgets over that soak.
+
+### Phase 6 — Data core (M3)
+
+Journal (`raw_ingest`), normalisers, the full schema with triggers (§5), the aggregator, `WatchSyncWorker`, and health screens backed by SQL-bucketed queries.
+
+**Exit criteria**
+- [ ] No gaps in a 7-day data timeline.
+- [ ] Replaying the journal from scratch reproduces the canonical tables exactly.
+- [ ] Migration and trigger tests are green for every schema version so far.
+
+### Phase 7 — Export / import (M4)
+
+JSONL+ZIP exporter, CSV and GPX, the importer, optional scheduled auto-backup (§6).
+
+**Exit criteria**
+- [ ] The export/import round-trip test is green (every table identical, IDs included).
+- [ ] Exporting a year of data holds constant memory.
+
+### Phase 8 — Watch control (M5)
+
+Watch settings screens: alarms, reminders, DND, units, weather push, camera remote, contacts.
+
+**Exit criteria**
+- [ ] Every setting round-trips: set it, then read the same value back from the watch.
+- [ ] Only capabilities the connected watch actually supports (§4.5) appear in the UI.
+
+### Phase 9 — Sync framework & Health Connect (M6)
+
+`SyncProvider` API, `SyncEngine`, change-log compaction (§7), and the first provider, Health Connect.
+
+**Exit criteria**
+- [ ] Enabling Health Connect backfills all existing history.
+- [ ] New records appear in Health Connect within minutes of syncing from the watch.
+- [ ] Forcing retries produces no duplicate records.
+
+### Phase 10 — Extras and hardening (M7)
+
+Custom watchfaces, firmware update (last, with the battery and connection preconditions from Batch 5 §9), and a final stress/polish pass.
+
+**Exit criteria**
+- [ ] Firmware update is tested only after taking a full export first.
+- [ ] A one-week soak shows no data gaps and stays within the §9.1 budgets.
 
 ---
 

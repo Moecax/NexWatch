@@ -137,18 +137,12 @@ find-phone / camera handling. Add the Diagnostics screen from design Batch 8.
 
 ## Sessions 7 onward
 
-Continue milestone by milestone, each as its own session:
+This file's session prompts stop here — it was the bootstrap script for the project, not the ongoing plan. From here, follow `docs/implementation-plan.md` §12, which is now the live, kept-up-to-date source of truth for phase order, scope and status (`CLAUDE.md` → Workflow explains the branch-per-phase process). Sessions 1–3 above map to Phases 0–2; §12 continues with Phase 3 (Recon) onward, one branch per phase, merged to `main` before the next one starts.
 
-- **M3:** data core. Journal, normalisers, schema and triggers, aggregator, health screens.
-- **M4:** export and import.
-- **M5:** watch controls.
-- **M6:** SyncEngine and the Health Connect provider.
-- **M7:** extras and hardening.
-
-Each milestone's scope and exit criteria are in `docs/implementation-plan.md` §12. Use this prompt as the template:
+Use this prompt as the template for any phase:
 
 ```
-Implement Milestone M<n> from docs/implementation-plan.md §12, following the
+Implement Phase <n> from docs/implementation-plan.md §12, following the
 referenced sections. Plan first and show me the plan before writing code.
-Done when the exit criteria in §12 are met and all tests pass.
+Done when every exit criterion for the phase is checked off and all tests pass.
 ```

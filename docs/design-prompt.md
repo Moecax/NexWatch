@@ -1,6 +1,10 @@
 # Design Prompt: GTR 3 Pro Companion App
 
-**How to use:** Paste **Part A** at the start of every generation session. Then paste **one batch from Part B** at a time. Most design tools produce much better results with 5–8 screens per request than with 40 at once. After each batch, carry forward anything you liked ("keep the card style and chart style from the previous batch").
+**How to use:** Paste **Part A** at the start of every generation session. Then paste **one batch from Part B** at a time. Most design tools produce much better results with 5–8 screens per request than with 40 at once. After each batch, carry forward anything you liked ("keep the card style and chart style from the previous batch"). Every batch also carries forward **Part C**, the motion system — it's not optional polish, it's part of the design language.
+
+## Canonical reference for B1
+
+`NexWatch B1 Onboarding and Pairing.html` (the raw Claude Design export) is a self-extracting bundle, not editable source — treat it as a discarded first pass. The canonical, inspectable reference for Batch 1 is [`design/NexWatch B1 Onboarding and Pairing (polished).html`](design/NexWatch%20B1%20Onboarding%20and%20Pairing%20%28polished%29.html): plain HTML/CSS/JS, built against the exact tokens below, with the AI-design hallmarks stripped out (no gradient text, no kicker/eyebrow labels, no uniform icon+heading+text card grids, no hard block shadows, no decorative color glow) and the motion system in Part C implemented live — open it in a browser and interact with it. When a later batch is designed, redraw it the same way: a hand-authored HTML file under `docs/design/`, not a raw tool export, reviewed against Part C before it's called done.
 
 ---
 
@@ -143,3 +147,32 @@ Design these screens in sequence, as one flow:
 ### Batch 9 — Component sheet (optional, do last)
 
 Produce a single component library frame containing: buttons (primary, secondary, tonal, text, destructive, each with disabled state), a metric card (small, large), chart card, status chip set (Connected, Syncing, Disconnected, Error, Up to date), list rows (with toggle, value, chevron), segmented control, text fields (default, focused, error), bottom navigation (each tab selected), top app bars (small, large collapsing), dialogs, bottom sheet, banner (info, warning, error), snackbar, empty-state block, skeleton loaders, and the color and type scale with labels.
+
+---
+
+## PART C — Motion system (paste every time, alongside Part A)
+
+Every batch after B1 follows this motion language. It came out of polishing B1 against Emil Kowalski's design-engineering craft and Apple's *Designing Fluid Interfaces* principles, and it's what separates NexWatch from a generic AI-generated dashboard. See it implemented in the polished B1 reference above before designing or building anything else.
+
+**Curves — never the default CSS/Compose easings.** They're too weak to read as intentional.
+
+| Name | Value | Use for |
+|---|---|---|
+| `ease-out` (strong) | `cubic-bezier(.23, 1, .32, 1)` | Anything entering, or responding to input (buttons, reveals) |
+| `ease-in-out` (strong) | `cubic-bezier(.77, 0, .175, 1)` | Anything moving/morphing on screen (sliding segmented control, ring fill) |
+| `ease-drawer` | `cubic-bezier(.32, .72, 0, 1)` | Sheets and drawers (iOS-style) |
+
+Never `ease-in` on its own for a UI transition — it delays the motion the user is watching most closely, and the interface reads as sluggish.
+
+**Durations.** Button/press feedback 100–160 ms. Tooltips and small popovers 125–200 ms. Dropdowns and segmented controls 150–250 ms. Modals, sheets, screen transitions 200–500 ms. Nothing routine-UI stays on screen animating past 300 ms. First-run/celebratory moments (a successful pairing, a completed export) can run longer, because the user sees them once.
+
+**Where motion is meaningful, not decorative.**
+- **Entrances:** every screen plays one authored entrance — content staggered in (opacity + ~10px translate + a few px of blur that clears, 60 ms stagger step, 500–600 ms total), never a uniform fade-everything-at-once. It plays once, when the screen becomes visible, never on every recomposition.
+- **State indication:** a live/continuous animation (the "connected" dot pulse, the scanning radar) is reserved for the one place on a screen where state genuinely repeats. Don't add a second one on the same screen — it dilutes the first.
+- **Feedback:** every pressable element responds on press, not on release — `scale(0.97)`, ~150 ms, strong ease-out. This is non-negotiable per component; it's how the interface tells the user it heard them.
+- **Value changes** (a stepper number, a metric updating) cross-fade through a few px of blur rather than snapping, so it reads as one object changing rather than two objects swapping.
+- **Origin-aware popovers and sheets:** anything anchored to a trigger scales from that trigger's position, not from center. Modals are the exception — they stay centered, because they aren't anchored to anything.
+- **Reduced motion:** every animation has a `prefers-reduced-motion: reduce` fallback that keeps opacity/color changes (they aid comprehension) and drops translate/scale/blur.
+- **Never animate a keyboard-triggered or hundreds-of-times-a-day action.** Bottom-nav taps, list scrolling, and anything repeated constantly stays instant.
+
+**What to avoid** (these read as "AI-generated" on sight — call them out if a generation reintroduces them): gradient-filled text, a small-caps "kicker" label floating above every heading, uniform icon+heading+text cards used as the whole page structure, colored glow/halo shadows standing in for real elevation, a colored `border-left` accent on cards or alerts, hard offset "sticker" shadows, and any animation that loops indefinitely without representing a real, ongoing state.
