@@ -21,7 +21,11 @@ val MutedBlue = Color(0xFF243252)
 val TextPrimary = Color(0xFFF7FAFF)
 val TextSecondary = Color(0xFFA8B4CC)
 val TextMuted = Color(0xFF687590)
-val Slate = MutedBlue
+
+// Slate is deliberately its own token, lighter than MutedBlue, so input outlines
+// (colorScheme.outline) clear the 3:1 WCAG contrast minimum against Midnight
+// (#050816) — MutedBlue alone computes to ~1.57:1 and fails that bar.
+val Slate = Color(0xFF5C6E96)
 
 // Status (status only — never for health data)
 val Success = Color(0xFF20D889)

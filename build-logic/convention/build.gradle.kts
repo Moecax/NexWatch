@@ -18,8 +18,11 @@ kotlin {
 }
 
 dependencies {
-    compileOnly(libs.android.gradlePlugin)
-    compileOnly(libs.kotlin.gradlePlugin)
+    // implementation, not compileOnly: precompiled script plugins need the plugin classes on
+    // their own runtime classpath to apply id(...) reliably, pinned to the catalog's version —
+    // compileOnly doesn't reach the classpath of a project that applies the plugin via id(...).
+    implementation(libs.android.gradlePlugin)
+    implementation(libs.kotlin.gradlePlugin)
     // Kotlin 2.x ships the Compose compiler as a separate plugin artifact from kotlin-gradle-plugin.
-    compileOnly("org.jetbrains.kotlin:compose-compiler-gradle-plugin:${libs.versions.kotlin.get()}")
+    implementation("org.jetbrains.kotlin:compose-compiler-gradle-plugin:${libs.versions.kotlin.get()}")
 }
