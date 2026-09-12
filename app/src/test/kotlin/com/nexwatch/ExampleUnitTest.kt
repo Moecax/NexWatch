@@ -1,4 +1,4 @@
-package io.github.moecax.nexwatch
+package com.nexwatch
 
 import org.junit.Test
 
