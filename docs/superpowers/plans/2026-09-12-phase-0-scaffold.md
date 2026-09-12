@@ -152,7 +152,7 @@ git commit -m "build: extend version catalog and wire the build-logic composite 
 - Create: `build-logic/convention/src/main/kotlin/nexwatch.android.compose.gradle.kts`
 
 **Interfaces:**
-- Consumes: catalog aliases from Task 1 (`libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.versions.android.*`, `libs.plugins.kotlin.android`, `libs.plugins.kotlin.compose`, `libs.junit`).
+- Consumes: catalog aliases from Task 1 (`libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.versions.androidCompileSdk`, `libs.versions.androidMinSdk`, `libs.versions.androidTargetSdk`, `libs.plugins.kotlin.android`, `libs.plugins.kotlin.compose`, `libs.junit`).
 - Produces: plugin IDs `nexwatch.jvm.library`, `nexwatch.android.library`, `nexwatch.android.application`, `nexwatch.android.compose` — every module task from here on applies one or two of these instead of raw AGP/Kotlin plugins.
 
 - [ ] **Step 1: Create the build-logic settings file**
