@@ -7,7 +7,11 @@ plugins {
 // plugins (gradle/gradle#15383), so the catalog has to be looked up explicitly here.
 val libs = extensions.getByType<org.gradle.api.artifacts.VersionCatalogsExtension>().named("libs")
 
-dependencies {
-    "implementation"(libs.findLibrary("hilt-android").get())
-    "ksp"(libs.findLibrary("hilt-compiler").get())
+// Defer until an AGP plugin is present, otherwise the dependencies block fails with
+// "Configuration with name 'implementation' not found".
+pluginManager.withPlugin("com.android.base") {
+    dependencies {
+        "implementation"(libs.findLibrary("hilt-android").get())
+        "ksp"(libs.findLibrary("hilt-compiler").get())
+    }
 }
