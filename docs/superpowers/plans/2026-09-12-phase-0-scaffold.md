@@ -918,6 +918,14 @@ android {
         versionName = "1.0"
     }
 
+    buildTypes {
+        release {
+            optimization {
+                enable = false
+            }
+        }
+    }
+
     buildFeatures {
         compose = true
     }
