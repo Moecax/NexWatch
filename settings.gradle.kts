@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -24,3 +25,14 @@ dependencyResolutionManagement {
 
 rootProject.name = "NexWatch"
 include(":app")
+include(":core:common")
+include(":core:model")
+include(":core:watch-api")
+include(":core:watch-fake")
+include(":core:watch-fitcloud")
+include(":core:database")
+include(":core:data")
+include(":core:export")
+include(":core:sync-api")
+include(":core:service")
+include(":core:designsystem")

@@ -30,6 +30,7 @@
 - Modify: `settings.gradle.kts`
 
 **Interfaces:**
+- Produces: catalog aliases `libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.androidx.navigation.compose`, `libs.kotlinx.serialization.json`, plugin alias `libs.plugins.kotlin.serialization`, and version aliases `libs.versions.androidCompileSdk`, `libs.versions.androidMinSdk`, `libs.versions.androidTargetSdk` (flat camelCase keys — Gradle only nests a catalog accessor when the alias itself contains a `-` or `.` separator, and these don't) — every later task and every convention plugin in Task 2 reads these.
 - Produces: catalog aliases `libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.androidx.navigation.compose`, `libs.kotlinx.serialization.json`, plugin alias `libs.plugins.kotlin.serialization`, and version aliases `libs.versions.android.compileSdk`, `libs.versions.android.minSdk`, `libs.versions.android.targetSdk` — every later task and every convention plugin in Task 2 reads these.
 
 - [ ] **Step 1: Add the new version and library/plugin entries to the catalog**
@@ -152,6 +153,7 @@ git commit -m "build: extend version catalog and wire the build-logic composite 
 - Create: `build-logic/convention/src/main/kotlin/nexwatch.android.compose.gradle.kts`
 
 **Interfaces:**
+- Consumes: catalog aliases from Task 1 (`libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.versions.androidCompileSdk`, `libs.versions.androidMinSdk`, `libs.versions.androidTargetSdk`, `libs.plugins.kotlin.android`, `libs.plugins.kotlin.compose`, `libs.junit`).
 - Consumes: catalog aliases from Task 1 (`libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.versions.android.*`, `libs.plugins.kotlin.android`, `libs.plugins.kotlin.compose`, `libs.junit`).
 - Produces: plugin IDs `nexwatch.jvm.library`, `nexwatch.android.library`, `nexwatch.android.application`, `nexwatch.android.compose` — every module task from here on applies one or two of these instead of raw AGP/Kotlin plugins.
 
@@ -629,6 +631,9 @@ git commit -m "build: scaffold the ten stub core modules per the CLAUDE.md depen
 ## Task 4: `:core:designsystem` — theme, tokens and premium background
 
 **Files:**
+- Modify: `core/designsystem/build.gradle.kts` (Task 3 already created this as a bare `nexwatch.android.library`-only stub, to satisfy `settings.gradle.kts`; add the compose plugin and dependencies here)
+- Modify: `core/designsystem/src/main/AndroidManifest.xml` (already exists from Task 3, empty — leave its contents as-is, no change needed)
+- Delete: `core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/package-info.kt` (Task 3's placeholder doc file — superseded by the real content this task adds)
 - Create: `core/designsystem/build.gradle.kts`
 - Create: `core/designsystem/src/main/AndroidManifest.xml`
 - Create: `core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/theme/Color.kt`
@@ -643,6 +648,17 @@ git commit -m "build: scaffold the ten stub core modules per the CLAUDE.md depen
 
 - [ ] **Step 1: Module wiring**
 
+`core/designsystem/build.gradle.kts` already exists (created by Task 3) with just:
+```kotlin
+plugins {
+    id("nexwatch.android.library")
+}
+
+android {
+    namespace = "com.nexwatch.core.designsystem"
+}
+```
+Modify it to add the compose plugin and dependencies:
 `core/designsystem/build.gradle.kts`:
 ```kotlin
 plugins {
@@ -661,6 +677,9 @@ dependencies {
 }
 ```
 
+`core/designsystem/src/main/AndroidManifest.xml` already exists (created by Task 3) with the same empty-manifest contents used by every other stub module — leave it unchanged.
+
+Delete the stub doc file Task 3 created, since this task gives the module real content: `git rm core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/package-info.kt`.
 `core/designsystem/src/main/AndroidManifest.xml`: same empty-manifest contents as Task 3 Step 2.
 
 - [ ] **Step 2: Raw color tokens**
@@ -916,6 +935,14 @@ android {
         applicationId = "com.nexwatch"
         versionCode = 1
         versionName = "1.0"
+    }
+
+    buildTypes {
+        release {
+            optimization {
+                enable = false
+            }
+        }
     }
 
     buildFeatures {

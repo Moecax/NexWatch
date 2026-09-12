@@ -525,7 +525,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 
 | # | Phase | Branch | Status |
 |---|---|---|---|
-| 0 | Scaffold | `phase-0-scaffold` | Not started |
+| 0 | Scaffold | `phase-0-scaffold` | Done |
 | 1 | Fake watch & app state | `phase-1-fake-watch` | Not started |
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Not started |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
@@ -544,9 +544,9 @@ Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`
 Turn the repo into a building Android project: `gradle/libs.versions.toml` with the latest mutually-compatible stable versions (§3.2), `build-logic/` convention plugins, every module's `build.gradle.kts` wired to the dependency rules in `CLAUDE.md`, the Gradle wrapper, `.gitignore`, R8 for release. `:app` gets `MainActivity` with edge-to-edge, the theme, and a 4-tab `NavHost` (Today, Health, Watch, Data) with placeholder screens.
 
 **Exit criteria**
-- [ ] `./gradlew assembleDebug assembleRelease test lint` all pass.
-- [ ] The app installs and shows all four placeholder tabs on the premium gradient background.
-- [ ] Every module boundary in the `CLAUDE.md` table is enforced — an illegal import fails the build, not just a code review.
+- [x] `./gradlew assembleDebug assembleRelease test lint` all pass.
+- [x] The app installs and shows all four placeholder tabs on the premium gradient background.
+- [x] Every module boundary in the `CLAUDE.md` table is enforced — an illegal import fails the build, not just a code review.
 
 ### Phase 1 — Fake watch & app state
 
