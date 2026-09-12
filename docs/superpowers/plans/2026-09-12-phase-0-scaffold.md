@@ -30,7 +30,7 @@
 - Modify: `settings.gradle.kts`
 
 **Interfaces:**
-- Produces: catalog aliases `libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.androidx.navigation.compose`, `libs.kotlinx.serialization.json`, plugin alias `libs.plugins.kotlin.serialization`, and version aliases `libs.versions.android.compileSdk`, `libs.versions.android.minSdk`, `libs.versions.android.targetSdk` — every later task and every convention plugin in Task 2 reads these.
+- Produces: catalog aliases `libs.android.gradlePlugin`, `libs.kotlin.gradlePlugin`, `libs.androidx.navigation.compose`, `libs.kotlinx.serialization.json`, plugin alias `libs.plugins.kotlin.serialization`, and version aliases `libs.versions.androidCompileSdk`, `libs.versions.androidMinSdk`, `libs.versions.androidTargetSdk` (flat camelCase keys — Gradle only nests a catalog accessor when the alias itself contains a `-` or `.` separator, and these don't) — every later task and every convention plugin in Task 2 reads these.
 
 - [ ] **Step 1: Add the new version and library/plugin entries to the catalog**
 
