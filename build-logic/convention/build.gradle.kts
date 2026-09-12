@@ -25,4 +25,5 @@ dependencies {
     implementation(libs.kotlin.gradlePlugin)
     // Kotlin 2.x ships the Compose compiler as a separate plugin artifact from kotlin-gradle-plugin.
     implementation("org.jetbrains.kotlin:compose-compiler-gradle-plugin:${libs.versions.kotlin.get()}")
+    implementation(libs.hilt.android.gradlePlugin)
 }
