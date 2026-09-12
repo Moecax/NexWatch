@@ -629,8 +629,9 @@ git commit -m "build: scaffold the ten stub core modules per the CLAUDE.md depen
 ## Task 4: `:core:designsystem` — theme, tokens and premium background
 
 **Files:**
-- Create: `core/designsystem/build.gradle.kts`
-- Create: `core/designsystem/src/main/AndroidManifest.xml`
+- Modify: `core/designsystem/build.gradle.kts` (Task 3 already created this as a bare `nexwatch.android.library`-only stub, to satisfy `settings.gradle.kts`; add the compose plugin and dependencies here)
+- Modify: `core/designsystem/src/main/AndroidManifest.xml` (already exists from Task 3, empty — leave its contents as-is, no change needed)
+- Delete: `core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/package-info.kt` (Task 3's placeholder doc file — superseded by the real content this task adds)
 - Create: `core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/theme/Color.kt`
 - Create: `core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/theme/WatchColors.kt`
 - Create: `core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/theme/Type.kt`
@@ -643,7 +644,17 @@ git commit -m "build: scaffold the ten stub core modules per the CLAUDE.md depen
 
 - [ ] **Step 1: Module wiring**
 
-`core/designsystem/build.gradle.kts`:
+`core/designsystem/build.gradle.kts` already exists (created by Task 3) with just:
+```kotlin
+plugins {
+    id("nexwatch.android.library")
+}
+
+android {
+    namespace = "com.nexwatch.core.designsystem"
+}
+```
+Modify it to add the compose plugin and dependencies:
 ```kotlin
 plugins {
     id("nexwatch.android.library")
@@ -661,7 +672,9 @@ dependencies {
 }
 ```
 
-`core/designsystem/src/main/AndroidManifest.xml`: same empty-manifest contents as Task 3 Step 2.
+`core/designsystem/src/main/AndroidManifest.xml` already exists (created by Task 3) with the same empty-manifest contents used by every other stub module — leave it unchanged.
+
+Delete the stub doc file Task 3 created, since this task gives the module real content: `git rm core/designsystem/src/main/kotlin/com/nexwatch/core/designsystem/package-info.kt`.
 
 - [ ] **Step 2: Raw color tokens**
 
