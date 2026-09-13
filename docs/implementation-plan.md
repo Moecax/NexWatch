@@ -526,7 +526,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | # | Phase | Branch | Status |
 |---|---|---|---|
 | 0 | Scaffold | `phase-0-scaffold` | Done |
-| 1 | Fake watch & app state | `phase-1-fake-watch` | In progress |
+| 1 | Fake watch & app state | `phase-1-fake-watch` | Done |
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Not started |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
@@ -553,8 +553,8 @@ Turn the repo into a building Android project: `gradle/libs.versions.toml` with 
 Implement `FakeWatchClient` in `:core:watch-fake` against the `WatchClient` contract (§4.2): simulated scanning, bind/login with realistic delay, every `WatchState`, battery level, a sync that emits progress, live heart rate, and a debug control that forces any state on demand. Add the DataStore-backed `WatchIdentityStore` in `:core:data` (§4.4). Bind `WatchClient` to `FakeWatchClient` via Hilt.
 
 **Exit criteria**
-- [ ] Unit tests cover `FakeWatchClient` and `WatchIdentityStore`.
-- [ ] A debug menu can force the app through every `WatchState` without touching real Bluetooth.
+- [x] Unit tests cover `FakeWatchClient` and `WatchIdentityStore`.
+- [x] A debug menu can force the app through every `WatchState` without touching real Bluetooth.
 
 ### Phase 2 — Onboarding design system & UI
 
