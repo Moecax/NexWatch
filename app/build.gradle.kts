@@ -1,6 +1,7 @@
 plugins {
     id("nexwatch.android.application")
     id("nexwatch.android.compose")
+    id("nexwatch.android.hilt")
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -31,6 +32,8 @@ android {
 
 dependencies {
     implementation(project(":core:designsystem"))
+    implementation(project(":core:watch-api"))
+    implementation(project(":core:watch-fake"))
     implementation(platform(libs.androidx.compose.bom))
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.activity.compose)
@@ -41,7 +44,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+    ksp(libs.androidx.hilt.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

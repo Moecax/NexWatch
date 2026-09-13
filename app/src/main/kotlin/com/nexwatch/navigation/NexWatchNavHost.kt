@@ -16,6 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.composable
 import com.nexwatch.ui.PlaceholderScreen
+import com.nexwatch.ui.debug.WatchDebugScreen
 
 @Composable
 fun NexWatchNavHost() {
@@ -57,7 +58,7 @@ fun NexWatchNavHost() {
         ) {
             composable<NexWatchDestination.Today> { PlaceholderScreen(title = "Today") }
             composable<NexWatchDestination.Health> { PlaceholderScreen(title = "Health") }
-            composable<NexWatchDestination.Watch> { PlaceholderScreen(title = "Watch") }
+            composable<NexWatchDestination.Watch> { WatchDebugScreen() }
             composable<NexWatchDestination.Data> { PlaceholderScreen(title = "Data") }
         }
     }
