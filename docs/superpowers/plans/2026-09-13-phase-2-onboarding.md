@@ -148,12 +148,14 @@ class MotionTest {
 
     @Test
     fun `ease-out strong matches the design-prompt cubic-bezier`() {
-        // cubic-bezier(.23, 1, .32, 1) sampled at t=0.5 must land near 1.05
-        // (strong ease-out overshoots past 1 before settling), not the ~0.5
-        // a linear or default Compose easing would give — this is the
-        // regression check that we didn't accidentally wire up FastOutSlowIn.
+        // cubic-bezier(.23, 1, .32, 1) at input fraction 0.5 evaluates to ~0.966
+        // (both control points sit at y=1, so this curve front-loads motion
+        // hard without ever overshooting past 1) — nowhere near the ~0.5 a
+        // linear or default Compose easing would give at the curve's x=0.5,
+        // which is the regression this test catches: we didn't accidentally
+        // wire up FastOutSlowIn or leave the curve unused.
         val eased = WatchMotion.easeOutStrong.transform(0.5f)
-        assertEquals(1.05f, eased, 0.05f)
+        assertEquals(0.966f, eased, 0.01f)
     }
 
     @Test
