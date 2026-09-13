@@ -2,9 +2,12 @@ package com.nexwatch.core.data.identity
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.emptyPreferences
 import com.nexwatch.core.common.CoroutineDispatchers
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -12,22 +15,28 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
 class WatchIdentityStoreTest {
 
-    @get:Rule
-    val tempFolder = TemporaryFolder()
+    // Real DataStore falls back to java.io.File.renameTo() when running on a plain JVM
+    // (no Robolectric to fake Build.VERSION.SDK_INT), and that call never overwrites an
+    // existing destination on Windows — so a real file-backed DataStore can't survive a
+    // second write in this test on this host. WatchIdentityStore only ever talks to the
+    // DataStore<Preferences> interface (data/updateData), so an in-memory fake exercises
+    // its logic just as faithfully, without touching disk at all.
+    private class InMemoryPreferencesDataStore : DataStore<Preferences> {
+        private val state = MutableStateFlow(emptyPreferences())
+        override val data: Flow<Preferences> = state.asStateFlow()
+        override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+            val updated = transform(state.value)
+            state.value = updated
+            return updated
+        }
+    }
 
     private fun newStore(): WatchIdentityStore {
-        // tempFolder.newFile() pre-creates an empty destination file; on Windows,
-        // DataStore's atomic rename-over-existing-file fails in that case, so hand it
-        // a path in the temp dir instead and let DataStore create the file itself.
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { java.io.File(tempFolder.root, "test-${System.nanoTime()}.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = InMemoryPreferencesDataStore()
         val dispatchers = object : CoroutineDispatchers {
             override val io = UnconfinedTestDispatcher()
             override val default = UnconfinedTestDispatcher()
