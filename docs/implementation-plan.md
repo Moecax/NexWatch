@@ -527,7 +527,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 |---|---|---|---|
 | 0 | Scaffold | `phase-0-scaffold` | Done |
 | 1 | Fake watch & app state | `phase-1-fake-watch` | Done |
-| 2 | Onboarding design system & UI | `phase-2-onboarding` | Not started |
+| 2 | Onboarding design system & UI | `phase-2-onboarding` | In progress |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
 | 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
