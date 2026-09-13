@@ -31,9 +31,12 @@ private val SIMULATED_DATA_TYPES = listOf("steps", "heart_rate", "sleep", "spo2"
 
 /**
  * Drives UI development and tests against WatchClient without real Bluetooth (§4.2).
- * Every command routes through [mutex] to mirror the real client's serial-BLE discipline
- * (§4.3) even though nothing here actually contends for a radio — this keeps the two
- * implementations' call-timing behaviour comparable under test.
+ * Every suspend command routes through [mutex] to mirror the real client's serial-BLE
+ * discipline (§4.3) even though nothing here actually contends for a radio — this keeps
+ * the two implementations' call-timing behaviour comparable under test. `syncHealthData()`
+ * also takes [mutex] for its whole duration, per §4.3; `liveHeartRate()` deliberately does
+ * not, since it's a long-lived stream meant to coexist with other commands rather than
+ * block them for as long as it's collected.
  */
 @Singleton
 class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController {
@@ -65,19 +68,21 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     }
 
     override fun syncHealthData(): Flow<SyncProgress> = flow {
-        val ready = _state.value
-        if (ready !is WatchState.Ready) throw WatchNotReadyException(ready)
-        val total = SIMULATED_DATA_TYPES.size
-        SIMULATED_DATA_TYPES.forEachIndexed { index, dataType ->
-            delay(SYNC_ITEM_DELAY_MS)
-            emit(
-                SyncProgress(
-                    batch = RawBatch(dataType = dataType, payloadJson = "{\"type\":\"$dataType\"}"),
-                    itemsSynced = index + 1,
-                    totalItems = total,
-                    completed = index + 1 == total,
-                ),
-            )
+        mutex.withLock {
+            val ready = _state.value
+            if (ready !is WatchState.Ready) throw WatchNotReadyException(ready)
+            val total = SIMULATED_DATA_TYPES.size
+            SIMULATED_DATA_TYPES.forEachIndexed { index, dataType ->
+                delay(SYNC_ITEM_DELAY_MS)
+                emit(
+                    SyncProgress(
+                        batch = RawBatch(dataType = dataType, payloadJson = "{\"type\":\"$dataType\"}"),
+                        itemsSynced = index + 1,
+                        totalItems = total,
+                        completed = index + 1 == total,
+                    ),
+                )
+            }
         }
     }
 
