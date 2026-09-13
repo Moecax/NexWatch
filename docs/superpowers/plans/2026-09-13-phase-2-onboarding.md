@@ -602,7 +602,10 @@ fun NumberStepper(
         }
         AnimatedContent(
             targetState = value,
-            transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
+            transitionSpec = {
+                fadeIn(tween(150, easing = WatchMotion.easeOutStrong)) togetherWith
+                    fadeOut(tween(150, easing = WatchMotion.easeOutStrong))
+            },
             label = "stepperValue",
         ) { animatedValue ->
             Text(
