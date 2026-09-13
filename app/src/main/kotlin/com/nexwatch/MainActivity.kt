@@ -9,7 +9,9 @@ import androidx.activity.enableEdgeToEdge
 import com.nexwatch.core.designsystem.component.PremiumBackground
 import com.nexwatch.core.designsystem.theme.WatchTheme
 import com.nexwatch.navigation.NexWatchNavHost
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
