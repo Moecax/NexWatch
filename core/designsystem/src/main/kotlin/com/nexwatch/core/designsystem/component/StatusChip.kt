@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -32,7 +32,7 @@ fun StatusChip(text: String, tone: StatusTone, modifier: Modifier = Modifier) {
     val icon = when (tone) {
         StatusTone.SUCCESS -> Icons.Filled.CheckCircle
         StatusTone.WARNING -> Icons.Filled.Warning
-        StatusTone.ERROR -> Icons.Filled.Close
+        StatusTone.ERROR -> Icons.Filled.Error
         StatusTone.NEUTRAL -> Icons.Filled.CheckCircle
     }
     Row(

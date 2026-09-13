@@ -16,9 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nexwatch.core.designsystem.theme.Midnight
@@ -54,22 +52,17 @@ fun SegmentedControl(
                 .background(MaterialTheme.colorScheme.primary, WatchShapes.control),
         )
         Row(Modifier.fillMaxWidth()) {
-            repeat(options.size) { index ->
-                val label = options[index]
+            options.forEachIndexed { index, label ->
                 val selected = index == selectedIndex
-                Box(
+                Text(
+                    text = label,
+                    color = if (selected) Midnight else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .fillMaxWidth(1f / options.size)
-                        .clickable { onSelected(index) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = label,
-                        color = if (selected) Midnight else MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                }
+                        .weight(1f)
+                        .clickable { onSelected(index) }
+                        .padding(vertical = 8.dp),
+                )
             }
         }
     }
