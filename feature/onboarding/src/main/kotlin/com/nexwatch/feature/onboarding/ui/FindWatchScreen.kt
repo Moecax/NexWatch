@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nexwatch.core.designsystem.component.EntranceItem
@@ -47,12 +48,14 @@ fun FindWatchScreen(
 ) {
     LaunchedEffect(Unit) { if (!isScanning && devices.isEmpty()) onStartScan() }
 
+    val headline = if (scanTimedOut) "Still looking" else "Finding your watch"
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxSize().padding(24.dp),
     ) {
         EntranceItem(index = 0) {
-            Text("Find your watch", style = MaterialTheme.typography.headlineSmall)
+            Text(headline, style = MaterialTheme.typography.headlineSmall)
         }
         EntranceItem(index = 1, modifier = Modifier.padding(vertical = 32.dp)) {
             RadarScanner(active = isScanning)
@@ -65,17 +68,16 @@ fun FindWatchScreen(
             }
             scanTimedOut -> EntranceItem(index = 2) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Nothing found after 30 s", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "Make sure the watch isn't connected to another app. Keep it within 1 m.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+                    Text("Nothing found in 30 seconds.", style = MaterialTheme.typography.bodyLarge)
                     PrimaryButton(text = "Scan again", onClick = onStartScan, modifier = Modifier.padding(top = 16.dp))
                 }
             }
             else -> EntranceItem(index = 2) {
-                Text("Scanning…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Keep it within 1 m and make sure it isn't already connected to another app.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }
@@ -140,6 +142,16 @@ private fun FindWatchScreenResultPreview() {
                 onStartScan = {},
                 onDeviceSelected = {},
             )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Scanning")
+@Composable
+private fun FindWatchScreenScanningPreview() {
+    WatchTheme {
+        PremiumBackground {
+            FindWatchScreen(isScanning = true, scanTimedOut = false, devices = emptyList(), onStartScan = {}, onDeviceSelected = {})
         }
     }
 }

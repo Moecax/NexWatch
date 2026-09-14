@@ -34,16 +34,16 @@ fun ProfileScreen(
         }
         EntranceItem(index = 1) {
             Text(
-                "The watch uses this for calorie and distance calculations.",
+                "Used only for calorie and distance calculations on the watch.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
             )
         }
         EntranceItem(index = 2) {
             SegmentedControl(
-                options = listOf("Male", "Female"),
-                selectedIndex = if (profile.sex == UserProfile.Sex.MALE) 0 else 1,
-                onSelected = { onSexChanged(if (it == 0) UserProfile.Sex.MALE else UserProfile.Sex.FEMALE) },
+                options = listOf("Female", "Male"),
+                selectedIndex = if (profile.sex == UserProfile.Sex.FEMALE) 0 else 1,
+                onSelected = { onSexChanged(if (it == 0) UserProfile.Sex.FEMALE else UserProfile.Sex.MALE) },
             )
         }
         EntranceItem(index = 3) {

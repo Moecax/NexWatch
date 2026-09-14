@@ -13,6 +13,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nexwatch.core.designsystem.component.EntranceItem
@@ -37,9 +41,16 @@ fun PairConfirmScreen(
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         EntranceItem(index = 0) {
-            Text("Pair ${device.displayName}?", style = MaterialTheme.typography.headlineSmall)
+            Text("Pair with ${device.displayName}?", style = MaterialTheme.typography.headlineSmall)
         }
-        EntranceItem(index = 1, modifier = Modifier.padding(top = 20.dp)) {
+        EntranceItem(index = 1) {
+            Text(
+                "This sets up the watch for this phone.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+        EntranceItem(index = 2, modifier = Modifier.padding(top = 20.dp)) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -47,8 +58,12 @@ fun PairConfirmScreen(
                     .padding(16.dp),
             ) {
                 Text(
-                    "Pairing as a new user clears the data currently stored on the watch. " +
-                        "This can't be undone.",
+                    buildAnnotatedString {
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                            append("Pairing as a new user clears the data currently stored on the watch.")
+                        }
+                        append(" Anything already on NexWatch stays right where it is.")
+                    },
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
                 Row(
@@ -60,7 +75,7 @@ fun PairConfirmScreen(
                 }
             }
         }
-        EntranceItem(index = 2, modifier = Modifier.padding(top = 24.dp)) {
+        EntranceItem(index = 3, modifier = Modifier.padding(top = 24.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SecondaryButton(text = "Cancel", onClick = onCancel, modifier = Modifier.weight(1f))
                 PrimaryButton(text = "Pair watch", onClick = onPair, enabled = understood, modifier = Modifier.weight(1f))

@@ -3,11 +3,17 @@ package com.nexwatch.feature.onboarding.ui
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,8 +21,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,6 +34,10 @@ import com.nexwatch.core.designsystem.component.PremiumBackground
 import com.nexwatch.core.designsystem.component.PrimaryButton
 import com.nexwatch.core.designsystem.component.StatusChip
 import com.nexwatch.core.designsystem.component.StatusTone
+import com.nexwatch.core.designsystem.theme.ElectricBlue
+import com.nexwatch.core.designsystem.theme.SkyBlue
+import com.nexwatch.core.designsystem.theme.WatchMotion
+import com.nexwatch.core.designsystem.theme.WatchShapes
 import com.nexwatch.core.designsystem.theme.WatchTheme
 import com.nexwatch.feature.onboarding.PermissionItem
 import com.nexwatch.feature.onboarding.PermissionStatus
@@ -54,14 +67,43 @@ fun PermissionsScreen(
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         EntranceItem(index = 0) {
-            Text("Permissions", style = MaterialTheme.typography.headlineSmall)
+            Text("Let's get you connected", style = MaterialTheme.typography.headlineSmall)
         }
         EntranceItem(index = 1) {
             Text(
+                "NexWatch needs a few permissions to talk to your watch.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+            )
+        }
+        EntranceItem(index = 2) {
+            Text(
                 "$grantedCount of ${permissions.size} granted",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                modifier = Modifier.padding(bottom = 8.dp),
             )
+        }
+        EntranceItem(index = 3, modifier = Modifier.padding(bottom = 16.dp)) {
+            val fraction by animateFloatAsState(
+                targetValue = if (permissions.isEmpty()) 0f else grantedCount.toFloat() / permissions.size,
+                animationSpec = tween(durationMillis = 480, easing = WatchMotion.easeOutStrong),
+                label = "permissionProgress",
+            )
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(WatchShapes.pill)
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                        .clip(WatchShapes.pill)
+                        .background(Brush.horizontalGradient(listOf(ElectricBlue, SkyBlue))),
+                )
+            }
         }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.weight(1f)) {
             items(PermissionItem.entries.toList()) { item ->
@@ -91,7 +133,7 @@ fun PermissionsScreen(
                 )
             }
         }
-        EntranceItem(index = PermissionItem.entries.size + 1, modifier = Modifier.padding(top = 16.dp)) {
+        EntranceItem(index = PermissionItem.entries.size + 2, modifier = Modifier.padding(top = 16.dp)) {
             PrimaryButton(text = "Continue", onClick = onContinue)
         }
     }

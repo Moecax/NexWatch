@@ -33,20 +33,29 @@ fun WelcomeScreen(onGetStarted: () -> Unit) {
         EntranceItem(index = 1) {
             Text(
                 text = "NexWatch",
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 12.dp),
             )
         }
         EntranceItem(index = 2) {
             Text(
-                text = "Your watch. Your data. On your phone.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 15.sp,
+                text = "Your watch.\nYour data. On your phone.",
+                style = MaterialTheme.typography.headlineMedium,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp, bottom = 40.dp),
+                modifier = Modifier.padding(bottom = 12.dp),
             )
         }
         EntranceItem(index = 3) {
+            Text(
+                text = "Everything NexWatch reads stays on this device — export it, or share it, on your terms.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 15.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 40.dp),
+            )
+        }
+        EntranceItem(index = 4) {
             PrimaryButton(text = "Get started", onClick = onGetStarted)
         }
     }
