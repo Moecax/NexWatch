@@ -28,5 +28,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.androidx.datastore.preferences)
+    testImplementation(project(":core:watch-fake"))
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
