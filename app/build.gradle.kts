@@ -34,6 +34,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:watch-api"))
     implementation(project(":core:watch-fake"))
+    implementation(project(":core:data"))
+    implementation(project(":feature:onboarding"))
     implementation(platform(libs.androidx.compose.bom))
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.activity.compose)

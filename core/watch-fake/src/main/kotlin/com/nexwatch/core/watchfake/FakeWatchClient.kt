@@ -12,6 +12,10 @@ import com.nexwatch.core.watchapi.WatchNotReadyException
 import com.nexwatch.core.watchapi.WatchSettingChange
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.WeatherForecast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.random.Random
@@ -47,6 +52,17 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     private val _events = MutableSharedFlow<WatchEvent>(extraBufferCapacity = 8)
     private var fakeBattery = 82
 
+    /**
+     * Real BLE hardware finishes the connection handshake, then reads device capabilities
+     * as a distinct later step — capabilities genuinely aren't known yet the instant
+     * connect() succeeds. This scope carries that same asynchrony so callers awaiting
+     * `capabilities.filterNotNull().first()` hit a real suspension point instead of a
+     * value that was already set before bind()/login() returned. Lives for the process,
+     * matching this class's own @Singleton lifetime.
+     */
+    private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var capabilitiesJob: Job? = null
+
     override val state: StateFlow<WatchState> = _state.asStateFlow()
     override val capabilities: StateFlow<WatchCapabilities?> = _capabilities.asStateFlow()
     override val events: SharedFlow<WatchEvent> = _events.asSharedFlow()
@@ -55,14 +71,21 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
 
     override suspend fun login(address: String, profile: UserProfile) = connect(profile)
 
-    private suspend fun connect(profile: UserProfile) = mutex.withLock {
-        _state.value = WatchState.Connecting
-        delay(CONNECT_DELAY_MS)
-        _capabilities.value = sampleCapabilities()
-        _state.value = WatchState.Ready(battery = fakeBattery)
+    private suspend fun connect(profile: UserProfile) {
+        mutex.withLock {
+            _state.value = WatchState.Connecting
+            delay(CONNECT_DELAY_MS)
+            _state.value = WatchState.Ready(battery = fakeBattery)
+        }
+        capabilitiesJob?.cancel()
+        capabilitiesJob = backgroundScope.launch {
+            delay(CAPABILITIES_DELAY_MS)
+            _capabilities.value = sampleCapabilities()
+        }
     }
 
     override suspend fun unbind(keepWatchData: Boolean) = mutex.withLock {
+        capabilitiesJob?.cancel()
         _capabilities.value = null
         _state.value = WatchState.Unbound
     }
@@ -123,7 +146,10 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
 
     override fun forceState(state: WatchState) {
         _state.value = state
-        if (state !is WatchState.Ready) _capabilities.value = null
+        if (state !is WatchState.Ready) {
+            capabilitiesJob?.cancel()
+            _capabilities.value = null
+        }
     }
 
     override fun forceBattery(percent: Int) {
@@ -153,6 +179,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
 
     private companion object {
         const val CONNECT_DELAY_MS = 50L
+        const val CAPABILITIES_DELAY_MS = 30L
         const val SYNC_ITEM_DELAY_MS = 20L
         const val COMMAND_DELAY_MS = 10L
         const val HEART_RATE_INTERVAL_MS = 1000L

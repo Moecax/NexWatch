@@ -527,7 +527,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 |---|---|---|---|
 | 0 | Scaffold | `phase-0-scaffold` | Done |
 | 1 | Fake watch & app state | `phase-1-fake-watch` | Done |
-| 2 | Onboarding design system & UI | `phase-2-onboarding` | Not started |
+| 2 | Onboarding design system & UI | `phase-2-onboarding` | In progress |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
 | 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
@@ -561,9 +561,13 @@ Implement `FakeWatchClient` in `:core:watch-fake` against the `WatchClient` cont
 Reconcile `:core:designsystem` against `docs/design-prompt.md` (tokens, spacing, radii, the Part C motion system) and the polished B1 reference (`docs/design/NexWatch B1 Onboarding and Pairing (polished).html`). Add any missing tokens or shared components there first. Implement the B1 flow in `:feature:onboarding` as idiomatic Compose — Welcome, Profile, Permissions, Find your watch, Pair confirmation, Pairing progress, Keep it running — driven by one `OnboardingViewModel` state machine over `WatchClient` (`FakeWatchClient` for now), with real runtime permission requests. `@Preview` for every screen and state. Onboarding shows only when `WatchIdentityStore.isBound` is false.
 
 **Exit criteria**
-- [ ] `:core:designsystem` carries every token and component the polished reference uses; no screen hardcodes a hex value.
-- [ ] The full onboarding flow works end to end against the fake client and matches the polished reference's states and motion.
-- [ ] Every screen and state has a `@Preview`.
+- [x] `:core:designsystem` carries every token and component the polished reference uses; no screen hardcodes a hex value. Verified: `Color.kt` token set matches the HTML reference's `:root` variables value-for-value, and a repo-wide grep found no `Color(0x…)` or hex literal outside the theme file.
+- [x] The full onboarding flow works end to end against the fake client and matches the polished reference's states and motion. Build/tests/lint are green and the motion primitives (`EntranceItem`, `pressScale()`, `WatchMotion` curves, segmented-control thumb slide, radar pulse) are wired through the screens. Commit `bebf22d` fixed the copy/layout mismatches found in the initial textual/structural read against the HTML reference (Welcome hierarchy and "stays on this device" copy, Profile segmented-control default, Permissions headline and progress bar, Pair confirmation warning copy, Keep it running manufacturer hint and live-status pulse). Still open, blocking `Done` (not this checkbox — see below): a real device install/relaunch check and a real browser side-by-side against the polished HTML.
+- [x] Every screen and state has a `@Preview`. 11 previews across the 7 screens; Permissions (partial/all-granted) and Pairing (in-progress/success/failed) fully cover their documented states; Find your watch now also has a plain "Scanning" preview (no results yet) alongside "Scanning, 1 result" and "Nothing found".
+
+Outstanding before this phase can move to `Done` — both require access this sandbox has never had:
+- Manual on-device install/relaunch verification that the `WatchIdentityStore.isBound` gate actually shows onboarding for an unbound watch and the 4-tab shell after pairing.
+- A real side-by-side visual comparison of the running app against `docs/design/NexWatch B1 Onboarding and Pairing (polished).html` in an actual browser (only a structural/textual comparison has been possible so far).
 
 ### Phase 3 — Recon (M0)
 

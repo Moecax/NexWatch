@@ -38,18 +38,20 @@ class WatchIdentityStore @Inject constructor(
         generated
     }
 
-    suspend fun markBound(address: String) = withContext(dispatchers.io) {
+    suspend fun markBound(address: String): Unit = withContext(dispatchers.io) {
         dataStore.edit { prefs ->
             prefs[BOUND_ADDRESS_KEY] = address
             prefs[IS_BOUND_KEY] = true
         }
+        Unit
     }
 
-    suspend fun markUnbound(keepAddress: Boolean) = withContext(dispatchers.io) {
+    suspend fun markUnbound(keepAddress: Boolean): Unit = withContext(dispatchers.io) {
         dataStore.edit { prefs ->
             prefs[IS_BOUND_KEY] = false
             if (!keepAddress) prefs.remove(BOUND_ADDRESS_KEY)
         }
+        Unit
     }
 
     private companion object {
