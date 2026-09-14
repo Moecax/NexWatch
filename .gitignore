@@ -18,3 +18,7 @@ local.properties
 
 # Subagent-driven-development scratch workspace (ledgers, briefs, review packages)
 .superpowers/
+
+# JVM crash dumps from OOM'd Gradle daemons
+hs_err_pid*.log
+replay_pid*.log
