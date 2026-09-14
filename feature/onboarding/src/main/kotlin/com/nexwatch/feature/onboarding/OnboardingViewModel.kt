@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexwatch.core.data.identity.WatchIdentityStore
 import com.nexwatch.core.watchapi.WatchClient
-import com.nexwatch.core.watchapi.WatchNotReadyException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -74,6 +73,9 @@ class OnboardingViewModel @Inject constructor(
      * fixed device list so the Find-your-watch screen has something to select from.
      */
     private fun startScan() {
+        // TODO(phase-5): scanTimedOut is currently unreachable — this simulated scan always
+        // "succeeds", so FindWatchScreen's timeout branch has no driver yet. Wire it once real
+        // Companion Device Manager discovery replaces this fixed device list.
         _uiState.update { it.copy(isScanning = true, scanTimedOut = false, discoveredDevices = emptyList()) }
         viewModelScope.launch {
             delay(SCAN_RESULT_DELAY_MS)
@@ -115,8 +117,13 @@ class OnboardingViewModel @Inject constructor(
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: WatchNotReadyException) {
-            _uiState.update { it.copy(step = OnboardingStep.Pairing(PairingPhase.FAILED), pairingError = e.message) }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(
+                    step = OnboardingStep.Pairing(PairingPhase.FAILED),
+                    pairingError = e.message ?: "Pairing failed",
+                )
+            }
         }
     }
 

@@ -6,12 +6,26 @@ import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.data.identity.WatchIdentityStore
+import com.nexwatch.core.watchapi.OutgoingNotification
+import com.nexwatch.core.watchapi.SendResult
+import com.nexwatch.core.watchapi.SyncProgress
 import com.nexwatch.core.watchapi.UserProfile
+import com.nexwatch.core.watchapi.WatchCapabilities
+import com.nexwatch.core.watchapi.WatchClient
+import com.nexwatch.core.watchapi.WatchEvent
+import com.nexwatch.core.watchapi.WatchSettingChange
+import com.nexwatch.core.watchapi.WatchState
+import com.nexwatch.core.watchapi.WeatherForecast
 import com.nexwatch.core.watchfake.FakeWatchClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -38,6 +52,33 @@ private class InMemoryPreferencesDataStore : DataStore<Preferences> {
 private object UnconfinedDispatchers : CoroutineDispatchers {
     override val io = Dispatchers.Unconfined
     override val default = Dispatchers.Unconfined
+}
+
+/**
+ * Exercises OnboardingViewModel's non-WatchNotReadyException catch branch (finding #2/#3 of
+ * the Phase 2 final-review fix round): FakeWatchClient's connect() never throws, so nothing
+ * else in this test file can drive PairingPhase.FAILED. bind() throwing a plain exception here
+ * simulates any other unexpected failure from the SDK layer.
+ */
+private class FailingWatchClient : WatchClient {
+    override val state: StateFlow<WatchState> = MutableStateFlow<WatchState>(WatchState.Unbound).asStateFlow()
+    override val capabilities: StateFlow<WatchCapabilities?> = MutableStateFlow<WatchCapabilities?>(null).asStateFlow()
+    override val events: SharedFlow<WatchEvent> = MutableSharedFlow()
+
+    override suspend fun bind(address: String, profile: UserProfile): Unit =
+        throw IllegalStateException("simulated failure")
+
+    override suspend fun login(address: String, profile: UserProfile): Unit =
+        throw IllegalStateException("simulated failure")
+
+    override suspend fun unbind(keepWatchData: Boolean) = Unit
+    override fun syncHealthData(): Flow<SyncProgress> = emptyFlow()
+    override fun liveHeartRate(): Flow<Int> = emptyFlow()
+    override suspend fun batteryLevel(): Int = 0
+    override suspend fun findWatch() = Unit
+    override suspend fun sendNotification(n: OutgoingNotification): SendResult = SendResult.Dropped("unused")
+    override suspend fun applySettings(change: WatchSettingChange) = Unit
+    override suspend fun pushWeather(forecast: WeatherForecast) = Unit
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -175,5 +216,29 @@ class OnboardingViewModelTest {
         viewModel.onEvent(OnboardingEvent.PairingContinue)
         assertEquals(OnboardingStep.KeepRunning, viewModel.uiState.value.step)
         assertTrue(client.state.value is com.nexwatch.core.watchapi.WatchState.Ready)
+    }
+
+    @Test
+    fun `a bind failure other than WatchNotReadyException lands on FAILED with an error message`() = runTest(mainDispatcher) {
+        val viewModel = OnboardingViewModel(FailingWatchClient(), WatchIdentityStore(InMemoryPreferencesDataStore(), UnconfinedDispatchers))
+        viewModel.onEvent(OnboardingEvent.GetStarted)
+        viewModel.onEvent(OnboardingEvent.ProfileContinue)
+        viewModel.onEvent(OnboardingEvent.PermissionsContinue)
+        viewModel.onEvent(OnboardingEvent.StartScan)
+        advanceUntilIdle() // resolve the simulated scan delay on the shared test scheduler
+        val device = viewModel.uiState.value.discoveredDevices.first()
+        viewModel.onEvent(OnboardingEvent.DeviceSelected(device))
+        viewModel.onEvent(OnboardingEvent.BindUnderstoodToggled)
+
+        viewModel.onEvent(OnboardingEvent.ConfirmPair)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(OnboardingStep.Pairing(PairingPhase.FAILED), state.step)
+        assertTrue(state.pairingError != null)
+
+        viewModel.onEvent(OnboardingEvent.RetryPairing)
+        advanceUntilIdle()
+        assertEquals(OnboardingStep.Pairing(PairingPhase.FAILED), viewModel.uiState.value.step)
     }
 }

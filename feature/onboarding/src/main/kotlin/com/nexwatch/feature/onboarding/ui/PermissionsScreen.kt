@@ -21,14 +21,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.nexwatch.core.designsystem.component.EntranceItem
 import com.nexwatch.core.designsystem.component.PremiumBackground
 import com.nexwatch.core.designsystem.component.PrimaryButton
@@ -64,6 +69,24 @@ fun PermissionsScreen(
 ) {
     val context = LocalContext.current
     val grantedCount = permissions.values.count { it != PermissionStatus.NOT_GRANTED }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentPermissions by rememberUpdatedState(permissions)
+    val currentOnPermissionResult by rememberUpdatedState(onPermissionResult)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME &&
+                currentPermissions[PermissionItem.NOTIFICATION_ACCESS] != PermissionStatus.GRANTED
+            ) {
+                currentOnPermissionResult(
+                    PermissionItem.NOTIFICATION_ACCESS,
+                    PermissionRuntime.isNotificationListenerEnabled(context),
+                )
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         EntranceItem(index = 0) {
