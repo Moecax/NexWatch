@@ -99,7 +99,6 @@ class OnboardingViewModel @Inject constructor(
             delay(PHASE_STEP_DELAY_MS)
 
             _uiState.update { it.copy(step = OnboardingStep.Pairing(PairingPhase.READING_FEATURES)) }
-            delay(PHASE_STEP_DELAY_MS)
             watchClient.capabilities.filterNotNull().first()
 
             _uiState.update { it.copy(step = OnboardingStep.Pairing(PairingPhase.FIRST_SYNC)) }
