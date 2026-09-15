@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.topstep.wearkit</groupId>
+  <artifactId>sdk-base</artifactId>
+  <version>3.0.2.4</version>
+  <packaging>aar</packaging>
+  <!--
+    Deliberately no <dependencies>. The vendor's published POM pulls in
+    RxJava3, RxAndroidBLE, OkHttp, Timber etc. transitively; :core:watch-fitcloud
+    declares those explicitly through the version catalog instead, so this
+    vendoring step doesn't have to guess versions or exclude rules. See
+    third_party/maven/README.md.
+  -->
+</project>

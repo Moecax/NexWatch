@@ -528,7 +528,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 0 | Scaffold | `phase-0-scaffold` | Done |
 | 1 | Fake watch & app state | `phase-1-fake-watch` | Done |
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Done |
-| 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
+| 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | In progress |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
 | 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
 | 6 | Data core (M3) | `phase-6-data-core` | Not started |
@@ -576,8 +576,10 @@ That on-device pass caught a real bug the structural/textual comparison had miss
 Needs the physical watch; not something Claude Code can do unattended. Vendor the SDK per `third_party/maven/README.md`. Run the SDK's sample app and record in `docs/recon.md`: the watch's supported features, a raw payload sample for every data type, and answers to every question in §14. Record a 24-hour FitCloudPro battery and memory baseline.
 
 **Exit criteria**
-- [ ] `docs/recon.md` has the capability list, fixture payloads for every data type, the baseline numbers, and every §14 question answered.
-- [ ] The vendored SDK is in `third_party/maven/` with dependency verification passing.
+- [ ] `docs/recon.md` has the capability list, fixture payloads for every data type, the baseline numbers, and every §14 question answered. Template is in place; needs real data captured against the watch.
+- [x] The vendored SDK is in `third_party/maven/` with dependency verification passing. `sdk-base-3.0.2.4.aar` and `sdk-fitcloud-3.0.2.4.aar` taken from the SDK's official GitHub mirror's `libs/` folder (HTTPS, not the vendor's insecure Maven server — see `third_party/maven/README.md` for provenance and checksums). `settings.gradle.kts` adds the repo-local Maven directory scoped to `com.topstep.wearkit` only; `:core:watch-fitcloud` depends on both coordinates (plumbing only — `FitCloudWatchClient` itself is Phase 4). `gradle/verification-metadata.xml` generated via `--write-verification-metadata sha256`; `./gradlew assembleDebug assembleRelease test lint` all green with verification enforced.
+
+Still open, blocking `Done`: `docs/recon.md` needs the capability list, fixture payloads, §14 answers and the 24h FitCloudPro baseline — all of which require the sample app running against the real watch. See `docs/recon.md` §0 for how to get the vendor's sample app running (attempting to build it in this sandbox hit a flaky KSP plugin resolution against the vendor's mirrors; Android Studio on your own machine is the more reliable path).
 
 ### Phase 4 — FitCloudWatchClient (M1)
 

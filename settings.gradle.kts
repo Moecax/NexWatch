@@ -20,6 +20,15 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Vendored FitCloudPro SDK (third_party/maven/README.md). Never add the
+        // vendor's own HTTP Maven repo or allowInsecureProtocol here — see
+        // docs/implementation-plan.md §10.1.
+        maven {
+            url = uri("third_party/maven")
+            content {
+                includeGroup("com.topstep.wearkit")
+            }
+        }
     }
 }
 
