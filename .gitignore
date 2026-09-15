@@ -22,3 +22,7 @@ local.properties
 # JVM crash dumps from OOM'd Gradle daemons
 hs_err_pid*.log
 replay_pid*.log
+
+# Throwaway Phase 3 recon tool (docs/recon.md §0) — never committed; also
+# needs its own line in settings.gradle.kts to actually build.
+/recon-harness/

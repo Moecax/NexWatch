@@ -4,45 +4,75 @@ Status: **in progress**. This file is filled in by hand, on your machine,
 against the real watch — see `docs/implementation-plan.md` §12 Phase 3 for
 why Claude Code can't do this part unattended.
 
-## 0. Get the vendor's sample app running
+## 0. Get something talking to the watch
 
 The SDK repo is https://github.com/htangsmart/FitCloudPro-SDK-Android
 (the two AARs already vendored into `third_party/maven/` for NexWatch itself
 came from this repo's `libs/` folder — see `third_party/maven/README.md`).
+
+**What actually worked**: the vendor's own `sample/` app failed to build in
+the sandbox (a flaky KSP plugin resolution against their mirrors — not a
+real network problem, just not worth fighting). Instead, a throwaway
+`recon-harness/` module was added locally (not committed — added to
+`settings.gradle.kts` only when in use) that calls the vendored SDK
+directly: Scan / Connect (BIND) / Connect (LOGIN) / Sync buttons, logging
+everything to a scrollable TextView and logcat tag `RECON`. It already
+confirmed a real connection and pulled the capability list below.
+
+To keep using it: re-add `include(":recon-harness")` to
+`settings.gradle.kts`, `./gradlew :recon-harness:assembleDebug`, install,
+launch. **Use "Connect (LOGIN)" once the watch has already been bound** —
+BIND wipes the watch's accumulated data, which is the opposite of what you
+want once steps/heart-rate/sleep have built up. Delete the module and
+revert the `settings.gradle.kts` line once `docs/recon.md` is complete.
+
+If you'd rather have the full vendor UI (device-info screens, settings
+pages, etc.), the fallback is still:
 
 1. Clone it somewhere outside this repo: `git clone https://github.com/htangsmart/FitCloudPro-SDK-Android.git`
 2. Open `sample/` (not the repo root) in Android Studio as its own project.
    It has its own `gradlew`/`settings.gradle.kts` and pulls from the vendor's
    own mirrors (aliyun, jitpack, their own Maven server) — that's fine, it's
    *their* build, not NexWatch's, and none of that touches this repo.
-3. Build and install `:app` on your phone. If a plugin/dependency fails to
-   resolve, it's almost always a flaky mirror — retry, or add
-   `google()`/`mavenCentral()` ahead of the vendor mirrors in
-   `sample/settings.gradle.kts` locally (don't commit that; it's a throwaway
-   clone).
+3. Build and install `:app` on your phone. Android Studio's toolchain is
+   more likely to resolve their mirrors cleanly than the sandbox was.
 4. Uninstall or force-stop FitCloudPro first (§13 risk: it competes for the
    watch and causes `FcAuthException` flapping).
 5. Pair the sample app with the GTR 3 Pro.
 
 ## 1. Capability list
 
-Read `FcDeviceInfo` after connecting (the sample app's device-info screen
-shows this). Fill in what `isSupport(Feature.X)` reports:
+Captured via `recon-harness` against a real GTR 3 Pro (address
+`C1:A1:B2:29:7A:0D`), BIND-connected 2026-09-15. Raw `FcDeviceInfo` bytes:
+`00000000492600480BD7000027F300005550511500000000000001052310241120527040BBCF`.
+
+The harness only checked ~20 of the SDK's ~160 `FcDeviceInfo.Feature`
+constants (the ones this table and §14 care about) — "Not supported" below
+means "not in that checked subset," not "confirmed absent from all ~160."
+Re-run with more constants in `MainActivity.FEATURE_NAMES` if something
+else needs confirming later.
 
 | Feature | Supported? | Notes |
 |---|---|---|
-| Heart rate | | |
-| SpO2 | | |
-| Blood pressure | | |
-| Temperature | | |
-| Stress | | |
-| Sport / workout | | |
-| GPS | | |
-| Advanced reminders | | |
-| Weather push | | |
-| Contacts (max count) | | |
-| Firmware version | | |
-| Other capabilities worth noting | | |
+| Heart rate | Yes | `Feature.HEART_RATE` |
+| SpO2 | Yes | `Feature.OXYGEN` |
+| Blood pressure | Yes | `Feature.BLOOD_PRESSURE` |
+| Temperature | **No** | `Feature.TEMPERATURE` not reported |
+| Stress | **No** | `Feature.PRESSURE` not reported (this SDK's "pressure" = stress, not blood pressure) |
+| Sport / workout | Yes | `Feature.SPORT` |
+| GPS | **No** | Neither `Feature.GPS` nor `Feature.GNSS_GPS` reported — workouts have no route |
+| ECG | **No** | Neither `Feature.ECG` nor `Feature.TI_ECG` reported |
+| HRV | **No** | `Feature.HRV` not reported |
+| Sleep | Yes | `Feature.SLEEP`; `Feature.SLEEP_REM` **not** reported — no REM stage, and `Feature.SLEEP_SCORE`/`CONTACTS_100` weren't checked (SDK-internal, see harness comment) |
+| Advanced reminders | Not checked | not in the harness's checked subset yet |
+| Weather push | Yes | `Feature.WEATHER` |
+| Contacts | Yes | `Feature.CONTACTS`; max count not checked (`CONTACTS_100` is SDK-internal, inaccessible from outside the SDK's own module) |
+| DND | Yes | `Feature.DND` |
+| Find phone | Yes | `Feature.FIND_DEVICE` |
+| Extra step data | Yes | `Feature.STEP_EXTRA` |
+| Precise battery level | Not checked | in `FEATURE_NAMES` but result not recorded yet — re-run |
+| Firmware version | Not read yet | `FcDeviceInfo.app`/`.project`/`.flash`/`.patch` are public at the JVM level but Kotlin-`internal` to the SDK's own module, so the external harness can't call them directly. `FcExtraFirmwareInfo` (`configFeature().getExtraFirmwareInfo()`) is the accessible path — not wired into the harness yet. |
+| Other capabilities worth noting | — | This watch has no GPS, ECG, HRV, temperature or stress sensors — schema-wise, those canonical tables (§5.3 `blood_pressure` is supported but `temperature`/`stress` tables and `workout_route`/GPS won't get real data from this unit) |
 
 ## 2. Fixture payloads
 
@@ -52,18 +82,21 @@ the sync call is usually enough) and save it under
 `docs/recon/fixtures/<type>.json` (scrub anything personally identifying
 first — real phone numbers, contact names, precise GPS traces).
 
-- [ ] `FcStepData` (steps bucket)
-- [ ] `FcTodayTotalData`
-- [ ] Heart rate sample
-- [ ] SpO2 sample (if supported)
-- [ ] Blood pressure sample (if supported)
-- [ ] Temperature sample (if supported)
-- [ ] Stress sample (if supported)
-- [ ] Sleep night (`FcSleepItem` / sleep summary) — ideally two payloads for
-      the *same* night, to confirm the "delivered more than once" behavior
-      §2 describes
-- [ ] `FcSportData` (one workout)
-- [ ] `FcGpsData` for that same workout, linked by `sportId`
+- [x] `FcTodayTotalData` — captured, but all-zero (watch was just BIND-wiped
+      seconds earlier). Re-run **Connect (LOGIN)** + **Sync** in
+      `recon-harness` after wearing the watch a few hours for a real value,
+      and paste it into `docs/recon/fixtures/today_total.txt`.
+- [ ] `FcStepData` (steps bucket) — needs elapsed wear time
+- [ ] Heart rate sample — needs elapsed wear time
+- [ ] SpO2 sample — needs elapsed wear time
+- [ ] Blood pressure sample — needs elapsed wear time (device supports it, §1)
+- [x] Temperature sample — **N/A**, not supported on this unit (§1)
+- [x] Stress sample — **N/A**, not supported on this unit (§1)
+- [ ] Sleep night (`FcSleepItem` / sleep summary) — needs an actual night of
+      sleep with the watch on; ideally two payloads for the *same* night, to
+      confirm the "delivered more than once" behavior §2 describes
+- [ ] `FcSportData` (one workout) — needs a recorded workout
+- [x] `FcGpsData` — **N/A**, no GPS on this unit (§1)
 
 ## 3. §14 open questions
 
@@ -80,7 +113,12 @@ Answer each against the real watch:
 3. **Does the GTR 3 Pro report temperature, stress, blood pressure, GPS or
    ECG through `FcDeviceInfo`?** (duplicates the capability table above —
    record here too since this is the §14 answer that gates the schema)
-   - Answer:
+   - Answer: Blood pressure yes; temperature, stress (`PRESSURE`), GPS
+     (`GPS`/`GNSS_GPS`) and ECG (`ECG`/`TI_ECG`) all no, per §1. This means
+     `docs/implementation-plan.md` §5.3's `temperature`, `stress`,
+     `workout_route` tables will stay empty for this unit — worth confirming
+     in Phase 6 whether to still build the ingestion path for them (future
+     watch model) or skip until needed.
 4. **Which Realtek DFU extension matches the 8763E chip, and does the
    sample app's firmware update work on it?**
    - Answer:
