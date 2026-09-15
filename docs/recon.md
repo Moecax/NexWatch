@@ -82,14 +82,22 @@ the sync call is usually enough) and save it under
 `docs/recon/fixtures/<type>.json` (scrub anything personally identifying
 first — real phone numbers, contact names, precise GPS traces).
 
-- [x] `FcTodayTotalData` — captured, but all-zero (watch was just BIND-wiped
-      seconds earlier). Re-run **Connect (LOGIN)** + **Sync** in
-      `recon-harness` after wearing the watch a few hours for a real value,
-      and paste it into `docs/recon/fixtures/today_total.txt`.
-- [ ] `FcStepData` (steps bucket) — needs elapsed wear time
-- [ ] Heart rate sample — needs elapsed wear time
-- [ ] SpO2 sample — needs elapsed wear time
-- [ ] Blood pressure sample — needs elapsed wear time (device supports it, §1)
+- [x] `FcTodayTotalData` — captured 2026-09-15 16:06 with a real non-zero
+      value (step=14, distance=9m, calorie=393) via **Connect (LOGIN)** +
+      **Sync**. See `docs/recon/fixtures/today_total.txt` — flags a possible
+      units mismatch against the STEP bucket's distance/calorie fields that
+      needs confirming with a larger sample.
+- [x] `FcStepData` (steps bucket) — captured, one bucket
+      (`docs/recon/fixtures/step_bucket.txt`). Only one bucket synced so far
+      since the watch had just started accumulating steps after the earlier
+      BIND wipe; re-sync later for a multi-bucket sample if the ingestion
+      logic needs to see bucket boundaries.
+- [ ] Heart rate sample — synced empty this round (no measurements
+      accumulated yet); needs more wear time for the watch's HR
+      auto-measurement interval to produce a reading
+- [ ] SpO2 sample — synced empty this round, same reason as heart rate
+- [ ] Blood pressure sample — synced empty this round, same reason (device
+      supports it, §1)
 - [x] Temperature sample — **N/A**, not supported on this unit (§1)
 - [x] Stress sample — **N/A**, not supported on this unit (§1)
 - [ ] Sleep night (`FcSleepItem` / sleep summary) — needs an actual night of

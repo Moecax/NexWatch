@@ -1,0 +1,19 @@
+Captured 2026-09-15 16:06 via recon-harness, Connect (LOGIN) + Sync.
+
+--- sync item type=1 (STEP) ---
+t=1789472400000 step=14 distance=0.00915 calories=0.393 sportDuration=0
+
+Notes:
+- Only one STEP bucket synced — watch had just started accumulating steps
+  since the LOGIN reconnect (BIND wipe was earlier the same day).
+- t=1789472400000 ms epoch = 2026-09-14 21:00:00 UTC (see §3 Q1 — still need
+  to confirm whether this is true UTC or watch-local time encoded as epoch;
+  worth cross-checking against phone's local wall clock at capture time).
+- distance is in km here (0.00915 km = 9.15m for 14 steps), unlike
+  TODAY_TOTAL_DATA's distance field which reads in whole meters (9). Units
+  differ per struct — confirm before ingestion (§5.3 canonical unit is
+  meters).
+- calories field reads in kcal fractional (0.393), matches
+  TODAY_TOTAL_DATA's calorie=393 if that one is in cal (not kcal) — i.e.
+  possible units mismatch between the two structs, needs confirming with a
+  larger sample before the ingestion pipeline assumes a fixed scale factor.

@@ -1,0 +1,15 @@
+Captured 2026-09-15 16:06 via recon-harness, Connect (LOGIN) + Sync, several
+hours after the BIND wipe on 2026-09-15.
+
+--- sync item type=255 (TODAY_TOTAL_DATA) ---
+step=14 distance=9 calorie=393 deepSleep=0 lightSleep=0 heartRate=0
+deltaStep=0 deltaDistance=0 deltaCalorie=0 sportDuration=0
+
+Notes:
+- distance is in meters (9m for 14 steps ~ plausible stride length), not raw
+  FcStepData's finer-grained meters-with-decimals field (see step_bucket.txt).
+- heartRate=0 here despite HEART_RATE sync item being empty — this field is
+  likely "resting/latest HR of the day" and hasn't been populated yet, not a
+  parsing bug.
+- deepSleep/lightSleep both 0 — no sleep recorded yet today (expected, still
+  daytime).
