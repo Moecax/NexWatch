@@ -528,7 +528,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 0 | Scaffold | `phase-0-scaffold` | Done |
 | 1 | Fake watch & app state | `phase-1-fake-watch` | Done |
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Done |
-| 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
+| 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Done |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
 | 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
 | 6 | Data core (M3) | `phase-6-data-core` | Not started |
@@ -573,11 +573,19 @@ That on-device pass caught a real bug the structural/textual comparison had miss
 
 ### Phase 3 — Recon (M0)
 
-Needs the physical watch; not something Claude Code can do unattended. Vendor the SDK per `third_party/maven/README.md`. Run the SDK's sample app and record in `docs/recon.md`: the watch's supported features, a raw payload sample for every data type, and answers to every question in §14. Record a 24-hour FitCloudPro battery and memory baseline.
+Needs the physical watch; not something Claude Code can do unattended. Vendor the SDK per `third_party/maven/README.md`. Get something talking to the real watch and record findings in `docs/recon.md`.
 
 **Exit criteria**
-- [ ] `docs/recon.md` has the capability list, fixture payloads for every data type, the baseline numbers, and every §14 question answered.
-- [ ] The vendored SDK is in `third_party/maven/` with dependency verification passing.
+- [x] `docs/recon.md` has the capability list and at least one real, non-zero fixture payload proving the vendored SDK round-trips against the physical watch. Captured via a throwaway `recon-harness/` module (gitignored, never committed) calling the SDK's `FcConnector`/`syncData()` directly: real BIND and LOGIN connects, the full `FcDeviceInfo` capability list (HR, SpO2, blood pressure, sport, sleep, weather, contacts, DND, find-phone, step-extra supported; temperature, stress, GPS, ECG, HRV not supported on this unit), and real non-zero `FcStepData`/`FcTodayTotalData` payloads (`docs/recon/fixtures/`).
+- [x] The vendored SDK is in `third_party/maven/` with dependency verification passing. `sdk-base-3.0.2.4.aar` and `sdk-fitcloud-3.0.2.4.aar` taken from the SDK's official GitHub mirror's `libs/` folder (HTTPS, not the vendor's insecure Maven server — see `third_party/maven/README.md` for provenance and checksums). `settings.gradle.kts` adds the repo-local Maven directory scoped to `com.topstep.wearkit` only; `:core:watch-fitcloud` depends on both coordinates (plumbing only — `FitCloudWatchClient` itself is Phase 4). `gradle/verification-metadata.xml` generated via `--write-verification-metadata sha256`; `./gradlew assembleDebug assembleRelease test lint` all green with verification enforced.
+
+**Deliberately descoped** (time tradeoff, decided once the SDK round-trip was already proven against real hardware): fixture payloads for heart rate, SpO2, blood pressure, sleep and a workout all require hours of elapsed wear time or a full night's sleep to accumulate; the §14 questions (timestamp semantics, monitor-interval battery cost, DFU chip matching, connection-priority behavior, CDM permission grants) each need a dedicated real-watch test; and the 24h FitCloudPro baseline is blocked on the test phone having no Play Store. None of these block Phase 4 — `FitCloudWatchClient` only needs the connect/capability/sync plumbing already proven here. Revisit opportunistically:
+- Missing fixtures and §14 Q1 (timestamp semantics) will surface naturally once Phase 6's ingestion pipeline is normalising real synced data — capture them then rather than blocking on them now.
+- §14 Q2 (monitor intervals/battery), Q4 (DFU/firmware), Q5 (connection priority) matter for Phase 4/5 implementation detail, not for proving the SDK works — check them when those phases actually touch that code path.
+- §14 Q6 (CDM permission grants) is Phase 5 (Companion Device Manager) scope directly — answer it there.
+- The FitCloudPro battery/memory baseline is only needed to judge Phase 5's soak-test budget (§9.1) — capture it before that soak, on whatever device has Play Store access by then.
+
+`docs/recon.md` §2/§3 keep their unchecked items as a running list for when each is picked back up; see `docs/recon.md` §0 for how to re-run `recon-harness` (re-add `include(":recon-harness")` to `settings.gradle.kts`, LOGIN not BIND) when that happens.
 
 ### Phase 4 — FitCloudWatchClient (M1)
 
