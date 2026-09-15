@@ -527,7 +527,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 |---|---|---|---|
 | 0 | Scaffold | `phase-0-scaffold` | Done |
 | 1 | Fake watch & app state | `phase-1-fake-watch` | Done |
-| 2 | Onboarding design system & UI | `phase-2-onboarding` | In progress |
+| 2 | Onboarding design system & UI | `phase-2-onboarding` | Done |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Not started |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
 | 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
@@ -565,9 +565,11 @@ Reconcile `:core:designsystem` against `docs/design-prompt.md` (tokens, spacing,
 - [x] The full onboarding flow works end to end against the fake client and matches the polished reference's states and motion. Build/tests/lint are green and the motion primitives (`EntranceItem`, `pressScale()`, `WatchMotion` curves, segmented-control thumb slide, radar pulse) are wired through the screens. Commit `bebf22d` fixed the copy/layout mismatches found in the initial textual/structural read against the HTML reference (Welcome hierarchy and "stays on this device" copy, Profile segmented-control default, Permissions headline and progress bar, Pair confirmation warning copy, Keep it running manufacturer hint and live-status pulse). Still open, blocking `Done` (not this checkbox — see below): a real device install/relaunch check and a real browser side-by-side against the polished HTML.
 - [x] Every screen and state has a `@Preview`. 11 previews across the 7 screens; Permissions (partial/all-granted) and Pairing (in-progress/success/failed) fully cover their documented states; Find your watch now also has a plain "Scanning" preview (no results yet) alongside "Scanning, 1 result" and "Nothing found".
 
-Outstanding before this phase can move to `Done` — both require access this sandbox has never had:
-- Manual on-device install/relaunch verification that the `WatchIdentityStore.isBound` gate actually shows onboarding for an unbound watch and the 4-tab shell after pairing.
-- A real side-by-side visual comparison of the running app against `docs/design/NexWatch B1 Onboarding and Pairing (polished).html` in an actual browser (only a structural/textual comparison has been possible so far).
+Both items previously blocking `Done` are now verified for real, on a physical Redmi Note 8 Pro (Android 14) connected via adb:
+- Fresh install (`pm clear`) shows onboarding; completing the flow against `FakeWatchClient` (Welcome → Profile → Permissions → Find watch → Pair confirmation → Pairing → Keep it running) flips `WatchIdentityStore.isBound` and lands on the 4-tab shell; force-stop + relaunch persists the bound state and skips onboarding straight to the shell.
+- The polished HTML reference was served locally and screenshotted side by side with on-device screenshots: copy, layout and structure match.
+
+That on-device pass caught a real bug the structural/textual comparison had missed: `PremiumBackground` is a plain `Box`, which never sets `LocalContentColor` the way `Surface` does, so `Text` calls with no explicit color (Welcome's title and headline) fell back to `LocalContentColor`'s `Color.Black` default and rendered near-invisible on the dark gradient. Fixed in `PremiumBackground` by providing `LocalContentColor = colorScheme.onBackground`; `Theme.NexWatch` also now sets `android:forceDarkAllowed="false"` (in a `values-v29` override, since minSdk is 26) as defense in depth. `./gradlew assembleDebug test lint` all green. See branch `fix/onboarding-contrast`.
 
 ### Phase 3 — Recon (M0)
 

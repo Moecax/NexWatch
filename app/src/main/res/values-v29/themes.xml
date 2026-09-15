@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+      minSdk is 26; forceDarkAllowed is API 29+, so it lives in this
+      version-gated override rather than the base style (CLAUDE.md: dark
+      theme only, no dynamic color — this belongs to that same guarantee).
+    -->
+    <style name="Theme.NexWatch" parent="android:Theme.Material.NoActionBar">
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>
