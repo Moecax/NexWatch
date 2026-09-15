@@ -1,8 +1,13 @@
 # M0 Recon — GTR 3 Pro against the FitCloudPro SDK
 
-Status: **in progress**. This file is filled in by hand, on your machine,
-against the real watch — see `docs/implementation-plan.md` §12 Phase 3 for
-why Claude Code can't do this part unattended.
+Status: **Phase 3 done, remaining items deliberately deferred** — see
+`docs/implementation-plan.md` §12 Phase 3 for the scope decision. The SDK
+round-trip is proven against the real watch (capability list + real step /
+today-total fixtures below); the unchecked items in §2 and §3 need hours of
+wear time or dedicated real-watch tests and will be picked up opportunistically
+in later phases rather than blocking Phase 4. This file is filled in by hand,
+on your machine, against the real watch — see `docs/implementation-plan.md`
+§12 Phase 3 for why Claude Code can't do this part unattended.
 
 ## 0. Get something talking to the watch
 
