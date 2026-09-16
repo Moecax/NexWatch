@@ -1,4 +1,4 @@
-package com.nexwatch.core.service.notification
+package com.nexwatch.core.watchapi.notification
 
 /**
  * The §8.5 pipeline operates on this instead of `StatusBarNotification` directly, so the

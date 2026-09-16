@@ -1,7 +1,11 @@
-package com.nexwatch.core.service.notification
+package com.nexwatch.core.watchapi.notification
 
-import com.nexwatch.core.data.notification.NotificationForwardingSettings
 import com.nexwatch.core.watchapi.OutgoingNotification
+
+data class NotificationForwardingSettings(
+    val enabled: Boolean,
+    val allowedPackages: Set<String>,
+)
 
 private const val DEDUPE_WINDOW_MS = 60_000L
 private const val DEDUPE_CAPACITY = 50

@@ -1,6 +1,5 @@
-package com.nexwatch.core.service.notification
+package com.nexwatch.core.watchapi.notification
 
-import com.nexwatch.core.data.notification.NotificationForwardingSettings
 import com.nexwatch.core.watchapi.OutgoingNotification
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

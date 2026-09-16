@@ -7,15 +7,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.data.di.NotificationForwardingDataStore
+import com.nexwatch.core.watchapi.notification.NotificationForwardingSettings
+import com.nexwatch.core.watchapi.notification.NotificationForwardingSettingsProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-
-data class NotificationForwardingSettings(
-    val enabled: Boolean,
-    val allowedPackages: Set<String>,
-)
 
 /**
  * Backs the §8.5 filter pipeline's master switch and source allowlist. The default
@@ -26,8 +23,8 @@ data class NotificationForwardingSettings(
 class NotificationForwardingPrefs @Inject constructor(
     @NotificationForwardingDataStore private val dataStore: DataStore<Preferences>,
     private val dispatchers: CoroutineDispatchers,
-) {
-    val settings: Flow<NotificationForwardingSettings> = dataStore.data.map { prefs ->
+) : NotificationForwardingSettingsProvider {
+    override val settings: Flow<NotificationForwardingSettings> = dataStore.data.map { prefs ->
         NotificationForwardingSettings(
             enabled = prefs[ENABLED_KEY] ?: true,
             allowedPackages = prefs[ALLOWED_PACKAGES_KEY] ?: DEFAULT_ALLOWED_PACKAGES,
