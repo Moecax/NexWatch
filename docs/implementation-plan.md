@@ -718,6 +718,14 @@ Inherited from Phase 4, to be deleted as this phase lands them properly: `WatchA
 reconnection-after-reboot unattended rather than launch-triggered. `WatchClient.discoverWatches()` is
 backed by `FcScanner` and should move behind CDM association here.
 
+**Descoped to Phase 6.** §8.2's "triggers a health sync, debounced, on `Ready`" and §8.7's
+`WatchSyncWorker` both assume a journal to write into. `WatchClient.syncHealthData()` is
+destructive on the watch (§2) — calling it with nothing downstream to persist the emitted
+`RawBatch`s would violate I3 (journal-first) and permanently lose data. `WatchConnectionService`
+in this phase logs in and stays connected, but does not call `syncHealthData()`; that wiring
+moves to Phase 6 once `raw_ingest` exists to receive it. WorkManager and the version-catalog
+entries for it are therefore not added in this phase either.
+
 **Exit criteria**
 - [ ] A 48-hour soak passes with the app swiped away: notifications and calls still arrive.
 - [ ] Battery and memory stay within the §9.1 budgets over that soak.
