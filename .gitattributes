@@ -1,0 +1,8 @@
+# Default: let Git normalise text in the working tree.
+* text=auto
+
+# The vendored FitCloudPro SDK is byte-checked by Gradle dependency verification
+# (gradle/verification-metadata.xml). core.autocrlf rewrites the .pom files' line
+# endings on checkout, which changes their bytes and fails verification on Windows
+# while the binary .aar files still pass. Keep this tree exactly as committed.
+third_party/maven/** -text

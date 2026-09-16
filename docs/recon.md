@@ -69,14 +69,14 @@ else needs confirming later.
 | ECG | **No** | Neither `Feature.ECG` nor `Feature.TI_ECG` reported |
 | HRV | **No** | `Feature.HRV` not reported |
 | Sleep | Yes | `Feature.SLEEP`; `Feature.SLEEP_REM` **not** reported — no REM stage, and `Feature.SLEEP_SCORE`/`CONTACTS_100` weren't checked (SDK-internal, see harness comment) |
-| Advanced reminders | Not checked | not in the harness's checked subset yet |
+| Advanced reminders | **No** | `Feature.ADVANCED_REMIND` not reported. Confirmed 2026-09-16 by `FitCloudWatchClient`'s own §4.5 capability read, not the harness. |
 | Weather push | Yes | `Feature.WEATHER` |
-| Contacts | Yes | `Feature.CONTACTS`; max count not checked (`CONTACTS_100` is SDK-internal, inaccessible from outside the SDK's own module) |
+| Contacts | Yes | `Feature.CONTACTS`; **max 10 contacts**, read 2026-09-16 via `FcContactsAbility.getContactsMaxNumber()` (the accessible path — `CONTACTS_100` is SDK-internal). |
 | DND | Yes | `Feature.DND` |
 | Find phone | Yes | `Feature.FIND_DEVICE` |
 | Extra step data | Yes | `Feature.STEP_EXTRA` |
 | Precise battery level | Not checked | in `FEATURE_NAMES` but result not recorded yet — re-run |
-| Firmware version | Not read yet | `FcDeviceInfo.app`/`.project`/`.flash`/`.patch` are public at the JVM level but Kotlin-`internal` to the SDK's own module, so the external harness can't call them directly. `FcExtraFirmwareInfo` (`configFeature().getExtraFirmwareInfo()`) is the accessible path — not wired into the harness yet. |
+| Firmware version | **`00000105`** | `FcDeviceInfo.app`/`.project`/`.flash`/`.patch` are public at the JVM level but Kotlin-`internal` to the SDK's own module, so Kotlin outside that module can't call them. `internal` has no JVM equivalent, so a one-method Java shim (`FcDeviceInfoVersions.java` in `:core:watch-fitcloud`) reads them without reflection. `FcExtraFirmwareInfo` (`configFeature().getExtraFirmwareInfo()`) only carries GNSS/4G modem strings, which this unit doesn't have. Read off the real watch 2026-09-16. |
 | Other capabilities worth noting | — | This watch has no GPS, ECG, HRV, temperature or stress sensors — schema-wise, those canonical tables (§5.3 `blood_pressure` is supported but `temperature`/`stress` tables and `workout_route`/GPS won't get real data from this unit) |
 
 ## 2. Fixture payloads

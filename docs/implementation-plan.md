@@ -529,7 +529,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 1 | Fake watch & app state | `phase-1-fake-watch` | Done |
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Done |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Done |
-| 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Not started |
+| 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Done |
 | 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
 | 6 | Data core (M3) | `phase-6-data-core` | Not started |
 | 7 | Export / import (M4) | `phase-7-export-import` | Not started |
@@ -592,12 +592,131 @@ Needs the physical watch; not something Claude Code can do unattended. Vendor th
 Enable `:core:watch-fitcloud`. Implement `FitCloudWatchClient` per §4: `FcSDK` init in `Application`, state mapping, Rx→Flow adapters, the command `Mutex` with timeouts, capability detection, guarded bind vs. login. No custom reconnect logic. Switch the Hilt binding to the real client for release builds; debug builds keep a fake/real toggle. Add R8 keep rules for the SDK.
 
 **Exit criteria**
-- [ ] The watch pairs once, then reconnects in LOGIN mode after an app restart and after a phone reboot.
-- [ ] `./gradlew assembleRelease` succeeds with the SDK's keep rules in place.
+- [x] The watch pairs once, then reconnects in LOGIN mode after an app restart and after a phone reboot.
+      Verified on real hardware — see "Where the pairing criterion stands" below. Reconnection after a
+      reboot is **launch-triggered**: `WatchAutoConnect` runs from `Application.onCreate()`, so it fires
+      when the app is opened, not unattended. Reconnecting without a launch is Phase 5's `BootReceiver`
+      and foreground service (§8.4), deliberately left there rather than half-built here.
+- [x] `./gradlew assembleRelease` succeeds with the SDK's keep rules in place. Verified: R8 runs
+      clean with `consumer-rules.pro` shipped inside the `:core:watch-fitcloud` AAR, so `:app`
+      never has to know the SDK's shape. `./gradlew test lint` and `:app:assembleDebug` are green too.
+
+**What landed.** `FitCloudWatchClient` (`:core:watch-fitcloud`) implements the whole §4.2
+contract against the real SDK: `ConnectorState` → `WatchState`, every `Single`/`Completable`/
+`Observable` adapted with `kotlinx-coroutines-rx3` at this boundary and nowhere else, one command
+`Mutex` with per-command timeouts (10s settings, 5s notifications, 60s connect), `syncHealthData()`
+holding the mutex for its whole duration and emitting raw Base64 payloads as `RawBatch` without
+parsing a byte (I2), `liveHeartRate()` deliberately outside the mutex, capability detection on
+each `CONNECTED`, and guarded BIND vs. LOGIN. No reconnect logic anywhere — `FcConnector` owns it.
+
+Decisions worth carrying forward:
+
+- **`FcSDK` is not in the Hilt graph.** Hilt builds its `SingletonComponent` in `:app`, so any SDK
+  type reachable from an `@Inject` constructor would drag `com.topstep.**` onto `:app`'s compile
+  classpath and break the rule that SDK types never leave `:core:watch-fitcloud`. `FitCloudSdk` is
+  an object initialised from `Application.onCreate()` (§4.1) instead, and the client resolves it
+  per call.
+- **`WatchUserIdProvider` (`:core:watch-api`) inverts the §4.4 dependency.** The persisted userId
+  lives in `:core:data`, which `:core:watch-fitcloud` may not depend on; both may depend on
+  `:core:watch-api`, so the interface goes there, `StoredWatchUserIdProvider` implements it and
+  `IdentityModule` binds it.
+- **Firmware version needs a Java shim.** `FcDeviceInfo.app/project/flash/patch` are Kotlin-`internal`
+  to the SDK's module (`docs/recon.md` §1 found this the hard way), but `internal` has no JVM
+  equivalent, so `FcDeviceInfoVersions.java` reads them without reflection and stays compile-time
+  checked. `FcExtraFirmwareInfo` only carries GNSS/4G strings, which this unit doesn't report.
+- **Notifications stay on the deprecated three-argument `sendNotification()`.** The replacement
+  `FcNotificationAbility.sendAppNotification()` takes four unnamed strings that the AAR's bytecode
+  splices differently for SMS than for everything else; guessing wrong shows the user a mangled
+  notification. §8.5 verifies the new call against the watch and switches then.
+- **Weather condition codes are unverified.** FitCloud encodes weather as an icon index with no
+  SDK constants; the values in `FitCloudMappers` come from the vendor's sample. Phase 8 pushes one
+  known value per condition and records what the watch actually draws.
+- **Two manifest/R8 hygiene fixes.** `:core:watch-fitcloud`'s manifest removes the
+  `WRITE_EXTERNAL_STORAGE` that sdk-fitcloud declares for file transfer NexWatch doesn't do (§10.2),
+  and `consumer-rules.pro` adds `-dontwarn` for the optional vendor extensions the AAR compiles
+  against but we never ship (WeChat Pay, AI chat, Bluetrum, Realtek, OkHttp, Timber).
+
+Bindings follow §12's instruction: `app/src/release/` binds `WatchClient` to `FitCloudWatchClient`
+outright, `app/src/debug/` chooses between it and `FakeWatchClient` from `WatchImplPreference`,
+which the Watch debug screen toggles (it takes effect on the next process start, because the client
+is a `@Singleton` the running screens already hold).
+
+**Pulled forward from Phase 5, to make the criterion reachable at all.** Two gaps stood between
+the client and a real pairing, and both were small enough to do here rather than merge Phase 4
+without the client ever having talked to a watch:
+
+- `WatchClient.discoverWatches(): Flow<DiscoveredWatch>` — cold, backed by `FcScanner`, replacing
+  the fixed fake list `OnboardingViewModel.startScan()` used to return. Collecting starts the scan
+  and cancelling stops it, and the job is cancelled when a device is selected, so nothing scans
+  outside the pairing screen (§9.2). This also makes `scanTimedOut` reachable for the first time,
+  which retires that state's `TODO(phase-5)`.
+- `WatchAutoConnect` in `:app` — LOGIN on process start when `WatchIdentityStore` says the watch is
+  bound. Never BIND. `WatchIdentity` gained the profile fields so a reconnect after a reboot has
+  something to re-send (§4.4); onboarding persists them before it connects.
+
+Both are interim: Phase 5 moves them into `:core:service`, where CDM discovery and a foreground
+service with `BootReceiver` replace them. They are written to be deleted.
+
+**Three things only the real watch could have told us.**
+
+1. **The vendored POMs' "declare nothing" policy has teeth.** `third_party/maven/README.md` says
+   `:core:watch-fitcloud` declares the SDK's companions itself — and the SDK crashed on
+   `FcSDK.Builder.build()` with `ClassNotFoundException: timber.log.Timber` until it did.
+   RxAndroidBLE was missing for the same reason. Both are now pinned in the version catalog
+   (`rxandroidble` 1.19.1, `timber` 5.0.1) and the `-dontwarn timber.log.**` that was papering over
+   it is gone. Timber is also now planted in debug builds only, which is how the rest of this list
+   got diagnosed at all.
+2. **A leaked `TimeoutCancellationException` hung the pairing screen forever.** `withTimeout` raises
+   a `CancellationException`, and every correct caller rethrows those untouched to stay cooperative
+   — so the 60-second connect timeout silently killed the pairing coroutine instead of failing it,
+   leaving "Connecting" on screen indefinitely. `WatchCommandTimeoutException` (`:core:watch-api`)
+   now replaces it at the client boundary. Only a real connect that *doesn't* succeed exposes this;
+   the fake client never times out.
+3. **A failed pairing left the radio working.** `FcConnector` owns reconnection and keeps retrying
+   after a failed bind, with nothing watching it. Onboarding's failure path now closes the connector
+   via `unbind(keepWatchData = true)`.
+
+**Where the pairing criterion stands.** Verified 2026-09-16 on a physical Redmi Note 8 Pro against
+the real GTR 3 Pro (`C1:A1:B2:29:7A:0D`). The BIND wipe was authorised; the recon harness (Phase 3)
+had bound this watch under its own userId, so a fresh BIND was the only way in.
+
+- **Discovery**: `FcScanner` finds the watch by name and signal, and the pairing screen lists it.
+- **BIND**: `Fc#AuthOperation: doBindAuth` → the watch's own on-screen confirmation → bound.
+  `WatchIdentityStore` now holds `bound_address=C1:A1:B2:29:7A:0D` and `is_bound`.
+- **LOGIN after an app restart**: force-stop and relaunch gives
+  `apply firstAuth:true userId:018b12f0-… mode:LOGIN` → `doLoginAuth result:0` →
+  `notifyStateChange:CONNECTED` in ~3.5 s, and `WatchClient.state` reaches `Ready(battery=90)` —
+  a real battery read through the command mutex, not a mapped constant.
+- **§4.5 capabilities**, read off the watch rather than the harness:
+  `firmwareVersion=00000105` (the `FcDeviceInfoVersions.java` shim works against real hardware),
+  heart rate / SpO2 / blood pressure / sport / weather supported, temperature / stress / GPS /
+  advanced reminders not, `contactsLimit=10`. This matches `docs/recon.md` §1 and closes its two
+  "not checked" rows (advanced reminders, contacts limit).
+
+- **LOGIN after a phone reboot**: full `adb reboot`, then opening the app gives
+  `device C1:A1:B2:29:7A:0D is CONNECTING` → `doLoginAuth result:0` → `CONNECTED` in under a second,
+  `state = Ready(battery=90)`. Before the launch, `pidof com.nexwatch` is empty — the app is not
+  running, which is the honest shape of this half: reconnection is **launch-triggered**, not
+  unattended. `BOOT_COMPLETED` plus a foreground service to survive past it is Phase 5's
+  `:core:service` (§8.4), still an empty `package-info.kt`. Recorded rather than quietly redefined.
+
+**Fixed on entry to this phase (`.gitattributes`).** A fresh checkout of `main` on Windows
+failed dependency verification on the two vendored `.pom` files while the `.aar` files passed.
+Cause: `core.autocrlf=true` with no `.gitattributes`, so Git rewrote the POMs' LF line endings
+to CRLF on checkout. That changes their bytes, so their SHA-256 no longer matched
+`gradle/verification-metadata.xml` (the binary AARs are untouched by EOL translation, which is
+why only the POMs failed). Fixed by adding `third_party/maven/** -text`, which pins the whole
+vendored tree to its committed bytes. This would have broken any fresh clone on Windows, not
+just this one — leave the attribute in place when adding future vendored artifacts.
 
 ### Phase 5 — Always-on service (M2)
 
 Implement §8 in `:core:service`: `WatchConnectionService` (foreground, `connectedDevice`, `START_STICKY`, debounced sync on `Ready`), CDM association and presence on API 31+, `BootReceiver`, `NotificationForwarder` with the full §8.5 filter pipeline, telephony via `FcBuiltInFeatures`, find-phone and camera handling. Add the Diagnostics screen.
+
+Inherited from Phase 4, to be deleted as this phase lands them properly: `WatchAutoConnect` in `:app`
+(LOGIN on `Application.onCreate()`) becomes the service's job, and `BootReceiver` is what makes
+reconnection-after-reboot unattended rather than launch-triggered. `WatchClient.discoverWatches()` is
+backed by `FcScanner` and should move behind CDM association here.
 
 **Exit criteria**
 - [ ] A 48-hour soak passes with the app swiped away: notifications and calls still arrive.

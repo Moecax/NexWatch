@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import app.cash.turbine.test
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.data.identity.WatchIdentityStore
+import com.nexwatch.core.watchapi.DiscoveredWatch
 import com.nexwatch.core.watchapi.OutgoingNotification
 import com.nexwatch.core.watchapi.SendResult
 import com.nexwatch.core.watchapi.SyncProgress
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -60,10 +62,17 @@ private object UnconfinedDispatchers : CoroutineDispatchers {
  * else in this test file can drive PairingPhase.FAILED. bind() throwing a plain exception here
  * simulates any other unexpected failure from the SDK layer.
  */
-private class FailingWatchClient : WatchClient {
+private class FailingWatchClient(
+    private val scanResults: List<DiscoveredWatch> = listOf(
+        DiscoveredWatch(address = "AA:BB:CC:DD:EE:FF", name = "GTR 3 Pro", rssi = -55),
+    ),
+) : WatchClient {
     override val state: StateFlow<WatchState> = MutableStateFlow<WatchState>(WatchState.Unbound).asStateFlow()
     override val capabilities: StateFlow<WatchCapabilities?> = MutableStateFlow<WatchCapabilities?>(null).asStateFlow()
     override val events: SharedFlow<WatchEvent> = MutableSharedFlow()
+
+    /** Discovery has to succeed for the bind tests to reach bind() at all. */
+    override fun discoverWatches(): Flow<DiscoveredWatch> = scanResults.asFlow()
 
     override suspend fun bind(address: String, profile: UserProfile): Unit =
         throw IllegalStateException("simulated failure")
@@ -241,4 +250,42 @@ class OnboardingViewModelTest {
         advanceUntilIdle()
         assertEquals(OnboardingStep.Pairing(PairingPhase.FAILED), viewModel.uiState.value.step)
     }
+
+    @Test
+    fun `a scan that finds nothing ends in the timed-out state`() = runTest(mainDispatcher) {
+        val viewModel = OnboardingViewModel(
+            FailingWatchClient(scanResults = emptyList()),
+            WatchIdentityStore(InMemoryPreferencesDataStore(), UnconfinedDispatchers),
+        )
+
+        viewModel.onEvent(OnboardingEvent.StartScan)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.discoveredDevices.isEmpty())
+        assertTrue(state.scanTimedOut)
+        assertTrue(!state.isScanning)
+    }
+
+    @Test
+    fun `repeat advertisements from one watch collapse to a single row at its best signal`() =
+        runTest(mainDispatcher) {
+            val viewModel = OnboardingViewModel(
+                FailingWatchClient(
+                    scanResults = listOf(
+                        DiscoveredWatch(address = "AA:BB:CC:DD:EE:FF", name = "GTR 3 Pro", rssi = -90),
+                        DiscoveredWatch(address = "AA:BB:CC:DD:EE:FF", name = "GTR 3 Pro", rssi = -50),
+                        DiscoveredWatch(address = "AA:BB:CC:DD:EE:FF", name = "GTR 3 Pro", rssi = -95),
+                    ),
+                ),
+                WatchIdentityStore(InMemoryPreferencesDataStore(), UnconfinedDispatchers),
+            )
+
+            viewModel.onEvent(OnboardingEvent.StartScan)
+            advanceUntilIdle()
+
+            val devices = viewModel.uiState.value.discoveredDevices
+            assertEquals(1, devices.size)
+            assertEquals(3, devices.single().signalBars)
+        }
 }
