@@ -137,6 +137,10 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         delay(COMMAND_DELAY_MS)
     }
 
+    override suspend fun notifyPhoneStatePermissionGranted() {
+        // No-op: the fake client has no telephony state to unlock.
+    }
+
     override suspend fun sendNotification(n: OutgoingNotification): SendResult = mutex.withLock {
         val current = _state.value
         if (current !is WatchState.Ready) return@withLock SendResult.Dropped("watch not ready")

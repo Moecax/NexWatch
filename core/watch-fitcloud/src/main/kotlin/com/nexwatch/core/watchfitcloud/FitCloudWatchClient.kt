@@ -294,6 +294,10 @@ class FitCloudWatchClient @Inject constructor(
         command("findWatch") { connector.messageFeature().findDevice().await() }
     }
 
+    override suspend fun notifyPhoneStatePermissionGranted() {
+        command("phoneStatePermission") { connector.telephonyControlPhoneStatePermission() }
+    }
+
     override suspend fun sendNotification(n: OutgoingNotification): SendResult {
         if (state.value !is WatchState.Ready) return SendResult.Dropped("watch not ready")
         // §4.3: dropped, never queued. The bus is busy with something longer, and a

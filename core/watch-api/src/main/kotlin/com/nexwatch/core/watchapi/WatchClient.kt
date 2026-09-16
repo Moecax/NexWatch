@@ -29,6 +29,11 @@ interface WatchClient {
     fun liveHeartRate(): Flow<Int>
     suspend fun batteryLevel(): Int
     suspend fun findWatch()
+    /**
+     * Call once READ_PHONE_STATE is granted, and again on every return to the foreground
+     * (§8.6) — the SDK does not persist this across activity resumes on its own.
+     */
+    suspend fun notifyPhoneStatePermissionGranted()
     suspend fun sendNotification(n: OutgoingNotification): SendResult
     suspend fun applySettings(change: WatchSettingChange)
     suspend fun pushWeather(forecast: WeatherForecast)
