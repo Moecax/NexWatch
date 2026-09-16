@@ -75,7 +75,7 @@ fun OnboardingNavHost(onOnboardingComplete: () -> Unit) {
 
         is OnboardingStep.Pairing -> {
             val context = LocalContext.current
-            if (step.phase == PairingPhase.SUCCESS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (step.phase == PairingPhase.SUCCESS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val address = state.selectedDevice?.address
                 LaunchedEffect(step.phase, address) {
                     if (address != null) associateCompanionDevice(context, address)
@@ -112,7 +112,7 @@ fun OnboardingNavHost(onOnboardingComplete: () -> Unit) {
  * dialog from onAssociationPending; that needs an ActivityResultLauncher wired from
  * MainActivity, which is out of scope here.
  */
-@RequiresApi(Build.VERSION_CODES.S)
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private suspend fun associateCompanionDevice(context: Context, address: String) {
     val deviceManager = context.getSystemService(CompanionDeviceManager::class.java) ?: return
     val request = AssociationRequest.Builder()
