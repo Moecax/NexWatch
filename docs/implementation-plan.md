@@ -530,7 +530,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Done |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Done |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Done |
-| 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
+| 5 | Always-on service (M2) | `phase-5-always-on` | In progress |
 | 6 | Data core (M3) | `phase-6-data-core` | Not started |
 | 7 | Export / import (M4) | `phase-7-export-import` | Not started |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Not started |
