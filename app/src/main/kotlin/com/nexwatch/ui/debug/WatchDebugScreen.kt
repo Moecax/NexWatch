@@ -28,6 +28,7 @@ fun WatchDebugScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val useRealWatch by viewModel.useRealWatch.collectAsStateWithLifecycle()
     val capabilities by viewModel.capabilities.collectAsStateWithLifecycle()
+    val diagnostics by viewModel.diagnostics.collectAsStateWithLifecycle()
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text(
@@ -73,5 +74,13 @@ fun WatchDebugScreen(
                 }
             }
         }
+        Text(
+            text = "Diagnostics",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 24.dp),
+        )
+        Text("Last connected: ${diagnostics.lastConnectedAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Never"}")
+        Text("Last sync: ${diagnostics.lastSyncAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Never"}")
+        Text("Last notification forwarded: ${diagnostics.lastNotificationForwardedAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Never"}")
     }
 }

@@ -31,4 +31,12 @@ object DataModule {
         PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile("notification_forwarding") },
         )
+
+    @Provides
+    @Singleton
+    @DiagnosticsDataStore
+    fun provideDiagnosticsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create(
+            produceFile = { context.preferencesDataStoreFile("diagnostics") },
+        )
 }

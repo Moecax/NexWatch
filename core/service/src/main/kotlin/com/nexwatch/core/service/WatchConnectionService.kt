@@ -4,8 +4,10 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import androidx.core.content.ContextCompat
+import com.nexwatch.core.data.diagnostics.DiagnosticsStore
 import com.nexwatch.core.data.identity.WatchIdentityStore
 import com.nexwatch.core.service.notification.ServiceNotifications
 import com.nexwatch.core.watchapi.WatchClient
@@ -30,6 +32,7 @@ class WatchConnectionService : Service() {
 
     @Inject lateinit var watchClient: WatchClient
     @Inject lateinit var identityStore: WatchIdentityStore
+    @Inject lateinit var diagnosticsStore: DiagnosticsStore
 
     private val scope = CoroutineScope(SupervisorJob())
 
@@ -39,15 +42,20 @@ class WatchConnectionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(
-            NOTIFICATION_ID,
-            ServiceNotifications.build(this, "Connecting…"),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
-        )
+        startForegroundCompat(ServiceNotifications.build(this, "Connecting…"))
         ensureLoggedIn()
         observeState()
         observeEvents()
         return START_STICKY
+    }
+
+    /** [ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE] only applies to the 3-arg overload, API 29+; minSdk is 26. */
+    private fun startForegroundCompat(notification: android.app.Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun ensureLoggedIn() {
@@ -65,13 +73,10 @@ class WatchConnectionService : Service() {
         scope.launch {
             watchClient.state.collectLatest { state ->
                 val text = state.toStatusText()
-                startForeground(
-                    NOTIFICATION_ID,
-                    ServiceNotifications.build(this@WatchConnectionService, text),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
-                )
+                startForegroundCompat(ServiceNotifications.build(this@WatchConnectionService, text))
                 if (state is WatchState.Ready) {
                     runCatching { watchClient.notifyPhoneStatePermissionGranted() }
+                    diagnosticsStore.recordConnected(System.currentTimeMillis())
                 }
             }
         }

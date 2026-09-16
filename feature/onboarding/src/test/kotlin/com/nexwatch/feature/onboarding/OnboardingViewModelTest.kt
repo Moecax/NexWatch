@@ -88,6 +88,7 @@ private class FailingWatchClient(
     override suspend fun sendNotification(n: OutgoingNotification): SendResult = SendResult.Dropped("unused")
     override suspend fun applySettings(change: WatchSettingChange) = Unit
     override suspend fun pushWeather(forecast: WeatherForecast) = Unit
+    override suspend fun notifyPhoneStatePermissionGranted() = Unit
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

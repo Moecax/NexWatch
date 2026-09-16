@@ -41,11 +41,15 @@ fun AppRoot() {
     val viewModel: AppRootViewModel = hiltViewModel()
     val identity by viewModel.isBound.collectAsStateWithLifecycle()
     var showOnboarding by remember { mutableStateOf<Boolean?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(identity) {
         val resolved = identity
         if (showOnboarding == null && resolved != null) {
             showOnboarding = !resolved.isBound
+        }
+        if (resolved?.isBound == true) {
+            com.nexwatch.core.service.WatchConnectionService.start(context)
         }
     }
 
