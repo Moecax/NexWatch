@@ -10,4 +10,5 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:watch-api"))
     implementation(project(":core:common"))
+    testImplementation(libs.junit)
 }
