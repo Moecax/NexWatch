@@ -1,5 +1,6 @@
 package com.nexwatch.core.watchfake
 
+import com.nexwatch.core.watchapi.DiscoveredWatch
 import com.nexwatch.core.watchapi.OutgoingNotification
 import com.nexwatch.core.watchapi.RawBatch
 import com.nexwatch.core.watchapi.SendResult
@@ -66,6 +67,15 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     override val state: StateFlow<WatchState> = _state.asStateFlow()
     override val capabilities: StateFlow<WatchCapabilities?> = _capabilities.asStateFlow()
     override val events: SharedFlow<WatchEvent> = _events.asSharedFlow()
+
+    /**
+     * One result, after a beat, so the pairing screen's scanning state is visible rather
+     * than skipped. Cancelling the collector ends it the way a real scan does.
+     */
+    override fun discoverWatches(): Flow<DiscoveredWatch> = flow {
+        delay(SCAN_RESULT_DELAY_MS)
+        emit(DiscoveredWatch(address = FAKE_ADDRESS, name = "GTR 3 Pro", rssi = -58))
+    }
 
     override suspend fun bind(address: String, profile: UserProfile) = connect(profile)
 
@@ -178,6 +188,8 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     )
 
     private companion object {
+        const val FAKE_ADDRESS = "AA:BB:CC:DD:EE:FF"
+        const val SCAN_RESULT_DELAY_MS = 400L
         const val CONNECT_DELAY_MS = 50L
         const val CAPABILITIES_DELAY_MS = 30L
         const val SYNC_ITEM_DELAY_MS = 20L

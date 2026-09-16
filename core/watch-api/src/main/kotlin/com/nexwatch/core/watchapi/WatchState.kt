@@ -22,3 +22,14 @@ sealed interface WatchState {
  */
 class WatchNotReadyException(val state: WatchState) :
     IllegalStateException("Watch not ready: $state")
+
+/**
+ * Thrown when a command's timeout (§4.3) expires.
+ *
+ * Deliberately not a `CancellationException`, even though `withTimeout` raises one
+ * internally: callers correctly rethrow `CancellationException` to stay cooperative, so a
+ * leaked timeout would kill the calling coroutine silently instead of surfacing as a
+ * failure the user can retry.
+ */
+class WatchCommandTimeoutException(val operation: String) :
+    RuntimeException("Watch command timed out: $operation")

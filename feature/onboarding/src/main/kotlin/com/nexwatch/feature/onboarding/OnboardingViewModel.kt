@@ -3,9 +3,11 @@ package com.nexwatch.feature.onboarding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexwatch.core.data.identity.WatchIdentityStore
+import com.nexwatch.core.watchapi.DiscoveredWatch
 import com.nexwatch.core.watchapi.WatchClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @HiltViewModel
@@ -21,6 +24,8 @@ class OnboardingViewModel @Inject constructor(
     private val watchClient: WatchClient,
     private val watchIdentityStore: WatchIdentityStore,
 ) : ViewModel() {
+
+    private var scanJob: Job? = null
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
@@ -44,7 +49,10 @@ class OnboardingViewModel @Inject constructor(
 
             OnboardingEvent.StartScan -> startScan()
             is OnboardingEvent.DeviceSelected -> {
-                _uiState.update { it.copy(selectedDevice = event.device, step = OnboardingStep.PairConfirm) }
+                scanJob?.cancel()
+                _uiState.update {
+                    it.copy(selectedDevice = event.device, isScanning = false, step = OnboardingStep.PairConfirm)
+                }
             }
             OnboardingEvent.BackToFindWatch -> goTo(OnboardingStep.FindWatch)
 
@@ -68,20 +76,46 @@ class OnboardingViewModel @Inject constructor(
     }
 
     /**
-     * WatchClient has no discovery method (bind()/login() take an address directly) — real
-     * discovery is Companion Device Manager, landing in Phase 5. This simulates a short,
-     * fixed device list so the Find-your-watch screen has something to select from.
+     * Results stream in for as long as the collector lives, so the window is bounded here
+     * rather than by the SDK alone, and the job is cancelled the moment the user leaves the
+     * screen — §9.2: nothing scans outside the pairing flow.
      */
     private fun startScan() {
-        // TODO(phase-5): scanTimedOut is currently unreachable — this simulated scan always
-        // "succeeds", so FindWatchScreen's timeout branch has no driver yet. Wire it once real
-        // Companion Device Manager discovery replaces this fixed device list.
+        scanJob?.cancel()
         _uiState.update { it.copy(isScanning = true, scanTimedOut = false, discoveredDevices = emptyList()) }
-        viewModelScope.launch {
-            delay(SCAN_RESULT_DELAY_MS)
-            val device = DiscoveredDevice(address = FAKE_ADDRESS, displayName = "GTR 3 Pro", signalBars = 3)
-            _uiState.update { it.copy(isScanning = false, discoveredDevices = listOf(device)) }
+        scanJob = viewModelScope.launch {
+            try {
+                withTimeoutOrNull(SCAN_WINDOW_MS) {
+                    watchClient.discoverWatches().collect(::onWatchDiscovered)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A scan that can't start (Bluetooth off, permission revoked between screens)
+                // reads the same to the user as one that found nothing: try again.
+                _uiState.update { it.copy(scanError = e.message) }
+            }
+            _uiState.update {
+                it.copy(isScanning = false, scanTimedOut = it.discoveredDevices.isEmpty())
+            }
         }
+    }
+
+    /** The same watch advertises repeatedly; keep one row per address, at its best signal. */
+    private fun onWatchDiscovered(watch: DiscoveredWatch) = _uiState.update { state ->
+        val found = DiscoveredDevice(
+            address = watch.address,
+            displayName = watch.name.ifBlank { "Unnamed watch" },
+            signalBars = signalBars(watch.rssi),
+        )
+        val existing = state.discoveredDevices.indexOfFirst { it.address == found.address }
+        val devices = when {
+            existing < 0 -> state.discoveredDevices + found
+            found.signalBars > state.discoveredDevices[existing].signalBars ->
+                state.discoveredDevices.toMutableList().apply { this[existing] = found }
+            else -> return@update state
+        }
+        state.copy(discoveredDevices = devices)
     }
 
     private fun confirmPair() {
@@ -95,6 +129,9 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(step = OnboardingStep.Pairing(PairingPhase.CONNECTING), pairingError = null) }
         try {
             watchIdentityStore.ensureUserId()
+            // Persisted before the connect, so a crash mid-pairing still leaves enough for
+            // WatchAutoConnect to retry in LOGIN mode rather than re-running a wipe.
+            watchIdentityStore.saveProfile(profile)
             watchClient.bind(address, profile)
 
             _uiState.update { it.copy(step = OnboardingStep.Pairing(PairingPhase.AUTHENTICATING)) }
@@ -118,6 +155,11 @@ class OnboardingViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // The connector keeps its own retry loop running after a failed attempt (it owns
+            // reconnection, §4.3). Nobody is watching it once pairing has visibly failed, so
+            // close it rather than leave the radio working — keepWatchData, because a failed
+            // bind must not reach for the watch's data on the way out.
+            runCatching { watchClient.unbind(keepWatchData = true) }
             _uiState.update {
                 it.copy(
                     step = OnboardingStep.Pairing(PairingPhase.FAILED),
@@ -127,9 +169,17 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    /** Three bars, because that's all FindWatchScreen renders. */
+    private fun signalBars(rssi: Int): Int = when {
+        rssi >= STRONG_RSSI -> 3
+        rssi >= FAIR_RSSI -> 2
+        else -> 1
+    }
+
     private companion object {
-        const val FAKE_ADDRESS = "AA:BB:CC:DD:EE:FF"
-        const val SCAN_RESULT_DELAY_MS = 400L
+        const val SCAN_WINDOW_MS = 20_000L
+        const val STRONG_RSSI = -60
+        const val FAIR_RSSI = -75
         const val PHASE_STEP_DELAY_MS = 300L
     }
 }

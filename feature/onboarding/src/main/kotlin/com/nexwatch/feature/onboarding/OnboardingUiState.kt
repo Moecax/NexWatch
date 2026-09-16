@@ -24,6 +24,7 @@ data class OnboardingUiState(
         PermissionItem.entries.associateWith { PermissionStatus.NOT_GRANTED },
     val isScanning: Boolean = false,
     val scanTimedOut: Boolean = false,
+    val scanError: String? = null,
     val discoveredDevices: List<DiscoveredDevice> = emptyList(),
     val selectedDevice: DiscoveredDevice? = null,
     val bindUnderstoodChecked: Boolean = false,

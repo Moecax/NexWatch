@@ -14,6 +14,13 @@ interface WatchClient {
     val capabilities: StateFlow<WatchCapabilities?>
     val events: SharedFlow<WatchEvent>
 
+    /**
+     * Cold, and the only scan in the app (§9.2): collecting starts a scan, cancelling stops
+     * it, so nothing can leave the radio searching from a screen that isn't on top. The SDK
+     * gives up on its own after a fixed window, which ends the flow.
+     */
+    fun discoverWatches(): Flow<DiscoveredWatch>
+
     suspend fun bind(address: String, profile: UserProfile)
     suspend fun login(address: String, profile: UserProfile)
     suspend fun unbind(keepWatchData: Boolean)

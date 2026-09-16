@@ -1,2 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        sdk-fitcloud's own manifest declares WRITE_EXTERNAL_STORAGE for its firmware- and
+        watchface-file handling. NexWatch writes nothing outside its own storage (§10.2),
+        so the permission is dropped here rather than inherited into the merged manifest.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        tools:node="remove" />
+
+</manifest>

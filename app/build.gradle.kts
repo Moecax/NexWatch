@@ -27,6 +27,8 @@ android {
 
     buildFeatures {
         compose = true
+        // The Watch debug screen shows its fake/real toggle only in debug builds.
+        buildConfig = true
     }
 }
 
@@ -34,6 +36,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:watch-api"))
     implementation(project(":core:watch-fake"))
+    implementation(project(":core:watch-fitcloud"))
+    implementation(project(":core:common"))
     implementation(project(":core:data"))
     implementation(project(":feature:onboarding"))
     implementation(platform(libs.androidx.compose.bom))
