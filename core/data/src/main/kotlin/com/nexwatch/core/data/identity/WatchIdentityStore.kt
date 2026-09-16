@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.nexwatch.core.common.CoroutineDispatchers
+import com.nexwatch.core.data.di.WatchIdentityDataStore
 import com.nexwatch.core.watchapi.UserProfile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -21,7 +22,7 @@ import javax.inject.Inject
  * connection can use LOGIN instead.
  */
 class WatchIdentityStore @Inject constructor(
-    private val dataStore: DataStore<Preferences>,
+    @WatchIdentityDataStore private val dataStore: DataStore<Preferences>,
     private val dispatchers: CoroutineDispatchers,
 ) {
     val identity: Flow<WatchIdentity> = dataStore.data.map { prefs ->

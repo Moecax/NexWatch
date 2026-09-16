@@ -18,8 +18,17 @@ object DataModule {
 
     @Provides
     @Singleton
+    @WatchIdentityDataStore
     fun provideWatchIdentityDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile("watch_identity") },
+        )
+
+    @Provides
+    @Singleton
+    @NotificationForwardingDataStore
+    fun provideNotificationForwardingDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create(
+            produceFile = { context.preferencesDataStoreFile("notification_forwarding") },
         )
 }
