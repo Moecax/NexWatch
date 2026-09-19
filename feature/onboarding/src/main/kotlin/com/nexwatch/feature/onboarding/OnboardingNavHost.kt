@@ -110,7 +110,9 @@ fun OnboardingNavHost(onOnboardingComplete: () -> Unit) {
  * WatchConnectionService's launch-triggered and boot-triggered paths, so a failed or pending
  * association doesn't block pairing success. Deliberately does not launch the system consent
  * dialog from onAssociationPending; that needs an ActivityResultLauncher wired from
- * MainActivity, which is out of scope here.
+ * MainActivity, which is out of scope here — on real devices the consent UI is what actually
+ * completes the association, so presence detection stays inert until that follow-up lands
+ * (tracked in docs/implementation-plan.md §12's Phase 5 exit notes).
  */
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private suspend fun associateCompanionDevice(context: Context, address: String) {
@@ -119,6 +121,7 @@ private suspend fun associateCompanionDevice(context: Context, address: String) 
         .addDeviceFilter(
             BluetoothDeviceFilter.Builder().setAddress(address).build(),
         )
+        .setDeviceProfile(AssociationRequest.DEVICE_PROFILE_WATCH)
         .setSingleDevice(true)
         .build()
     deviceManager.associate(
@@ -126,15 +129,17 @@ private suspend fun associateCompanionDevice(context: Context, address: String) 
         { it.run() },
         object : CompanionDeviceManager.Callback() {
             override fun onAssociationPending(intentSender: IntentSender) {
-                Log.d("Onboarding", "CDM association pending for $address — no UI wiring yet (§8.3 follow-up)")
+                Log.d("Onboarding", "CDM association pending — no consent UI wired yet (§8.3 follow-up)")
             }
 
             override fun onAssociationCreated(associationInfo: AssociationInfo) {
-                Log.d("Onboarding", "CDM associated: $associationInfo")
+                // Presence observation only takes effect once the association above actually
+                // completes, which today requires the unwired consent dialog (see class doc).
+                deviceManager.startObservingDevicePresence(address)
             }
 
             override fun onFailure(error: CharSequence?) {
-                Log.w("Onboarding", "CDM association failed for $address: $error")
+                Log.w("Onboarding", "CDM association failed: $error")
             }
         },
     )

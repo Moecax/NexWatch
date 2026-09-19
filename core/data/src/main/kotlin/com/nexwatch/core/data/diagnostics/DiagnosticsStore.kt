@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.data.di.DiagnosticsDataStore
+import com.nexwatch.core.watchapi.notification.NotificationForwardedRecorder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -21,7 +22,7 @@ data class DiagnosticsSnapshot(
 class DiagnosticsStore @Inject constructor(
     @DiagnosticsDataStore private val dataStore: DataStore<Preferences>,
     private val dispatchers: CoroutineDispatchers,
-) {
+) : NotificationForwardedRecorder {
     val snapshot: Flow<DiagnosticsSnapshot> = dataStore.data.map { prefs ->
         DiagnosticsSnapshot(
             lastConnectedAt = prefs[LAST_CONNECTED_KEY],
@@ -35,7 +36,7 @@ class DiagnosticsStore @Inject constructor(
         Unit
     }
 
-    suspend fun recordNotificationForwarded(atMs: Long): Unit = withContext(dispatchers.io) {
+    override suspend fun recordForwarded(atMs: Long): Unit = withContext(dispatchers.io) {
         dataStore.edit { it[LAST_NOTIFICATION_KEY] = atMs }
         Unit
     }

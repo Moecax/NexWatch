@@ -18,8 +18,6 @@ class NotificationForwardingPrefsTest {
     private val dataStore = PreferenceDataStoreFactory.create(
         produceFile = { File(tempDir, "notification_forwarding.preferences_pb") },
     )
-    // Check CoroutineDispatchers' actual constructor shape first (core/common) and adjust
-    // this construction to match exactly — do not guess field names.
     private val dispatchers = object : CoroutineDispatchers {
         override val io = dispatcher
         override val default = dispatcher

@@ -9,6 +9,7 @@ import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.notification.IncomingNotification
 import com.nexwatch.core.watchapi.notification.NotificationFilterPipeline
+import com.nexwatch.core.watchapi.notification.NotificationForwardedRecorder
 import com.nexwatch.core.watchapi.notification.NotificationForwardingSettingsProvider
 import com.topstep.fitcloud.sdk.v2.FcSDK
 import com.topstep.fitcloud.sdk.v2.utils.notification.AbsNotificationListenerService
@@ -30,6 +31,7 @@ class NotificationForwarder : AbsNotificationListenerService() {
 
     @Inject lateinit var watchClient: WatchClient
     @Inject lateinit var settingsProvider: NotificationForwardingSettingsProvider
+    @Inject lateinit var forwardedRecorder: NotificationForwardedRecorder
     @Inject lateinit var dispatchers: CoroutineDispatchers
 
     private val pipeline = NotificationFilterPipeline()
@@ -56,6 +58,7 @@ class NotificationForwarder : AbsNotificationListenerService() {
                 nowMs = System.currentTimeMillis(),
             ) ?: return@launch
             watchClient.sendNotification(outgoing)
+            runCatching { forwardedRecorder.recordForwarded(System.currentTimeMillis()) }
         }
     }
 

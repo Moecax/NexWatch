@@ -1,6 +1,8 @@
 package com.nexwatch.core.data.di
 
+import com.nexwatch.core.data.diagnostics.DiagnosticsStore
 import com.nexwatch.core.data.notification.NotificationForwardingPrefs
+import com.nexwatch.core.watchapi.notification.NotificationForwardedRecorder
 import com.nexwatch.core.watchapi.notification.NotificationForwardingSettingsProvider
 import dagger.Binds
 import dagger.Module
@@ -20,4 +22,10 @@ abstract class NotificationModule {
     abstract fun bindNotificationForwardingSettingsProvider(
         impl: NotificationForwardingPrefs,
     ): NotificationForwardingSettingsProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindNotificationForwardedRecorder(
+        impl: DiagnosticsStore,
+    ): NotificationForwardedRecorder
 }

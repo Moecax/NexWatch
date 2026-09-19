@@ -1,8 +1,10 @@
 package com.nexwatch.core.service
 
+import android.Manifest
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -14,11 +16,14 @@ import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchEvent
 import com.nexwatch.core.watchapi.WatchState
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,7 +39,17 @@ class WatchConnectionService : Service() {
     @Inject lateinit var identityStore: WatchIdentityStore
     @Inject lateinit var diagnosticsStore: DiagnosticsStore
 
-    private val scope = CoroutineScope(SupervisorJob())
+    // A bare SupervisorJob still routes an uncaught child exception to the thread's default
+    // handler (it only isolates siblings from each other), which would otherwise kill the
+    // process this service exists to keep alive.
+    private val exceptionHandler = CoroutineExceptionHandler { _, _ -> stopSelf() }
+    private val scope = CoroutineScope(SupervisorJob() + exceptionHandler)
+
+    // onStartCommand re-enters on every startForegroundService() call (relaunch from AppRoot,
+    // CompanionPresenceService, BootReceiver, or START_STICKY redelivery). Without this guard
+    // each re-entry launches another set of collectors, so a single FindPhoneRequested would
+    // ring the phone once per prior start.
+    private var observersStarted = false
 
     override fun onCreate() {
         super.onCreate()
@@ -43,18 +58,31 @@ class WatchConnectionService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundCompat(ServiceNotifications.build(this, "Connecting…"))
-        ensureLoggedIn()
-        observeState()
-        observeEvents()
+        if (!observersStarted) {
+            observersStarted = true
+            ensureLoggedIn()
+            observeState()
+            observeEvents()
+        }
         return START_STICKY
     }
 
-    /** [ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE] only applies to the 3-arg overload, API 29+; minSdk is 26. */
+    /**
+     * [ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE] only applies to the 3-arg
+     * overload, API 29+; minSdk is 26. On API 34+ that type also requires a connected-device
+     * permission (e.g. BLUETOOTH_CONNECT) to be held at call time; if the user revoked it
+     * after onboarding granted it, startForeground throws SecurityException — stop rather
+     * than let START_STICKY crash-loop the process.
+     */
     private fun startForegroundCompat(notification: android.app.Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: SecurityException) {
+            stopSelf()
         }
     }
 
@@ -71,16 +99,27 @@ class WatchConnectionService : Service() {
 
     private fun observeState() {
         scope.launch {
-            watchClient.state.collectLatest { state ->
-                val text = state.toStatusText()
+            // §8.2: the notification is rebuilt only when the status text actually changes,
+            // not on every WatchState.Ready(battery) emission.
+            watchClient.state.map { it.toStatusText() }.distinctUntilChanged().collectLatest { text ->
                 startForegroundCompat(ServiceNotifications.build(this@WatchConnectionService, text))
+            }
+        }
+        scope.launch {
+            watchClient.state.collectLatest { state ->
                 if (state is WatchState.Ready) {
-                    runCatching { watchClient.notifyPhoneStatePermissionGranted() }
-                    diagnosticsStore.recordConnected(System.currentTimeMillis())
+                    if (hasPhoneStatePermission()) {
+                        runCatching { watchClient.notifyPhoneStatePermissionGranted() }
+                    }
+                    runCatching { diagnosticsStore.recordConnected(System.currentTimeMillis()) }
                 }
             }
         }
     }
+
+    private fun hasPhoneStatePermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) ==
+            PackageManager.PERMISSION_GRANTED
 
     private fun observeEvents() {
         scope.launch {

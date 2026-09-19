@@ -10,6 +10,7 @@ data class NotificationForwardingSettings(
 private const val DEDUPE_WINDOW_MS = 60_000L
 private const val DEDUPE_CAPACITY = 50
 private const val THROTTLE_WINDOW_MS = 5_000L
+private const val MAX_CONTENT_LENGTH = 200
 private val DROPPED_CATEGORIES = setOf("progress", "transport", "service", "status")
 
 private val PACKAGE_TO_TYPE = mapOf(
@@ -62,7 +63,7 @@ class NotificationFilterPipeline {
             sourcePackage = incoming.packageName,
             type = type,
             title = title,
-            content = text,
+            content = text.take(MAX_CONTENT_LENGTH),
         )
     }
 }
