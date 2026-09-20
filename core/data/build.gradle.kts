@@ -15,6 +15,8 @@ dependencies {
     implementation(project(":core:common"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.paging.runtime)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.junit)
