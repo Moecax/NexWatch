@@ -294,6 +294,13 @@ class FitCloudWatchClient @Inject constructor(
         command("findWatch") { connector.messageFeature().findDevice().await() }
     }
 
+    // This method, like findWatch(), batteryLevel(), and other connector delegations, has no
+    // unit-testable seam: connector is accessed only via FitCloudSdk.require().connector (a
+    // singleton with no dependency-injection path). Verification happens on-device instead.
+    override suspend fun notifyPhoneStatePermissionGranted() {
+        command("phoneStatePermission") { connector.telephonyControlPhoneStatePermission() }
+    }
+
     override suspend fun sendNotification(n: OutgoingNotification): SendResult {
         if (state.value !is WatchState.Ready) return SendResult.Dropped("watch not ready")
         // §4.3: dropped, never queued. The bus is busy with something longer, and a

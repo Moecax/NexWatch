@@ -530,7 +530,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Done |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Done |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Done |
-| 5 | Always-on service (M2) | `phase-5-always-on` | Not started |
+| 5 | Always-on service (M2) | `phase-5-always-on` | In progress |
 | 6 | Data core (M3) | `phase-6-data-core` | Not started |
 | 7 | Export / import (M4) | `phase-7-export-import` | Not started |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Not started |
@@ -713,10 +713,38 @@ just this one — leave the attribute in place when adding future vendored artif
 
 Implement §8 in `:core:service`: `WatchConnectionService` (foreground, `connectedDevice`, `START_STICKY`, debounced sync on `Ready`), CDM association and presence on API 31+, `BootReceiver`, `NotificationForwarder` with the full §8.5 filter pipeline, telephony via `FcBuiltInFeatures`, find-phone and camera handling. Add the Diagnostics screen.
 
-Inherited from Phase 4, to be deleted as this phase lands them properly: `WatchAutoConnect` in `:app`
-(LOGIN on `Application.onCreate()`) becomes the service's job, and `BootReceiver` is what makes
-reconnection-after-reboot unattended rather than launch-triggered. `WatchClient.discoverWatches()` is
-backed by `FcScanner` and should move behind CDM association here.
+Inherited from Phase 4, deleted as this phase landed: `WatchAutoConnect` is gone; `WatchConnectionService`
+now owns LOGIN on both process start (`AppRoot`) and boot (`BootReceiver`), which is what makes
+reconnection-after-reboot unattended rather than launch-triggered.
+
+**What didn't move as described.** `WatchClient.discoverWatches()` is still backed directly by
+`FcScanner` and called from the pairing screen, not moved behind CDM association — scanning was
+already confined to that one screen (§9.2), so there was no compliance gap to close, and CDM's
+`AssociationRequest` device filter needs a real MAC address, which only `discoverWatches()` can
+supply in the first place; there's no "behind" for it to move to. Camera remote handling (§8.6)
+is explicitly deferred to Phase 8, alongside the rest of watch-control settings — a one-line
+comment in `WatchConnectionService.observeEvents()` marks the two camera `WatchEvent`s as
+deliberately unhandled.
+
+**CDM association lands but presence detection does not fire yet.** `associateCompanionDevice()`
+(`:feature:onboarding`) calls `CompanionDeviceManager.associate()` with `DEVICE_PROFILE_WATCH`
+after a successful pair, gated at API 33 (the 3-arg `associate()` overload's real minimum, not
+31 as first assumed). On a real device this returns `onAssociationPending` with a consent
+`IntentSender` that must be launched through an `ActivityResultLauncher` for the system's
+confirmation UI to appear; that launcher needs to live in `MainActivity`, which is out of scope
+for this phase's onboarding flow, so the association typically never reaches
+`onAssociationCreated` and `CompanionPresenceService.onDeviceAppeared` is not exercised on
+device yet. LOGIN reconnection via `WatchConnectionService` (launch- and boot-triggered) is the
+only path that's proven end-to-end; CDM presence as a reliability improvement over that is left
+for a follow-up that wires the consent dialog.
+
+**Descoped to Phase 6.** §8.2's "triggers a health sync, debounced, on `Ready`" and §8.7's
+`WatchSyncWorker` both assume a journal to write into. `WatchClient.syncHealthData()` is
+destructive on the watch (§2) — calling it with nothing downstream to persist the emitted
+`RawBatch`s would violate I3 (journal-first) and permanently lose data. `WatchConnectionService`
+in this phase logs in and stays connected, but does not call `syncHealthData()`; that wiring
+moves to Phase 6 once `raw_ingest` exists to receive it. WorkManager and the version-catalog
+entries for it are therefore not added in this phase either.
 
 **Exit criteria**
 - [ ] A 48-hour soak passes with the app swiped away: notifications and calls still arrive.

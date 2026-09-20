@@ -2,6 +2,8 @@ package com.nexwatch.ui.debug
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexwatch.core.data.diagnostics.DiagnosticsSnapshot
+import com.nexwatch.core.data.diagnostics.DiagnosticsStore
 import com.nexwatch.core.watchapi.WatchCapabilities
 import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchState
@@ -22,6 +24,7 @@ class WatchDebugViewModel @Inject constructor(
     watchClient: WatchClient,
     private val debugController: WatchDebugController,
     private val watchImplPreference: WatchImplPreference,
+    diagnosticsStore: DiagnosticsStore,
 ) : ViewModel() {
 
     /** The §12 Phase 4 fake/real toggle. Debug builds only; release has no choice to offer. */
@@ -58,4 +61,10 @@ class WatchDebugViewModel @Inject constructor(
     )
 
     fun forceState(state: WatchState) = debugController.forceState(state)
+
+    val diagnostics: StateFlow<DiagnosticsSnapshot> = diagnosticsStore.snapshot.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = DiagnosticsSnapshot(null, null, null),
+    )
 }

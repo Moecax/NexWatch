@@ -1,7 +1,18 @@
 package com.nexwatch.feature.onboarding
 
+import android.companion.AssociationInfo
+import android.companion.AssociationRequest
+import android.companion.BluetoothDeviceFilter
+import android.companion.CompanionDeviceManager
+import android.content.Context
+import android.content.IntentSender
+import android.os.Build
+import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nexwatch.feature.onboarding.ui.FindWatchScreen
@@ -62,14 +73,23 @@ fun OnboardingNavHost(onOnboardingComplete: () -> Unit) {
             )
         }
 
-        is OnboardingStep.Pairing -> PairingScreen(
-            phase = step.phase,
-            battery = state.pairedBattery,
-            firmwareVersion = state.pairedFirmwareVersion,
-            error = state.pairingError,
-            onRetry = { viewModel.onEvent(OnboardingEvent.RetryPairing) },
-            onContinue = { viewModel.onEvent(OnboardingEvent.PairingContinue) },
-        )
+        is OnboardingStep.Pairing -> {
+            val context = LocalContext.current
+            if (step.phase == PairingPhase.SUCCESS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val address = state.selectedDevice?.address
+                LaunchedEffect(step.phase, address) {
+                    if (address != null) associateCompanionDevice(context, address)
+                }
+            }
+            PairingScreen(
+                phase = step.phase,
+                battery = state.pairedBattery,
+                firmwareVersion = state.pairedFirmwareVersion,
+                error = state.pairingError,
+                onRetry = { viewModel.onEvent(OnboardingEvent.RetryPairing) },
+                onContinue = { viewModel.onEvent(OnboardingEvent.PairingContinue) },
+            )
+        }
 
         OnboardingStep.KeepRunning -> KeepRunningScreen(
             onBatteryOptimization = {},
@@ -81,4 +101,46 @@ fun OnboardingNavHost(onOnboardingComplete: () -> Unit) {
             },
         )
     }
+}
+
+/**
+ * §8.3: associates the paired watch with CompanionDeviceManager so CompanionPresenceService
+ * can back reconnection with system-level presence detection. This is a reliability
+ * improvement, not a pairing requirement — LOGIN reconnection already works without it via
+ * WatchConnectionService's launch-triggered and boot-triggered paths, so a failed or pending
+ * association doesn't block pairing success. Deliberately does not launch the system consent
+ * dialog from onAssociationPending; that needs an ActivityResultLauncher wired from
+ * MainActivity, which is out of scope here — on real devices the consent UI is what actually
+ * completes the association, so presence detection stays inert until that follow-up lands
+ * (tracked in docs/implementation-plan.md §12's Phase 5 exit notes).
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private suspend fun associateCompanionDevice(context: Context, address: String) {
+    val deviceManager = context.getSystemService(CompanionDeviceManager::class.java) ?: return
+    val request = AssociationRequest.Builder()
+        .addDeviceFilter(
+            BluetoothDeviceFilter.Builder().setAddress(address).build(),
+        )
+        .setDeviceProfile(AssociationRequest.DEVICE_PROFILE_WATCH)
+        .setSingleDevice(true)
+        .build()
+    deviceManager.associate(
+        request,
+        { it.run() },
+        object : CompanionDeviceManager.Callback() {
+            override fun onAssociationPending(intentSender: IntentSender) {
+                Log.d("Onboarding", "CDM association pending — no consent UI wired yet (§8.3 follow-up)")
+            }
+
+            override fun onAssociationCreated(associationInfo: AssociationInfo) {
+                // Presence observation only takes effect once the association above actually
+                // completes, which today requires the unwired consent dialog (see class doc).
+                deviceManager.startObservingDevicePresence(address)
+            }
+
+            override fun onFailure(error: CharSequence?) {
+                Log.w("Onboarding", "CDM association failed: $error")
+            }
+        },
+    )
 }

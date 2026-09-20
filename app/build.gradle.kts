@@ -39,6 +39,7 @@ dependencies {
     implementation(project(":core:watch-fitcloud"))
     implementation(project(":core:common"))
     implementation(project(":core:data"))
+    implementation(project(":core:service"))
     implementation(project(":feature:onboarding"))
     implementation(platform(libs.androidx.compose.bom))
     implementation("androidx.compose.material:material-icons-extended")

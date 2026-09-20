@@ -1,2 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      CallHangUp.tryEndCall() calls TelecomManager.endCall(), which needs this permission.
+      Declared here (not just in :app's manifest) so this module's own `lint` task — which
+      analyzes its own manifest in isolation, not the merged app manifest — can see the
+      runtime checkSelfPermission guard is backed by a real permission declaration. Merges
+      harmlessly with :app's own declaration of the same permission.
+    -->
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+</manifest>

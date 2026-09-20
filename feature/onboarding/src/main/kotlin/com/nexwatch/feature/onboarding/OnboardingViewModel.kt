@@ -130,7 +130,7 @@ class OnboardingViewModel @Inject constructor(
         try {
             watchIdentityStore.ensureUserId()
             // Persisted before the connect, so a crash mid-pairing still leaves enough for
-            // WatchAutoConnect to retry in LOGIN mode rather than re-running a wipe.
+            // WatchConnectionService to retry in LOGIN mode rather than re-running a wipe.
             watchIdentityStore.saveProfile(profile)
             watchClient.bind(address, profile)
 
