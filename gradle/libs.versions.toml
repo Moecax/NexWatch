@@ -77,4 +77,7 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+# Not resolvable in this project's Maven setup as of 2026-09; :core:database uses manual
+# ksp { arg("room.schemaLocation", ...) } instead. Kept here in case a later repo/vendor fix
+# makes the plugin resolvable.
 room = { id = "androidx.room", version.ref = "room" }
