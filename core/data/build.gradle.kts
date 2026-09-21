@@ -22,9 +22,7 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.junit)
-    testImplementation(project(":core:database"))
-    testImplementation(libs.androidx.sqlite.bundled)
-    testImplementation(libs.androidx.room.runtime)
+    testImplementation(testFixtures(project(":core:database")))
 }
 
 afterEvaluate {

@@ -7,6 +7,10 @@ plugins {
 
 android {
     namespace = "com.nexwatch.core.database"
+
+    testFixtures {
+        enable = true
+    }
 }
 
 ksp {
@@ -23,6 +27,14 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.sqlite.bundled)
+
+    // inMemoryTestDatabase() lives in src/testFixtures so other modules' tests can reuse it
+    // (CLAUDE.md I4 trigger installation must stay in exactly one place). These are `api`, not
+    // `implementation`, because consumers call `.close()` on the returned NexWatchDatabase
+    // (a RoomDatabase) and need Room/sqlite types on their own compile classpath.
+    testFixturesApi(libs.androidx.room.runtime)
+    testFixturesApi(libs.androidx.sqlite.bundled)
+    testFixturesImplementation(libs.kotlinx.coroutines.core)
 }
 
 // Room and sqlite-bundled publish separate Kotlin/Multiplatform variants for "android" and
@@ -33,7 +45,14 @@ dependencies {
 // resolve the standard-jvm variant instead, which is what gives access to the context-free
 // Room.inMemoryDatabaseBuilder<T>() entry point Task 11 relies on.
 afterEvaluate {
-    configurations.matching { it.name == "debugUnitTestCompileClasspath" || it.name == "debugUnitTestRuntimeClasspath" }
+    configurations.matching {
+        it.name == "debugUnitTestCompileClasspath" ||
+            it.name == "debugUnitTestRuntimeClasspath" ||
+            it.name == "debugTestFixturesCompileClasspath" ||
+            it.name == "debugTestFixturesRuntimeClasspath" ||
+            it.name == "debugTestFixturesUnitTestCompileClasspath" ||
+            it.name == "debugTestFixturesUnitTestRuntimeClasspath"
+    }
         .configureEach {
             attributes {
                 attribute(

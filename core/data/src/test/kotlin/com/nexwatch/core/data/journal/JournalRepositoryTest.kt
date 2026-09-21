@@ -1,7 +1,7 @@
 package com.nexwatch.core.data.journal
 
 import com.nexwatch.core.common.CoroutineDispatchers
-import com.nexwatch.core.data.inMemoryTestDatabase
+import com.nexwatch.core.database.inMemoryTestDatabase
 import com.nexwatch.core.watchapi.RawBatch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
