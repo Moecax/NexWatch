@@ -135,7 +135,12 @@ class HealthDataNormalizer @Inject constructor(
             is DecodedHealthRecord.Sleep -> processSleep(record, deviceId, zone)
             is DecodedHealthRecord.Workout -> processWorkout(record, deviceId, zone)
             is DecodedHealthRecord.WorkoutRoute -> processWorkoutRoute(record, deviceId)
-            is DecodedHealthRecord.TodayTotal -> null // updates daily_summary.live_steps_total directly; see Task 16
+            is DecodedHealthRecord.TodayTotal -> {
+                val date = dateOf(record.atMs, zone)
+                db.dailySummaryDao().ensureRowExists(deviceId, date)
+                db.dailySummaryDao().updateLiveStepsTotal(deviceId, date, record.steps)
+                null // does not itself trigger a recompute — it's a direct write, not a source table
+            }
         }
     }
 

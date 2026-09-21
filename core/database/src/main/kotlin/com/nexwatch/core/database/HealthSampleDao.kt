@@ -41,6 +41,13 @@ interface HealthSampleDao {
         toMs: Long,
         bucketMs: Long,
     ): Flow<List<HeartRateBucket>>
+
+    @Query(
+        "SELECT AVG(bpm) AS avgBpm, MIN(bpm) AS minBpm, MAX(bpm) AS maxBpm FROM heart_rate " +
+            "WHERE device_id = :deviceId AND start_time >= :dayStartMs AND start_time < :dayEndMs AND deleted = 0",
+    )
+    suspend fun findDailyHrStats(deviceId: String, dayStartMs: Long, dayEndMs: Long): HrDailyStats?
 }
 
 data class HeartRateBucket(val bucket: Long, val avgBpm: Double, val minBpm: Int, val maxBpm: Int)
+data class HrDailyStats(val avgBpm: Double?, val minBpm: Int?, val maxBpm: Int?)
