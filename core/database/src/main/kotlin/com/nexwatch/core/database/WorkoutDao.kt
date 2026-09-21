@@ -24,6 +24,9 @@ interface WorkoutDao {
     )
     fun observeWorkouts(deviceId: String, fromMs: Long, toMs: Long): Flow<List<WorkoutEntity>>
 
+    @Query("SELECT * FROM workout WHERE device_id = :deviceId AND sport_id = :sportId AND deleted = 0")
+    suspend fun findBySportId(deviceId: String, sportId: String): WorkoutEntity?
+
     @Query("SELECT * FROM workout_route WHERE workout_id = :workoutId ORDER BY start_time")
     fun observeRoute(workoutId: String): Flow<List<WorkoutRouteEntity>>
 
