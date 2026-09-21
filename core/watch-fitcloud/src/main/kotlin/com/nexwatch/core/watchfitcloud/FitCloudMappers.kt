@@ -129,6 +129,35 @@ internal fun syncDataTypeName(type: Int): String = when (type) {
     else -> "unknown_$type"
 }
 
+/** Inverse of [syncDataTypeName], for decode (Phase 6) reconstructing an FcSyncData from a journaled row. */
+internal fun syncDataTypeFromName(name: String): Int? = when (name) {
+    "step" -> FcSyncDataType.STEP
+    "sleep" -> FcSyncDataType.SLEEP
+    "heart_rate" -> FcSyncDataType.HEART_RATE
+    "heart_rate_measure" -> FcSyncDataType.HEART_RATE_MEASURE
+    "heart_rate_resting" -> FcSyncDataType.HEART_RATE_RESTING
+    "oxygen" -> FcSyncDataType.OXYGEN
+    "oxygen_measure" -> FcSyncDataType.OXYGEN_MEASURE
+    "blood_pressure" -> FcSyncDataType.BLOOD_PRESSURE
+    "blood_pressure_measure" -> FcSyncDataType.BLOOD_PRESSURE_MEASURE
+    "respiratory_rate" -> FcSyncDataType.RESPIRATORY_RATE
+    "respiratory_rate_measure" -> FcSyncDataType.RESPIRATORY_RATE_MEASURE
+    "temperature" -> FcSyncDataType.TEMPERATURE
+    "temperature_measure" -> FcSyncDataType.TEMPERATURE_MEASURE
+    "stress" -> FcSyncDataType.PRESSURE
+    "stress_measure" -> FcSyncDataType.PRESSURE_MEASURE
+    "hrv" -> FcSyncDataType.HRV
+    "hrv_daily" -> FcSyncDataType.HRV_DAILY
+    "sport" -> FcSyncDataType.SPORT
+    "gps" -> FcSyncDataType.GPS
+    "ecg" -> FcSyncDataType.ECG
+    "mood" -> FcSyncDataType.MOOD
+    "vitality" -> FcSyncDataType.VITALITY
+    "game" -> FcSyncDataType.GAME
+    "today_total" -> FcSyncDataType.TODAY_TOTAL_DATA
+    else -> name.removePrefix("unknown_").toIntOrNull()
+}
+
 /**
  * §4.5 persists a firmware version alongside the capabilities. The app build is the version
  * the user sees on the watch; the GNSS and 4G strings are reported only by units that have

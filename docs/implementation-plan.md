@@ -769,6 +769,8 @@ Journal (`raw_ingest`), normalisers, the full schema with triggers (§5), the ag
 - [ ] Replaying the journal from scratch reproduces the canonical tables exactly.
 - [ ] Migration and trigger tests are green for every schema version so far.
 
+**Fixture strategy for `FitCloudHealthDataDecoder` tests (decided during Task 12):** `FcSyncData.toXxx()` parses an undocumented, closed-source binary layout this project cannot hand-encode — there is no public encoder to build byte-level fixtures against, only decoders. `javap` against the vendored `sdk-fitcloud-3.0.2.4.aar` confirmed every `FcXxxData` type (`FcStepData`, `FcTodayTotalData`, `FcHeartRateData`, `FcOxygenData`, `FcBloodPressureData`, `FcTemperatureData`, `FcPressureData`, `FcSleepData`, `FcSportData`, `FcGpsData`) has a public Kotlin constructor with exactly the fields recon captured, so the decoder's mapping logic (`FcXxxData -> DecodedHealthRecord`) is split into `internal` top-level functions (`toDecodedStep()`, `toDecodedTodayTotal()`, etc. — see `FitCloudHealthDataDecoder.kt`) tested directly by constructing the SDK type via its public constructor with real recon values. `FcSyncData` reconstruction and the `.toXxx()` dispatch (`dispatchDecode()`) stay untested by unit test — it's a one-line-per-branch `when`, not logic worth a byte-fixture harness. Every remaining data type in Task 13+ follows this same pattern.
+
 ### Phase 7 — Export / import (M4)
 
 JSONL+ZIP exporter, CSV and GPX, the importer, optional scheduled auto-backup (§6).
