@@ -28,4 +28,4 @@ internal fun changeLogTriggerSql(table: String): List<String> = listOf(
     """.trimIndent(),
 )
 
-internal fun allChangeLogTriggerSql(): List<String> = CHANGE_LOG_TRIGGER_TABLES.flatMap(::changeLogTriggerSql)
+fun allChangeLogTriggerSql(): List<String> = CHANGE_LOG_TRIGGER_TABLES.flatMap(::changeLogTriggerSql)

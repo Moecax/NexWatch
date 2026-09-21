@@ -1,3 +1,5 @@
+import org.gradle.api.attributes.java.TargetJvmEnvironment
+
 plugins {
     id("nexwatch.android.library")
     id("nexwatch.android.hilt")
@@ -20,4 +22,19 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.junit)
+    testImplementation(project(":core:database"))
+    testImplementation(libs.androidx.sqlite.bundled)
+    testImplementation(libs.androidx.room.runtime)
+}
+
+afterEvaluate {
+    configurations.matching { it.name == "debugUnitTestCompileClasspath" || it.name == "debugUnitTestRuntimeClasspath" }
+        .configureEach {
+            attributes {
+                attribute(
+                    TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
+                    project.objects.named(TargetJvmEnvironment::class.java, TargetJvmEnvironment.STANDARD_JVM),
+                )
+            }
+        }
 }
