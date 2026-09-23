@@ -7,6 +7,7 @@ import com.nexwatch.core.watchapi.DiscoveredWatch
 import com.nexwatch.core.watchapi.WatchClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
@@ -139,6 +141,11 @@ class OnboardingViewModel @Inject constructor(
 
             _uiState.update { it.copy(step = OnboardingStep.Pairing(PairingPhase.READING_FEATURES)) }
             watchClient.capabilities.filterNotNull().first()
+            // capabilities can be emitted from a producer on a different dispatcher (the fake
+            // client's own background scope; the real client's command mutex thread), so the
+            // await above may resume off viewModelScope's dispatcher. Hop back explicitly rather
+            // than let the rest of this pairing sequence run wherever that producer happened to be.
+            withContext(Dispatchers.Main) {}
 
             _uiState.update { it.copy(step = OnboardingStep.Pairing(PairingPhase.FIRST_SYNC)) }
             watchClient.syncHealthData().collect { }
