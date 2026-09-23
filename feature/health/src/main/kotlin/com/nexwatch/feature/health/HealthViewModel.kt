@@ -23,7 +23,9 @@ class HealthViewModel @Inject constructor(
 
     val uiState: StateFlow<HealthUiState> = run {
         val nowMs = System.currentTimeMillis()
-        val fromDate = LocalDate.now(ZoneId.systemDefault()).minusDays(7).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        // minusDays(6), not 7: observeSleepNights' date range is inclusive on both ends, so
+        // minusDays(6)..now is 7 calendar dates, matching the HR/workout windows' 7-day span.
+        val fromDate = LocalDate.now(ZoneId.systemDefault()).minusDays(6).format(DateTimeFormatter.ISO_LOCAL_DATE)
         val toDate = LocalDate.now(ZoneId.systemDefault()).format(DateTimeFormatter.ISO_LOCAL_DATE)
 
         combine(
