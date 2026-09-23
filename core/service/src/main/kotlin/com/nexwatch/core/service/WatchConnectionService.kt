@@ -128,7 +128,11 @@ class WatchConnectionService : Service() {
         scope.launch {
             watchClient.state
                 .debounce(5_000)
-                .collectLatest { state ->
+                // Plain collect, not collectLatest: syncAndNormalize() marks raw_ingest rows
+                // processed before it aggregates them, so cancelling it mid-run (as collectLatest
+                // would on a later state change) can leave daily_summary silently stale for a
+                // date whose rows are already marked processed. A running sync must finish.
+                .collect { state ->
                     if (state is WatchState.Ready) {
                         syncCoordinator.syncAndNormalize()
                         WatchSyncWorker.enqueueCatchUp(applicationContext)
