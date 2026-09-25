@@ -11,6 +11,8 @@ import android.os.IBinder
 import androidx.core.content.ContextCompat
 import com.nexwatch.core.data.diagnostics.DiagnosticsStore
 import com.nexwatch.core.data.identity.WatchIdentityStore
+import com.nexwatch.core.data.sync.HealthSyncCoordinator
+import com.nexwatch.core.data.sync.WatchSyncWorker
 import com.nexwatch.core.service.notification.ServiceNotifications
 import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchEvent
@@ -21,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -38,6 +41,7 @@ class WatchConnectionService : Service() {
     @Inject lateinit var watchClient: WatchClient
     @Inject lateinit var identityStore: WatchIdentityStore
     @Inject lateinit var diagnosticsStore: DiagnosticsStore
+    @Inject lateinit var syncCoordinator: HealthSyncCoordinator
 
     // A bare SupervisorJob still routes an uncaught child exception to the thread's default
     // handler (it only isolates siblings from each other), which would otherwise kill the
@@ -54,6 +58,7 @@ class WatchConnectionService : Service() {
     override fun onCreate() {
         super.onCreate()
         ServiceNotifications.ensureChannel(this)
+        WatchSyncWorker.schedulePeriodic(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -63,6 +68,7 @@ class WatchConnectionService : Service() {
             ensureLoggedIn()
             observeState()
             observeEvents()
+            observeSyncTriggers()
         }
         return START_STICKY
     }
@@ -114,6 +120,24 @@ class WatchConnectionService : Service() {
                     runCatching { diagnosticsStore.recordConnected(System.currentTimeMillis()) }
                 }
             }
+        }
+    }
+
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private fun observeSyncTriggers() {
+        scope.launch {
+            watchClient.state
+                .debounce(5_000)
+                // Plain collect, not collectLatest: syncAndNormalize() marks raw_ingest rows
+                // processed before it aggregates them, so cancelling it mid-run (as collectLatest
+                // would on a later state change) can leave daily_summary silently stale for a
+                // date whose rows are already marked processed. A running sync must finish.
+                .collect { state ->
+                    if (state is WatchState.Ready) {
+                        syncCoordinator.syncAndNormalize()
+                        WatchSyncWorker.enqueueCatchUp(applicationContext)
+                    }
+                }
         }
     }
 

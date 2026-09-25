@@ -84,6 +84,24 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!--
+          NexWatchApplication implements Configuration.Provider for Hilt-injected workers
+          (WatchSyncWorker, §12 Phase 6), which means WorkManager must be initialized on demand
+          rather than by its default androidx.startup.InitializationProvider entry — otherwise
+          WorkManager initializes itself with the default Configuration before onCreate() ever
+          runs, and Hilt's WorkerFactory never gets wired in.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup.InitializationProvider"
+                tools:node="remove" />
+        </provider>
     </application>
 
 </manifest>

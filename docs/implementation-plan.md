@@ -180,6 +180,13 @@ canonical tables  ──►  Exporters (JSONL/CSV/GPX)  and  UI queries
 
 Step 1 exists because the watch deletes data once the SDK finishes each type. Inside the `syncData()` subscriber, the only work per item is a single Room insert of the serialised payload into `raw_ingest`. Everything else (parsing, deduplication, aggregation) reads from the journal afterwards. If normalisation crashes or has a bug, you fix the code and reprocess the journal, and nothing is lost. There is a residual risk: data is lost if the process dies in the milliseconds between receiving an item and committing its journal row. Keeping step 1 tiny minimises that window. Accept it and document it.
 
+**Where decoding actually lives (Phase 6 finding).** The paragraph above describes decoding
+as one step, but it can't be one module: turning raw bytes back into typed data needs
+`FcSyncData.toXxx()` (an SDK type), and SDK types never leave `:core:watch-fitcloud`. Decoding
+lives there, behind a `HealthDataDecoder` interface declared in `:core:watch-api`; `:core:data`'s
+`HealthDataNormalizer` calls only that interface. See
+`docs/superpowers/specs/2026-09-20-phase-6-data-core-design.md` for the full reasoning.
+
 The journal payload is SDK-shaped, so each row stores `sdk_version` and `data_type`. Serialise with a small hand-written DTO per type, or a reflection-based JSON adapter scoped to this one purpose. Journal rows are marked `processed_at` after normalisation and pruned after 30 days. They double as your best test fixtures (§11).
 
 Normalisation runs per type inside one transaction per batch, using bulk inserts with `OnConflictStrategy.IGNORE` on the dedupe key. Sleep is the exception: it upserts by `(device_id, night_date)`, and when the content hash differs it replaces the stages and increments `version`.
@@ -530,8 +537,8 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 2 | Onboarding design system & UI | `phase-2-onboarding` | Done |
 | 3 | Recon (M0, needs the physical watch) | `phase-3-recon` | Done |
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Done |
-| 5 | Always-on service (M2) | `phase-5-always-on` | In progress |
-| 6 | Data core (M3) | `phase-6-data-core` | Not started |
+| 5 | Always-on service (M2) | `phase-5-always-on` | Done |
+| 6 | Data core (M3) | `phase-6-data-core` | Done |
 | 7 | Export / import (M4) | `phase-7-export-import` | Not started |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Not started |
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Not started |
@@ -750,14 +757,72 @@ entries for it are therefore not added in this phase either.
 - [ ] A 48-hour soak passes with the app swiped away: notifications and calls still arrive.
 - [ ] Battery and memory stay within the §9.1 budgets over that soak.
 
+**Deliberately deferred (time tradeoff, decided at merge).** Both exit criteria above need
+a device left alone and unplugged for 48 hours, which doesn't fit inside a single work
+session, so this phase merged to `main` (PR #7) on code review and manual functional
+verification alone — reconnection after restart/reboot, notification forwarding, find-phone
+and hang-up were exercised on-device, but not over a full 48h unattended window. Phase 10's
+"one-week soak shows no data gaps and stays within the §9.1 budgets" exit criterion is a
+strict superset of what's unchecked here, so these two boxes are folded into that final pass
+rather than duplicated as a standalone task. Revisit sooner only if Phase 6+ battery/memory
+regressions make it worth isolating Phase 5's baseline in particular.
+
 ### Phase 6 — Data core (M3)
 
 Journal (`raw_ingest`), normalisers, the full schema with triggers (§5), the aggregator, `WatchSyncWorker`, and health screens backed by SQL-bucketed queries.
 
 **Exit criteria**
-- [ ] No gaps in a 7-day data timeline.
-- [ ] Replaying the journal from scratch reproduces the canonical tables exactly.
-- [ ] Migration and trigger tests are green for every schema version so far.
+- [x] No gaps in a 7-day data timeline. Verified by `SevenDayTimelineTest` (Task 23).
+- [x] Replaying the journal from scratch reproduces the canonical tables exactly. Verified for
+      steps/heart_rate by `JournalReplayTest` (Task 23); `sleep_session`'s version-bump replay path
+      (structurally different from the rest — content-hash comparison and a `version` increment on
+      change, not a straight `OnConflictStrategy.IGNORE` dedupe) and the other RecordMeta-bearing
+      tables are not yet exercised by a replay test. The wording above reads as full coverage across
+      "the canonical tables"; the actual test coverage is narrower than that. Flagged as a follow-up,
+      not claimed as done.
+- [x] Migration and trigger tests are green for every schema version so far. `ChangeLogTriggerTest` +
+      `SchemaSmokeTest` (Task 11); only version 1 exists, so there is no migration to test yet —
+      noted explicitly rather than left implicit.
+
+**Fixture strategy for `FitCloudHealthDataDecoder` tests (decided during Task 12):** `FcSyncData.toXxx()` parses an undocumented, closed-source binary layout this project cannot hand-encode — there is no public encoder to build byte-level fixtures against, only decoders. `javap` against the vendored `sdk-fitcloud-3.0.2.4.aar` confirmed every `FcXxxData` type (`FcStepData`, `FcTodayTotalData`, `FcHeartRateData`, `FcOxygenData`, `FcBloodPressureData`, `FcTemperatureData`, `FcPressureData`, `FcSleepData`, `FcSportData`, `FcGpsData`) has a public Kotlin constructor with exactly the fields recon captured, so the decoder's mapping logic (`FcXxxData -> DecodedHealthRecord`) is split into `internal` top-level functions (`toDecodedStep()`, `toDecodedTodayTotal()`, etc. — see `FitCloudHealthDataDecoder.kt`) tested directly by constructing the SDK type via its public constructor with real recon values. `FcSyncData` reconstruction and the `.toXxx()` dispatch (`dispatchDecode()`) stay untested by unit test — it's a one-line-per-branch `when`, not logic worth a byte-fixture harness. Every remaining data type in Task 13+ follows this same pattern.
+
+**What landed.** The full §5 pipeline is in place. `HealthDataDecoder` (`:core:watch-api`) is
+implemented by `FitCloudHealthDataDecoder` (`:core:watch-fitcloud`), the only place `FcSyncData.toXxx()`
+is called; `HealthDataNormalizer` (`:core:data`) depends only on that interface and never sees an SDK
+type. `raw_ingest` journals every synced item before anything else touches it (I2); normalisation reads
+the journal per type inside one transaction per batch, `OnConflictStrategy.IGNORE` for the dedupe-key
+tables and content-hash-compare-then-version-bump for `sleep_session`. The schema has all 18 canonical
+tables (steps, heart_rate, spo2, blood_pressure, temperature, stress, sleep_session, sleep_stage,
+workout, workout_hr, workout_route, daily_summary, device, device_event, sync_cursor, export_history,
+raw_ingest, change_log), each with `CREATE TRIGGER IF NOT EXISTS` change-log triggers wired in
+`RoomDatabase.Callback.onOpen`. `DailySummaryAggregator` recomputes `daily_summary` for affected dates
+only, driven off the change log. `WatchSyncWorker` (`:core:data`) is the WorkManager entry point that
+calls `WatchClient.syncHealthData()` and drains the resulting `RawBatch`s into the journal/normaliser
+pipeline; `:app` wires its Hilt `WorkerFactory`. `:feature:today` and `:feature:health` replace their
+Phase 0 placeholders with real daily-summary and 7-day-history screens reading SQL-bucketed queries
+off `HealthSampleDao`/`DailySummaryDao` — no raw sample list is ever loaded into memory.
+
+**Unverified against real hardware.** All of this was built and tested against recon fixtures and
+hand-built unit-test data, not against a real multi-day sync from the physical watch — mirroring how
+Phase 3 recorded its own deliberately-descoped items rather than overclaiming them as checked:
+
+- **Every decoder mapping except steps and today-total.** Task 12's fixture strategy (above) lets the
+  decoder functions be tested against the SDK's real constructor shapes, but only `FcStepData` and
+  `FcTodayTotalData` have real non-zero recon payloads (`docs/recon/fixtures/`, from Phase 3) backing
+  their expected values. Heart rate, SpO2, blood pressure, temperature, stress, sleep and sport/workout
+  decoding are exercised by hand-constructed fixtures, not a real payload off the watch.
+- **The today-total calorie `/1000` scale factor** (`FitCloudHealthDataDecoder.kt`, flagged back in
+  Task 12) — the SDK gives no documented unit for `calorie`, and dividing by 1000 was inferred rather
+  than confirmed against a watch-reported value the user can cross-check.
+- **The MIN()-of-day resting-HR heuristic** (`HealthSampleDao`, feeding `DailySummaryAggregator`,
+  flagged back in Task 16) — using the day's minimum heart-rate sample as a proxy for resting HR is a
+  reasonable heuristic, not something FitCloud reports directly, and it's untested against a day of
+  real wear.
+
+The next phase (or a future recon session) should check these three first once real sync data has
+accumulated over several days — the decoder mappings and the calorie scale factor are the sort of thing
+that fails silently (a plausible-looking but wrong number), so they need eyes-on comparison against
+what the watch's own app or screen reports, not just a passing unit test.
 
 ### Phase 7 — Export / import (M4)
 

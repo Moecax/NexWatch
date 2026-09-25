@@ -1,3 +1,5 @@
+import org.gradle.api.attributes.java.TargetJvmEnvironment
+
 plugins {
     id("nexwatch.android.library")
     id("nexwatch.android.hilt")
@@ -14,8 +16,27 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:common"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
     testImplementation(libs.junit)
+    testImplementation(testFixtures(project(":core:database")))
+    testImplementation(project(":core:watch-fake"))
+}
+
+afterEvaluate {
+    configurations.matching { it.name == "debugUnitTestCompileClasspath" || it.name == "debugUnitTestRuntimeClasspath" }
+        .configureEach {
+            attributes {
+                attribute(
+                    TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
+                    project.objects.named(TargetJvmEnvironment::class.java, TargetJvmEnvironment.STANDARD_JVM),
+                )
+            }
+        }
 }
