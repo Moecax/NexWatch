@@ -19,9 +19,10 @@ import java.util.zip.ZipInputStream
 
 private const val DEVICE_ID = "AA:BB"
 private fun pkFor(key: String) = UUID.nameUUIDFromBytes(key.toByteArray()).toString()
-private class FixedAppVersion : AppVersionProvider { override fun versionName() = "1.0.0-test" }
 
 class JsonlZipExporterTest {
+
+    private class FixedAppVersion : AppVersionProvider { override fun versionName() = "1.0.0-test" }
 
     private val dispatcher = StandardTestDispatcher()
     private val dispatchers = object : CoroutineDispatchers {
