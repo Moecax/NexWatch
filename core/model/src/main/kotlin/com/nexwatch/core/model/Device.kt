@@ -1,5 +1,8 @@
 package com.nexwatch.core.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Device(
     val address: String,
     val model: String?,

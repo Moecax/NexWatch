@@ -1,5 +1,7 @@
 package com.nexwatch.core.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * Output of §5.2's decode step — one variant per raw_ingest data_type. Pure Kotlin so it
  * can cross the :core:watch-api / :core:data boundary without either side seeing an SDK type.
@@ -66,5 +68,8 @@ sealed interface DecodedHealthRecord {
  * sportId + items), so absolute time can only be computed once the matching WorkoutEntity's
  * startTime is known — that happens in HealthDataNormalizer (Task 15), not at decode time.
  */
+@Serializable
 data class WorkoutRoutePoint(val offsetSeconds: Int, val lat: Double, val lon: Double, val altitudeM: Float?)
+
+@Serializable
 data class WorkoutHrPoint(val atMs: Long, val bpm: Int)
