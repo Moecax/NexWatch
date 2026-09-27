@@ -77,8 +77,8 @@ class JsonlZipExporter @Inject constructor(
         ) { a, l -> repository.pageSleepSessions(a, l) }
 
         writeRecords(zip, "records/workout.jsonl", HealthRecord.Workout.serializer(), fileInfo, counts, "workout",
-            csvHeader = "id,dedupe_key,device_id,start_ms,end_ms,zone_offset_s,origin,version,deleted,ingested_at,sport_id,sport_type,distance_m,energy_kcal,avg_hr_bpm,max_hr_bpm,steps,route_point_count",
-            toCsvRow = { "${it.id},${it.dedupeKey},${it.deviceId},${it.startMs},${it.endMs},${it.zoneOffsetSec},${it.origin},${it.version},${it.deleted},${it.ingestedAt},${it.sportId},${it.sportType},${it.distanceM},${it.energyKcal},${it.avgHrBpm ?: ""},${it.maxHrBpm ?: ""},${it.steps ?: ""},${it.route.size}" },
+            csvHeader = "id,dedupe_key,device_id,start_ms,end_ms,zone_offset_s,origin,version,deleted,ingested_at,sport_id,sport_type,duration_s,distance_m,energy_kcal,avg_hr_bpm,max_hr_bpm,steps,route_point_count",
+            toCsvRow = { "${it.id},${it.dedupeKey},${it.deviceId},${it.startMs},${it.endMs},${it.zoneOffsetSec},${it.origin},${it.version},${it.deleted},${it.ingestedAt},${it.sportId},${it.sportType},${it.durationS},${it.distanceM},${it.energyKcal},${it.avgHrBpm ?: ""},${it.maxHrBpm ?: ""},${it.steps ?: ""},${it.route.size}" },
         ) { a, l -> repository.pageWorkouts(a, l) }
 
         writeDailySummaries(zip, fileInfo, counts)

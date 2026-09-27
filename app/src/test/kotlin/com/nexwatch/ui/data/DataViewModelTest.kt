@@ -6,10 +6,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * DataViewModel's export()/import() both need a real android.content.ContentResolver, which
- * doesn't exist on plain JVM — this test exercises the state machine (Idle -> Working -> result)
- * directly rather than standing up Robolectric for one screen. Full SAF flow verification is a
- * manual on-device pass (§Workflow), consistent with BackupWorker's DocumentFile boundary (Task 7).
+ * Does NOT construct a DataViewModel: its constructor needs an ExportRepository, whose DAO
+ * dependencies are :core:database types that :app deliberately never depends on directly (module
+ * table, CLAUDE.md) — pulling them in just for this test would be a worse boundary violation than
+ * the gap it would close. So this only covers DataUiState's shape; DataViewModel's actual
+ * export()/import()/backup logic is exercised by ExportRepository/JsonlZipExporter/ZipImporter's
+ * own JVM suites in :core:data/:core:export (DataViewModel is a thin orchestration layer over
+ * those) plus the manual on-device SAF pass recorded in docs/implementation-plan.md §12 Phase 7.
  */
 class DataViewModelTest {
 

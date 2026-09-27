@@ -12,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,8 +23,8 @@ import com.nexwatch.core.data.backup.BackupSettings
 @Composable
 fun DataRoute(viewModel: DataViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val backupSettings by viewModel.backupPrefs.settings.collectAsState(
-        initial = BackupSettings(enabled = false, folderUri = null, keepCount = 5),
+    val backupSettings by viewModel.backupPrefs.settings.collectAsStateWithLifecycle(
+        initialValue = BackupSettings(enabled = false, folderUri = null, keepCount = 5),
     )
     val context = LocalContext.current
     val resolver = context.contentResolver

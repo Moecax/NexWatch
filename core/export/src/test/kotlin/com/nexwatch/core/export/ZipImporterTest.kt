@@ -80,6 +80,31 @@ class ZipImporterTest {
         db.close()
     }
 
+    @Test
+    fun `a manifest from a newer schema version is rejected rather than imported blind`() = runTest(dispatcher) {
+        val db = inMemoryTestDatabase()
+        val repo = ExportRepository(db.stepsDao(), db.healthSampleDao(), db.sleepDao(), db.workoutDao(),
+            db.dailySummaryDao(), db.deviceDao(), db.exportHistoryDao(), dispatchers)
+        val bytes = exportOneStep(db, repo)
+        val manifestJson = ByteArrayInputStream(bytes).use { input ->
+            ZipInputStream(input).let { zip ->
+                var entry = zip.nextEntry
+                while (entry != null && entry.name != "manifest.json") entry = zip.nextEntry
+                zip.readBytes().toString(Charsets.UTF_8)
+            }
+        }
+        val bumped = manifestJson.replace("\"dbSchemaVersion\":1", "\"dbSchemaVersion\":2")
+        val tampered = rewriteEntry(bytes, "manifest.json", bumped.toByteArray())
+        wipeTables(db, "steps")
+
+        val thrown = assertThrows(ImportException.UnsupportedSchema::class.java) {
+            kotlinx.coroutines.runBlocking { ZipImporter(repo).import(ByteArrayInputStream(tampered)) }
+        }
+        assertEquals(2, thrown.fileSchemaVersion)
+        assertEquals(1, thrown.appSchemaVersion)
+        db.close()
+    }
+
     /** Rewrites one zip entry's bytes in place, leaving every other entry (including manifest.json) untouched. */
     private fun rewriteEntry(original: ByteArray, targetName: String, replacement: ByteArray): ByteArray {
         val out = ByteArrayOutputStream()

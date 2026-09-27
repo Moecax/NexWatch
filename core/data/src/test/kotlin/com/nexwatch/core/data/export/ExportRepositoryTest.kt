@@ -54,13 +54,38 @@ class ExportRepositoryTest {
         val pk = pkFor(dedupeKey)
         db.workoutDao().insertWorkouts(listOf(WorkoutEntity(pk,
             RecordMeta(dedupeKey, DEVICE_ID, 1000L, 2000L, 0, Origin.MONITOR, ingestedAt = 1000L),
-            "sport-1", 1, 1000, 500f, 30f, 130, 160, 600)))
-        db.workoutDao().insertRoute(listOf(WorkoutRouteEntity(workoutId = pk, atMs = 1000L, lat = 1.0, lon = 2.0, altitudeM = null)))
+            "sport-1", 1, durationS = 1, distanceM = 500f, energyKcal = 30f, avgHrBpm = 130, maxHrBpm = 160, steps = 600)))
+        // atMs = 1400, 400ms after the workout's startTime (1000) -> offsetSeconds must be 0, not always 0 by coincidence.
+        db.workoutDao().insertRoute(listOf(WorkoutRouteEntity(workoutId = pk, atMs = 1400L, lat = 1.0, lon = 2.0, altitudeM = null)))
 
         val page = repo.pageWorkouts("", limit = 10)
 
         assertEquals(1, page.size)
+        assertEquals(1, page[0].durationS)
         assertEquals(1, page[0].route.size)
+        assertEquals(0, page[0].route[0].offsetSeconds)
+        db.close()
+    }
+
+    @Test
+    fun `pageWorkouts computes non-zero route offsetSeconds relative to workout start`() = runTest(dispatcher) {
+        val db = inMemoryTestDatabase()
+        val repo = ExportRepository(db.stepsDao(), db.healthSampleDao(), db.sleepDao(), db.workoutDao(),
+            db.dailySummaryDao(), db.deviceDao(), db.exportHistoryDao(), dispatchers)
+        val dedupeKey = "workout:$DEVICE_ID:sport-3"
+        val pk = pkFor(dedupeKey)
+        db.workoutDao().insertWorkouts(listOf(WorkoutEntity(pk,
+            RecordMeta(dedupeKey, DEVICE_ID, 10_000L, 20_000L, 0, Origin.MONITOR, ingestedAt = 10_000L),
+            "sport-3", 1, durationS = 10, distanceM = 100f, energyKcal = 5f, avgHrBpm = null, maxHrBpm = null, steps = null)))
+        db.workoutDao().insertRoute(listOf(
+            WorkoutRouteEntity(workoutId = pk, atMs = 10_000L, lat = 1.0, lon = 2.0, altitudeM = null),
+            WorkoutRouteEntity(workoutId = pk, atMs = 15_000L, lat = 1.1, lon = 2.1, altitudeM = null),
+        ))
+
+        val route = repo.pageWorkouts("", limit = 10).single().route.sortedBy { it.offsetSeconds }
+
+        assertEquals(0, route[0].offsetSeconds)
+        assertEquals(5, route[1].offsetSeconds)
         db.close()
     }
 
@@ -71,8 +96,8 @@ class ExportRepositoryTest {
             db.dailySummaryDao(), db.deviceDao(), db.exportHistoryDao(), dispatchers)
         val dedupeKey = "workout:$DEVICE_ID:sport-2"
         val record = HealthRecord.Workout(pkFor(dedupeKey), dedupeKey, DEVICE_ID, 1000L, 2000L,
-            0, RecordOrigin.MONITOR, 1, false, 1000L, "sport-2", 1, 500f, 30f, null, null, null,
-            emptyList(), emptyList())
+            0, RecordOrigin.MONITOR, 1, false, 1000L, "sport-2", 1, durationS = 1, distanceM = 500f, energyKcal = 30f,
+            avgHrBpm = null, maxHrBpm = null, steps = null, route = emptyList(), heartRateSeries = emptyList())
 
         repo.insertWorkouts(listOf(record))
         repo.insertWorkouts(listOf(record)) // re-import same file twice

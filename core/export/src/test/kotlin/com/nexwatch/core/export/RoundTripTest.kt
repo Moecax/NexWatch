@@ -64,7 +64,8 @@ class RoundTripTest {
         db.workoutDao().insertWorkouts(listOf(WorkoutEntity(pkFor(workoutKey),
             RecordMeta(workoutKey, DEVICE_ID, 4000L, 8000L, 0, Origin.MONITOR, ingestedAt = 4000L),
             "sport-1", 1, durationS = 4, distanceM = 500f, energyKcal = 30f, avgHrBpm = 130, maxHrBpm = 160, steps = 600)))
-        db.workoutDao().insertRoute(listOf(WorkoutRouteEntity(workoutId = pkFor(workoutKey), atMs = 4000L, lat = 1.0, lon = 2.0, altitudeM = 10f)))
+        // atMs = 6000, 2s after the workout's startTime (4000) -> exercises a non-zero route offsetSeconds round trip.
+        db.workoutDao().insertRoute(listOf(WorkoutRouteEntity(workoutId = pkFor(workoutKey), atMs = 6000L, lat = 1.0, lon = 2.0, altitudeM = 10f)))
         db.dailySummaryDao().upsert(DailySummaryEntity(deviceId = DEVICE_ID, date = "2026-09-19",
             steps = 50, distanceM = 40, energyKcal = 2, restingHrBpm = 55, avgHrBpm = 70, maxHrBpm = 120, sleepMinutes = 50, liveStepsTotal = null))
 

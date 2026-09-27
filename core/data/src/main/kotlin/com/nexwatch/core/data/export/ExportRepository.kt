@@ -128,11 +128,13 @@ class ExportRepository @Inject constructor(
         withContext(dispatchers.io) { workoutDao.findByPk(id)?.toModelWithChildren() }
 
     private suspend fun WorkoutEntity.toModelWithChildren(): HealthRecord.Workout {
-        val route = workoutDao.routeForWorkoutOnce(pk).map { WorkoutRoutePoint(0, it.lat, it.lon, it.altitudeM) }
+        val route = workoutDao.routeForWorkoutOnce(pk).map {
+            WorkoutRoutePoint(((it.atMs - meta.startTime) / 1000).toInt(), it.lat, it.lon, it.altitudeM)
+        }
         val hr = workoutDao.heartRateForWorkoutOnce(pk).map { WorkoutHrPoint(it.atMs, it.bpm) }
         return HealthRecord.Workout(pk, meta.dedupeKey, meta.deviceId, meta.startTime, meta.endTime, meta.zoneOffsetSec,
-            meta.origin.toModel(), meta.version, meta.deleted, meta.ingestedAt, sportId, sportType, distanceM, energyKcal,
-            avgHrBpm, maxHrBpm, steps, route, hr)
+            meta.origin.toModel(), meta.version, meta.deleted, meta.ingestedAt, sportId, sportType, durationS, distanceM,
+            energyKcal, avgHrBpm, maxHrBpm, steps, route, hr)
     }
 
     suspend fun pageDailySummaries(afterId: Long, limit: Int): List<DailySummaryRecord> =
@@ -189,7 +191,7 @@ class ExportRepository @Inject constructor(
 
     suspend fun insertWorkouts(records: List<HealthRecord.Workout>): Unit = withContext(dispatchers.io) {
         workoutDao.insertWorkouts(records.map {
-            WorkoutEntity(it.id, it.toMeta(), it.sportId, it.sportType, ((it.endMs - it.startMs) / 1000).toInt(),
+            WorkoutEntity(it.id, it.toMeta(), it.sportId, it.sportType, it.durationS,
                 it.distanceM, it.energyKcal, it.avgHrBpm, it.maxHrBpm, it.steps)
         })
         records.forEach { record ->

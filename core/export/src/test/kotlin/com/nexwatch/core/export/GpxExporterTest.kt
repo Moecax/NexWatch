@@ -50,6 +50,10 @@ class GpxExporterTest {
         assertEquals(2, Regex("<trkpt").findAll(gpx).count())
         assertTrue(gpx.contains("""lat="1.0" lon="2.0""""))
         assertTrue(gpx.contains("<ele>5.0</ele>"))
+        // First point is at the workout's own startMs (10_000); second is 5s later (15_000) -
+        // if offsetSeconds were ever hardcoded to 0 again, both points would collapse onto this same instant.
+        assertTrue(gpx.contains("<time>${java.time.Instant.ofEpochMilli(10_000L)}</time>"))
+        assertTrue(gpx.contains("<time>${java.time.Instant.ofEpochMilli(15_000L)}</time>"))
         db.close()
     }
 

@@ -150,6 +150,7 @@ sealed interface HealthRecord {
         override val ingestedAt: Long,
         val sportId: String,
         val sportType: Int,
+        val durationS: Int,
         val distanceM: Float,
         val energyKcal: Float,
         val avgHrBpm: Int?,
