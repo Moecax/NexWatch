@@ -865,7 +865,19 @@ exist on Room's standard-jvm test variant (only Android's), so the round-trip an
 via raw `DELETE FROM` instead; and `sleep_stage`/`workout_route`'s own autoincrement `pk` is never reused by
 SQLite's `AUTOINCREMENT` keyword even after a full wipe, so — like `daily_summary`'s already-known case — the
 round-trip comparison zeroes that column out before asserting equality, since it isn't part of the §6.1 wire
-format. Not yet exercised on-device: a non-empty database (real sync data through the full round trip) and a
+format.
+
+An independent review pass after the on-device verification above caught two further bugs in the same
+`ExportRepository`/`GpxExporter` code path — both copied verbatim from the plan's own draft and masked in
+every original test because each fixture's route point happened to sit exactly at the workout's start time
+and each workout's `duration_s` happened to equal `(endMs - startMs) / 1000`: route points' `offsetSeconds`
+was hardcoded to `0` on export instead of computed from `atMs - startMs` (so every GPS point in an exported
+GPX file would have collapsed onto the same instant), and `HealthRecord.Workout` carried no `durationS`
+field at all, so import silently recomputed it from the timestamp span rather than round-tripping the
+watch's real value (wrong for any paused/interval workout). Both are fixed, `durationS` is now a real field
+on the wire type, and the tests that missed them were rewritten with fixtures where the correct and buggy
+computations disagree, so a regression can't hide behind coincidence again. Not yet exercised on-device: a
+non-empty database (real sync data, including a real GPS-tracked workout, through the full round trip) and a
 genuinely revoked/uninstalled SAF folder triggering `BackupWorker`'s `Result.retry()` path — both are covered
 by JVM tests but not hardware, the same "descoped, not hidden" honesty pattern Phase 3 and Phase 6 used for
 their own gaps.
