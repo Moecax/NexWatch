@@ -17,7 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.composable
 import com.nexwatch.feature.health.HealthRoute
 import com.nexwatch.feature.today.TodayRoute
-import com.nexwatch.ui.PlaceholderScreen
+import com.nexwatch.ui.data.DataRoute
 import com.nexwatch.ui.debug.WatchDebugScreen
 
 @Composable
@@ -61,7 +61,7 @@ fun NexWatchNavHost() {
             composable<NexWatchDestination.Today> { TodayRoute() }
             composable<NexWatchDestination.Health> { HealthRoute() }
             composable<NexWatchDestination.Watch> { WatchDebugScreen() }
-            composable<NexWatchDestination.Data> { PlaceholderScreen(title = "Data") }
+            composable<NexWatchDestination.Data> { DataRoute() }
         }
     }
 }

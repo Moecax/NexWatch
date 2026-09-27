@@ -539,7 +539,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 4 | FitCloudWatchClient (M1) | `phase-4-fitcloud-client` | Done |
 | 5 | Always-on service (M2) | `phase-5-always-on` | Done |
 | 6 | Data core (M3) | `phase-6-data-core` | Done |
-| 7 | Export / import (M4) | `phase-7-export-import` | Not started |
+| 7 | Export / import (M4) | `phase-7-export-import` | Done |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Not started |
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Not started |
 | 10 | Extras and hardening (M7) | `phase-10-hardening` | Not started |
@@ -829,8 +829,46 @@ what the watch's own app or screen reports, not just a passing unit test.
 JSONL+ZIP exporter, CSV and GPX, the importer, optional scheduled auto-backup (§6).
 
 **Exit criteria**
-- [ ] The export/import round-trip test is green (every table identical, IDs included).
-- [ ] Exporting a year of data holds constant memory.
+- [x] The export/import round-trip test is green (every table identical, IDs included). `RoundTripTest`
+      seeds every `RecordMeta`-bearing table plus `daily_summary` and `device`, exports, wipes, re-imports,
+      and asserts each table's rows are identical — including deterministic IDs.
+- [x] Exporting a year of data holds constant memory. Enforced structurally — no DAO added by this phase
+      returns an unpaged "all rows" list for a `RecordMeta`-bearing table, only keyset-paginated reads
+      (`WHERE pk > :afterId ORDER BY pk LIMIT :limit`, §6.2) — and proven at scale by
+      `JsonlZipExporterTest`'s 2,500-row multi-page test, which forces the export loop through 3 full page
+      cycles and asserts nothing is dropped or duplicated at a cursor boundary.
+
+**What landed.** `HealthRecord` (sealed interface, `:core:model`, one variant per `RecordMeta`-bearing
+table) is the full-fidelity canonical export/import wire type — the same type §7.1 names for Phase 9's
+`SyncProvider.RecordChange`, so that phase reuses it rather than inventing its own. `ExportRepository`
+(`:core:data`) is the only new code that touches Room for this phase: paginated reads mapped to
+`HealthRecord`/`DailySummaryRecord`/`Device`, and import writes that go back through the normal DAOs, so
+dedup-by-deterministic-ID and change-log triggers apply exactly as they do for a live sync. `JsonlZipExporter`
+(`:core:export`) streams each table from a DB page straight into a `ZipOutputStream` entry, computing a
+running SHA-256 per entry, and writes `manifest.json` last once real counts/hashes are known; CSV output
+is flattened top-level-only per table (nested sleep stages/workout route/HR series are JSONL-only — a
+deliberate scope decision, not an omission). `ZipImporter` validates the manifest's schema version and each
+entry's SHA-256 before inserting anything, batching inserts at 500 rows. `GpxExporter` is a separate
+per-workout exporter (§6.1's own closing line), not bundled into the main ZIP. `BackupPrefs`/`BackupWorker`
+add the optional §6.4 weekly, charging-and-not-low-battery auto-backup to a user-picked SAF folder, pruning
+beyond a configurable keep count.
+
+Verified on a real device (not just a green compile, per CLAUDE.md's Workflow section): installed the debug
+build, exported through the `CreateDocument` picker (empty database — no watch ever paired on this test
+device — producing a well-formed 18-entry zip with correct SHA-256 checksums for every entry, `Exported 0
+records` in the UI), imported the same file back through `OpenDocument` (`Imported 0 records`), and enabled
+auto-backup through the `OpenDocumentTree` folder picker (persisted across recomposition, `BackupWorker`
+confirmed registered in `dumpsys jobscheduler`). No exceptions in logcat for the `com.nexwatch` process
+during the pass. Two real bugs were caught and fixed only by writing the round-trip test against real Room
+autoincrement semantics rather than trusting the plan's first draft: `RoomDatabase.clearAllTables()` doesn't
+exist on Room's standard-jvm test variant (only Android's), so the round-trip and importer tests wipe tables
+via raw `DELETE FROM` instead; and `sleep_stage`/`workout_route`'s own autoincrement `pk` is never reused by
+SQLite's `AUTOINCREMENT` keyword even after a full wipe, so — like `daily_summary`'s already-known case — the
+round-trip comparison zeroes that column out before asserting equality, since it isn't part of the §6.1 wire
+format. Not yet exercised on-device: a non-empty database (real sync data through the full round trip) and a
+genuinely revoked/uninstalled SAF folder triggering `BackupWorker`'s `Result.retry()` path — both are covered
+by JVM tests but not hardware, the same "descoped, not hidden" honesty pattern Phase 3 and Phase 6 used for
+their own gaps.
 
 ### Phase 8 — Watch control (M5)
 
