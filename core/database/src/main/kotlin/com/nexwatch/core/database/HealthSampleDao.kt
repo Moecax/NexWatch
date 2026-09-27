@@ -24,6 +24,21 @@ interface HealthSampleDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertStress(rows: List<StressEntity>): List<Long>
 
+    @Query("SELECT * FROM heart_rate WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageHeartRateAfter(afterId: String, limit: Int): List<HeartRateEntity>
+
+    @Query("SELECT * FROM spo2 WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageSpo2After(afterId: String, limit: Int): List<Spo2Entity>
+
+    @Query("SELECT * FROM blood_pressure WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageBloodPressureAfter(afterId: String, limit: Int): List<BloodPressureEntity>
+
+    @Query("SELECT * FROM temperature WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageTemperatureAfter(afterId: String, limit: Int): List<TemperatureEntity>
+
+    @Query("SELECT * FROM stress WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageStressAfter(afterId: String, limit: Int): List<StressEntity>
+
     @Query(
         "SELECT * FROM heart_rate WHERE device_id = :deviceId AND start_time BETWEEN :fromMs AND :toMs " +
             "AND deleted = 0 ORDER BY start_time",

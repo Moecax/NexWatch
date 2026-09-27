@@ -32,4 +32,7 @@ interface DailySummaryDao {
 
     @Query("UPDATE daily_summary SET live_steps_total = :value WHERE device_id = :deviceId AND date = :date")
     suspend fun updateLiveStepsTotal(deviceId: String, date: String, value: Int)
+
+    @Query("SELECT * FROM daily_summary WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageAfter(afterId: Long, limit: Int): List<DailySummaryEntity>
 }
