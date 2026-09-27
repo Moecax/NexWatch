@@ -21,5 +21,8 @@ class NexWatchApplication : Application(), Configuration.Provider {
         // (started from AppRoot once bound, BootReceiver, or CompanionPresenceService) now
         // owns the LOGIN reconnect that used to live here as WatchAutoConnect (§12 Phase 5).
         FitCloudSdk.initialize(this, verboseLogging = BuildConfig.DEBUG)
+        // Safe to call unconditionally: ExistingPeriodicWorkPolicy.KEEP is a no-op if already
+        // scheduled, and runBackup itself checks BackupSettings.enabled before doing anything.
+        com.nexwatch.core.export.BackupWorker.schedulePeriodic(this)
     }
 }

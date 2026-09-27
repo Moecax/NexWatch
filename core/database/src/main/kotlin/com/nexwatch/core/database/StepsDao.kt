@@ -12,6 +12,10 @@ interface StepsDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAll(rows: List<StepsEntity>): List<Long>
 
+    /** §6.2 keyset pagination — never OFFSET. pk is a deterministic UUID string (§5.1), so "" sorts before every row. */
+    @Query("SELECT * FROM steps WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageAfter(afterId: String, limit: Int): List<StepsEntity>
+
     @Query("SELECT MAX(end_time) FROM steps WHERE device_id = :deviceId AND deleted = 0")
     suspend fun latestEndTime(deviceId: String): Long?
 

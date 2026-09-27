@@ -32,4 +32,16 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workout_hr WHERE workout_id = :workoutId ORDER BY start_time")
     fun observeHeartRateSeries(workoutId: String): Flow<List<WorkoutHrEntity>>
+
+    @Query("SELECT * FROM workout WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageAfter(afterId: String, limit: Int): List<WorkoutEntity>
+
+    @Query("SELECT * FROM workout WHERE pk = :pk")
+    suspend fun findByPk(pk: String): WorkoutEntity?
+
+    @Query("SELECT * FROM workout_route WHERE workout_id = :workoutId ORDER BY start_time")
+    suspend fun routeForWorkoutOnce(workoutId: String): List<WorkoutRouteEntity>
+
+    @Query("SELECT * FROM workout_hr WHERE workout_id = :workoutId ORDER BY start_time")
+    suspend fun heartRateForWorkoutOnce(workoutId: String): List<WorkoutHrEntity>
 }

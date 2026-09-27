@@ -13,6 +13,9 @@ interface DeviceDao {
     @Upsert
     suspend fun upsert(device: DeviceEntity)
 
+    @Query("SELECT * FROM device ORDER BY bound_at")
+    suspend fun findAll(): List<DeviceEntity>
+
     @Query("SELECT * FROM device WHERE address = :address")
     suspend fun findByAddress(address: String): DeviceEntity?
 

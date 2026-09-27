@@ -38,4 +38,10 @@ interface SleepDao {
 
     @Query("SELECT * FROM sleep_stage WHERE session_id = :sessionId ORDER BY start_time")
     fun observeStages(sessionId: String): Flow<List<SleepStageEntity>>
+
+    @Query("SELECT * FROM sleep_session WHERE pk > :afterId ORDER BY pk LIMIT :limit")
+    suspend fun pageSessionsAfter(afterId: String, limit: Int): List<SleepSessionEntity>
+
+    @Query("SELECT * FROM sleep_stage WHERE session_id = :sessionId ORDER BY start_time")
+    suspend fun stagesForSessionOnce(sessionId: String): List<SleepStageEntity>
 }
