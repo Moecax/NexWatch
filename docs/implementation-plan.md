@@ -540,7 +540,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 5 | Always-on service (M2) | `phase-5-always-on` | Done |
 | 6 | Data core (M3) | `phase-6-data-core` | Done |
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
-| 8 | Watch control (M5) | `phase-8-watch-control` | Not started |
+| 8 | Watch control (M5) | `phase-8-watch-control` | In progress |
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Not started |
 | 10 | Extras and hardening (M7) | `phase-10-hardening` | Not started |
 
@@ -885,6 +885,12 @@ their own gaps.
 ### Phase 8 — Watch control (M5)
 
 Watch settings screens: alarms, reminders, DND, units, weather push, camera remote, contacts.
+
+**Scope decisions.** Health monitoring, heart-rate alert and wrist-raise ride along because they use the
+same SDK config pattern as DND and reminders. Watchfaces, display brightness/timeout, firmware update and
+unpair from the design-prompt's Batch 5 stay out: watchfaces and firmware are Phase 10, and unpair is
+onboarding's existing `unbind`. There is no polished Batch 5 HTML yet (`docs/design/README.md`), so the
+screens are built from the text spec in `docs/design-prompt.md` on existing tokens.
 
 **Exit criteria**
 - [ ] Every setting round-trips: set it, then read the same value back from the watch.

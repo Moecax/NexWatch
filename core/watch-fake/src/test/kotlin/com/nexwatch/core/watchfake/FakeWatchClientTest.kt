@@ -1,9 +1,13 @@
 package com.nexwatch.core.watchfake
 
 import app.cash.turbine.test
+import com.nexwatch.core.watchapi.DoNotDisturb
+import com.nexwatch.core.watchapi.MinuteWindow
 import com.nexwatch.core.watchapi.OutgoingNotification
 import com.nexwatch.core.watchapi.UserProfile
+import com.nexwatch.core.watchapi.WatchAlarm
 import com.nexwatch.core.watchapi.WatchNotReadyException
+import com.nexwatch.core.watchapi.WatchSettingChange
 import com.nexwatch.core.watchapi.WatchState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
@@ -96,5 +100,41 @@ class FakeWatchClientTest {
         val client = FakeWatchClient()
         client.forceState(WatchState.AuthFailed("simulated"))
         assertEquals(WatchState.AuthFailed("simulated"), client.state.value)
+    }
+
+    @Test
+    fun `a written setting reads back from the watch`() = runTest {
+        val client = FakeWatchClient()
+        client.bind("AA:BB:CC:DD:EE:FF", profile)
+        val dnd = DoNotDisturb(allDay = false, scheduled = true, window = MinuteWindow(23 * 60, 6 * 60 + 30))
+
+        client.applySettings(WatchSettingChange.SetDoNotDisturb(dnd))
+
+        assertEquals(dnd, client.readSettings().doNotDisturb)
+    }
+
+    @Test
+    fun `alarms beyond the watch's capacity are rejected`() = runTest {
+        val client = FakeWatchClient()
+        client.bind("AA:BB:CC:DD:EE:FF", profile)
+        val alarms = (0..5).map { WatchAlarm(WatchAlarm.NEW_ID, 7, it, emptySet(), true, "") }
+
+        try {
+            client.applySettings(WatchSettingChange.SetAlarms(alarms))
+            fail("expected the sixth alarm to be refused")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(client.readSettings().alarms.orEmpty().isEmpty())
+        }
+    }
+
+    @Test
+    fun `settings are unreachable while not Ready`() = runTest {
+        val client = FakeWatchClient()
+        try {
+            client.readSettings()
+            fail("expected WatchNotReadyException")
+        } catch (e: WatchNotReadyException) {
+            assertEquals(WatchState.Unbound, e.state)
+        }
     }
 }

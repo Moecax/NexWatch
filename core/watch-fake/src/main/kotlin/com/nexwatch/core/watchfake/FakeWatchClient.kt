@@ -1,8 +1,15 @@
 package com.nexwatch.core.watchfake
 
 import com.nexwatch.core.watchapi.DiscoveredWatch
+import com.nexwatch.core.watchapi.DisplayUnits
+import com.nexwatch.core.watchapi.DoNotDisturb
+import com.nexwatch.core.watchapi.DrinkWaterReminder
+import com.nexwatch.core.watchapi.HealthMonitoring
+import com.nexwatch.core.watchapi.HeartRateAlert
+import com.nexwatch.core.watchapi.MinuteWindow
 import com.nexwatch.core.watchapi.OutgoingNotification
 import com.nexwatch.core.watchapi.RawBatch
+import com.nexwatch.core.watchapi.SedentaryReminder
 import com.nexwatch.core.watchapi.SendResult
 import com.nexwatch.core.watchapi.SyncProgress
 import com.nexwatch.core.watchapi.UserProfile
@@ -11,8 +18,10 @@ import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchEvent
 import com.nexwatch.core.watchapi.WatchNotReadyException
 import com.nexwatch.core.watchapi.WatchSettingChange
+import com.nexwatch.core.watchapi.WatchSettings
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.WeatherForecast
+import com.nexwatch.core.watchapi.WristRaise
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,6 +61,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     private val _capabilities = MutableStateFlow<WatchCapabilities?>(null)
     private val _events = MutableSharedFlow<WatchEvent>(extraBufferCapacity = 8)
     private var fakeBattery = 82
+    private var storedSettings = defaultSettings()
 
     /**
      * Real BLE hardware finishes the connection handshake, then reads device capabilities
@@ -151,6 +161,31 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     override suspend fun applySettings(change: WatchSettingChange): Unit = mutex.withLock {
         requireReady()
         delay(COMMAND_DELAY_MS)
+        storedSettings = when (change) {
+            is WatchSettingChange.SetDoNotDisturb -> storedSettings.copy(doNotDisturb = change.value)
+            is WatchSettingChange.SetAlarms -> {
+                val limit = sampleCapabilities().alarmLimit ?: 0
+                require(change.value.size <= limit) { "watch holds at most $limit alarms" }
+                storedSettings.copy(alarms = change.value)
+            }
+            is WatchSettingChange.SetSedentaryReminder -> storedSettings.copy(sedentaryReminder = change.value)
+            is WatchSettingChange.SetDrinkWaterReminder -> storedSettings.copy(drinkWaterReminder = change.value)
+            is WatchSettingChange.SetHealthMonitoring -> storedSettings.copy(healthMonitoring = change.value)
+            is WatchSettingChange.SetHeartRateAlert -> storedSettings.copy(heartRateAlert = change.value)
+            is WatchSettingChange.SetWristRaise -> storedSettings.copy(wristRaise = change.value)
+            is WatchSettingChange.SetDisplayUnits -> storedSettings.copy(displayUnits = change.value)
+            is WatchSettingChange.SetContacts -> {
+                val limit = sampleCapabilities().contactsLimit ?: 0
+                require(change.value.size <= limit) { "watch holds at most $limit contacts" }
+                storedSettings.copy(contacts = change.value)
+            }
+        }
+    }
+
+    override suspend fun readSettings(): WatchSettings = mutex.withLock {
+        requireReady()
+        delay(COMMAND_DELAY_MS)
+        storedSettings
     }
 
     override suspend fun pushWeather(forecast: WeatherForecast): Unit = mutex.withLock {
@@ -188,7 +223,36 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         advancedReminders = true,
         weather = true,
         contactsLimit = 20,
+        doNotDisturb = true,
+        heartRateAlert = true,
+        timeFormat = true,
+        alarmLimit = 5,
         firmwareVersion = "FAKE-1.0.0",
+    )
+
+    private fun defaultSettings() = WatchSettings(
+        doNotDisturb = DoNotDisturb(allDay = false, scheduled = false, window = MinuteWindow(22 * 60, 7 * 60)),
+        alarms = emptyList(),
+        sedentaryReminder = SedentaryReminder(
+            enabled = false,
+            window = MinuteWindow(9 * 60, 18 * 60),
+            intervalMinutes = 60,
+            respectsDoNotDisturb = true,
+        ),
+        drinkWaterReminder = DrinkWaterReminder(
+            enabled = false,
+            window = MinuteWindow(9 * 60, 18 * 60),
+            intervalMinutes = 60,
+        ),
+        healthMonitoring = HealthMonitoring(
+            enabled = true,
+            window = MinuteWindow(0, 23 * 60 + 59),
+            intervalMinutes = 10,
+        ),
+        heartRateAlert = HeartRateAlert(enabled = false, highBpm = 160, lowBpm = 40),
+        wristRaise = WristRaise(enabled = true, window = MinuteWindow(0, 23 * 60 + 59)),
+        displayUnits = DisplayUnits(use24HourClock = true, imperialLength = false, fahrenheit = false),
+        contacts = emptyList(),
     )
 
     private companion object {

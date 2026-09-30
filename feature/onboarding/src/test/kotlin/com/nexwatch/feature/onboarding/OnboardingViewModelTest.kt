@@ -15,6 +15,7 @@ import com.nexwatch.core.watchapi.WatchCapabilities
 import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchEvent
 import com.nexwatch.core.watchapi.WatchSettingChange
+import com.nexwatch.core.watchapi.WatchSettings
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.WeatherForecast
 import com.nexwatch.core.watchfake.FakeWatchClient
@@ -87,6 +88,7 @@ private class FailingWatchClient(
     override suspend fun findWatch() = Unit
     override suspend fun sendNotification(n: OutgoingNotification): SendResult = SendResult.Dropped("unused")
     override suspend fun applySettings(change: WatchSettingChange) = Unit
+    override suspend fun readSettings() = WatchSettings()
     override suspend fun pushWeather(forecast: WeatherForecast) = Unit
     override suspend fun notifyPhoneStatePermissionGranted() = Unit
 }

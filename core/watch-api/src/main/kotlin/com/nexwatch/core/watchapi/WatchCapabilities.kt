@@ -15,5 +15,10 @@ data class WatchCapabilities(
     val advancedReminders: Boolean,
     val weather: Boolean,
     val contactsLimit: Int?,
+    val doNotDisturb: Boolean,
+    val heartRateAlert: Boolean,
+    val timeFormat: Boolean,
+    /** Null when the watch reports no alarm capacity, which hides the Alarms screen. */
+    val alarmLimit: Int?,
     val firmwareVersion: String,
 )

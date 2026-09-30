@@ -14,11 +14,14 @@ import com.nexwatch.core.watchapi.WatchCommandTimeoutException
 import com.nexwatch.core.watchapi.WatchEvent
 import com.nexwatch.core.watchapi.WatchNotReadyException
 import com.nexwatch.core.watchapi.WatchSettingChange
+import com.nexwatch.core.watchapi.WatchSettings
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.WatchUserIdProvider
 import com.nexwatch.core.watchapi.WeatherForecast
 import com.topstep.fitcloud.sdk.exception.FcAuthException
 import com.topstep.fitcloud.sdk.v2.FcConnector
+import com.topstep.fitcloud.sdk.v2.features.FcConfigFeature
+import com.topstep.fitcloud.sdk.v2.model.config.FcDeviceInfo
 import com.topstep.fitcloud.sdk.v2.model.data.FcHealthDataType
 import com.topstep.wearkit.base.connector.ConnectorState
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -63,6 +66,9 @@ private val COMMAND_TIMEOUT = 10.seconds
 
 /** ...and notifications 5s, because a late notification is noise, not information. */
 private val NOTIFICATION_TIMEOUT = 5.seconds
+
+/** A contacts write pushes every entry over BLE, so it gets more room than a flag flip. */
+private val CONTACTS_TIMEOUT = 30.seconds
 
 /**
  * Long enough for a watch that is asleep on the wrist to answer an advertisement, short
@@ -332,10 +338,61 @@ class FitCloudWatchClient @Inject constructor(
     }
 
     override suspend fun applySettings(change: WatchSettingChange) {
-        // WatchSettingChange has no subtypes until Phase 8 defines them, so there is no
-        // instance that can reach this — it is unreachable today, not unimplemented.
-        requireReady()
-        throw UnsupportedOperationException("No WatchSettingChange subtypes exist yet (§4.2, Phase 8)")
+        command("applySettings", if (change is WatchSettingChange.SetContacts) CONTACTS_TIMEOUT else COMMAND_TIMEOUT) {
+            val config = connector.configFeature()
+            val features = connector.settingsFeature()
+            when (change) {
+                is WatchSettingChange.SetDoNotDisturb ->
+                    config.setDNDConfig(change.value.applyTo(config.getDNDConfig())).await()
+                is WatchSettingChange.SetSedentaryReminder ->
+                    config.setSedentaryConfig(change.value.applyTo(config.getSedentaryConfig())).await()
+                is WatchSettingChange.SetDrinkWaterReminder ->
+                    config.setDrinkWaterConfig(change.value.applyTo(config.getDrinkWaterConfig())).await()
+                is WatchSettingChange.SetHealthMonitoring ->
+                    config.setHealthMonitorConfig(change.value.applyTo(config.getHealthMonitorConfig())).await()
+                is WatchSettingChange.SetHeartRateAlert -> config.setHeartRateAlarmConfig(
+                    change.value.applyTo(config.getHeartRateAlarmConfig(), config.supports(FcDeviceInfo.Feature.LOW_HEART_RATE_ALARM)),
+                ).await()
+                is WatchSettingChange.SetWristRaise ->
+                    config.setTurnWristLightingConfig(change.value.applyTo(config.getTurnWristLightingConfig())).await()
+                is WatchSettingChange.SetDisplayUnits -> config.setFunctionConfig(
+                    change.value.applyTo(config.getFunctionConfig(), config.supports(FcDeviceInfo.Feature.TIME_FORMAT)),
+                ).await()
+                is WatchSettingChange.SetAlarms -> {
+                    require(change.value.size <= features.getAlarmMaxSize()) {
+                        "watch holds at most ${features.getAlarmMaxSize()} alarms"
+                    }
+                    features.setAlarms(change.value.toFcAlarms()).await()
+                }
+                is WatchSettingChange.SetContacts -> {
+                    val contacts = FitCloudSdk.require().contactsAbility
+                    require(change.value.size <= contacts.getContactsMaxNumber()) {
+                        "watch holds at most ${contacts.getContactsMaxNumber()} contacts"
+                    }
+                    contacts.setContacts(change.value.map { it.toFcContacts() }.toMutableList()).await()
+                }
+            }
+        }
+    }
+
+    override suspend fun readSettings(): WatchSettings = command("readSettings") {
+        val config = connector.configFeature()
+        config.refresh()
+        val features = connector.settingsFeature()
+        WatchSettings(
+            doNotDisturb = config.getDNDConfig().takeIf { config.supports(FcDeviceInfo.Feature.DND) }?.toDomain(),
+            alarms = features.requestAlarms().await().map { it.toDomain() }.takeIf { features.getAlarmMaxSize() > 0 },
+            sedentaryReminder = config.getSedentaryConfig().toDomain(),
+            drinkWaterReminder = config.getDrinkWaterConfig().toDomain(),
+            healthMonitoring = config.getHealthMonitorConfig().toDomain(),
+            heartRateAlert = config.getHeartRateAlarmConfig()
+                .takeIf { config.supports(FcDeviceInfo.Feature.HEART_RATE_ALARM) }
+                ?.toDomain(config.supports(FcDeviceInfo.Feature.LOW_HEART_RATE_ALARM)),
+            wristRaise = config.getTurnWristLightingConfig().toDomain(),
+            displayUnits = config.getFunctionConfig().toDisplayUnits(),
+            contacts = FitCloudSdk.require().contactsAbility.requestContacts().await().map { it.toDomain() }
+                .takeIf { config.supports(FcDeviceInfo.Feature.CONTACTS) },
+        )
     }
 
     override suspend fun pushWeather(forecast: WeatherForecast) {
@@ -360,8 +417,11 @@ class FitCloudWatchClient @Inject constructor(
         config.getDeviceInfo().toCapabilities(
             firmwareVersion = firmwareVersionOf(connector),
             contactsLimit = contactsLimit,
+            alarmLimit = connector.settingsFeature().getAlarmMaxSize(),
         )
     }
+
+    private fun FcConfigFeature.supports(feature: Int) = getDeviceInfo().isSupportFeature(feature)
 
     private fun nextRetryAt(): Instant? =
         connector.getNextRetryTime().takeIf { it >= MIN_PLAUSIBLE_EPOCH_MS }?.let(Instant::ofEpochMilli)

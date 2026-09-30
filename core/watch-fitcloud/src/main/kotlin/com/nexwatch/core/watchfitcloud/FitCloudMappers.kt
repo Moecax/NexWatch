@@ -49,6 +49,7 @@ internal fun ConnectorState.toWatchState(battery: Int?, nextRetryAt: Instant?): 
 internal fun FcDeviceInfo.toCapabilities(
     firmwareVersion: String,
     contactsLimit: Int?,
+    alarmLimit: Int?,
 ): WatchCapabilities = WatchCapabilities(
     heartRate = isSupportFeature(FcDeviceInfo.Feature.HEART_RATE),
     spo2 = isSupportFeature(FcDeviceInfo.Feature.OXYGEN),
@@ -60,6 +61,10 @@ internal fun FcDeviceInfo.toCapabilities(
     advancedReminders = isSupportFeature(FcDeviceInfo.Feature.ADVANCED_REMIND),
     weather = isSupportFeature(FcDeviceInfo.Feature.WEATHER),
     contactsLimit = contactsLimit?.takeIf { it > 0 && isSupportFeature(FcDeviceInfo.Feature.CONTACTS) },
+    doNotDisturb = isSupportFeature(FcDeviceInfo.Feature.DND),
+    heartRateAlert = isSupportFeature(FcDeviceInfo.Feature.HEART_RATE_ALARM),
+    timeFormat = isSupportFeature(FcDeviceInfo.Feature.TIME_FORMAT),
+    alarmLimit = alarmLimit?.takeIf { it > 0 },
     firmwareVersion = firmwareVersion,
 )
 
