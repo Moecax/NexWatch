@@ -29,6 +29,9 @@ dependencies {
     // vendor's own POM. Both are load-bearing — the connector logs through Timber and drives
     // the radio through RxAndroidBLE, and the SDK crashes on init without them.
     implementation(libs.rxandroidble)
+    // The SDK schedules its bond handling on AndroidSchedulers and crashes right after a
+    // BIND without it, for the same reason as the two companions above.
+    implementation(libs.rxandroid)
     implementation(libs.timber)
 
     // Vendored (third_party/maven/README.md).

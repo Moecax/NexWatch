@@ -44,6 +44,7 @@ dependencies {
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:today"))
     implementation(project(":feature:health"))
+    implementation(project(":feature:watch"))
     implementation(platform(libs.androidx.compose.bom))
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.activity.compose)

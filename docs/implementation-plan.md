@@ -540,7 +540,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 5 | Always-on service (M2) | `phase-5-always-on` | Done |
 | 6 | Data core (M3) | `phase-6-data-core` | Done |
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
-| 8 | Watch control (M5) | `phase-8-watch-control` | Not started |
+| 8 | Watch control (M5) | `phase-8-watch-control` | Done |
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Not started |
 | 10 | Extras and hardening (M7) | `phase-10-hardening` | Not started |
 
@@ -886,9 +886,53 @@ their own gaps.
 
 Watch settings screens: alarms, reminders, DND, units, weather push, camera remote, contacts.
 
+**Scope decisions.** Health monitoring, heart-rate alert and wrist-raise ride along because they use the
+same SDK config pattern as DND and reminders. Watchfaces, display brightness/timeout, firmware update and
+unpair from the design-prompt's Batch 5 stay out: watchfaces and firmware are Phase 10, and unpair is
+onboarding's existing `unbind`. There is no polished Batch 5 HTML yet (`docs/design/README.md`), so the
+screens are built from the text spec in `docs/design-prompt.md` on existing tokens.
+
+**What landed.** `WatchSettings`/`WatchSettingChange` (`:core:watch-api`) cover DND, alarms, move and
+drink-water reminders, health monitoring, heart-rate alert, wrist raise, units and contacts;
+`WatchClient.readSettings()` returns what the watch reports, and every save in the UI re-reads it so a snapped
+or refused value shows. `FitCloudSettingsMappers` builds each write from the config the watch last reported,
+so bytes the app has no field for survive. `:feature:watch` replaces the debug screen as the Watch tab
+(Diagnostics is now a row on it), hides any group the connected watch doesn't support, and offers an interval
+picker only where the watch lets it be changed.
+
 **Exit criteria**
-- [ ] Every setting round-trips: set it, then read the same value back from the watch.
-- [ ] Only capabilities the connected watch actually supports (§4.5) appear in the UI.
+- [x] Every setting round-trips: set it, then read the same value back from the watch. Verified 2026-09-30 on
+      the real GTR 3 Pro (firmware `00000105`) through the app's own UI, each value checked again after
+      force-stopping the app so the read could not come from the SDK's in-memory copy: DND (scheduled window),
+      move reminder (window, respect-DND), drink-water reminder (window, interval), health monitoring (window),
+      wrist raise (window), units (12h/miles/°F and back) and alarms (07:00, Mon+Wed, label) and contacts
+      (add, persist, delete). Two reads look like round-trip failures but are the watch's own limits, not
+      bugs: the move-reminder and health-monitor intervals are fixed (10 and 5 min) because this unit doesn't
+      report `SEDENTARY_CONFIG_INTERVAL` / `HEALTH_MONITOR_CONFIG_INTERVAL`, so the app shows them read-only
+      (new `WatchCapabilities` flags). The heart-rate alert can't be round-tripped here: the unit doesn't
+      report `HEART_RATE_ALARM`, so the UI hides it. Its code path is covered by the mapper test only.
+- [x] Only capabilities the connected watch actually supports (§4.5) appear in the UI. The capability read
+      from the real watch (Diagnostics row) drove the gating: heart-rate alert hidden, both interval pickers
+      read-only, alarm capacity 5, contacts limit 10, DND and time format shown.
+
+**Confirmed against the watch's own screen** (by eye, not by read-back): alarm repeat bit order (Monday =
+bit 0), `FcFunctionConfig` flag polarity (set = 12-hour, imperial, Fahrenheit), `MinuteWindow` as minutes since
+midnight, and the weather icons for Sunny, Cloudy, Rain and Snow. Storm and Fog were pushed afterwards and are
+not yet confirmed.
+
+**Pairing on real hardware also exposed two crashes, fixed here.** Both predate this phase and were
+invisible until a real BIND: the SDK's bond handling needs RxAndroid's `AndroidSchedulers` and crashed the
+process right after pairing (`rxandroid` 3.0.2 is now pinned next to the other SDK companions, with its
+verification hashes), and `CompanionDeviceManager.associate()` throws without
+`android.software.companion_device_setup` declared (added to `:app`'s manifest as `required="false"`).
+
+**Deliberately not in this phase.**
+- Camera remote (§8.6): the two camera `WatchEvent`s stay unhandled in `WatchConnectionService`. The only
+  test phone has no working camera, so it could not be verified, and an unverified camera path is worse than a
+  documented gap. Do it when a phone with a camera is on hand.
+- A scheduled weather fetch (`WeatherWorker`, §8.7): the Weather screen is a manual test push, which is what
+  settled the condition codes. Real forecasts need a network source and a location decision.
+- Display brightness/timeout, watchfaces and firmware update (see the scope note above).
 
 ### Phase 9 — Sync framework & Health Connect (M6)
 

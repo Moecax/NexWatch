@@ -36,5 +36,11 @@ interface WatchClient {
     suspend fun notifyPhoneStatePermissionGranted()
     suspend fun sendNotification(n: OutgoingNotification): SendResult
     suspend fun applySettings(change: WatchSettingChange)
+
+    /**
+     * What the watch reports right now, not what the app last wrote. Groups the connected
+     * watch doesn't support come back `null` (§4.5).
+     */
+    suspend fun readSettings(): WatchSettings
     suspend fun pushWeather(forecast: WeatherForecast)
 }

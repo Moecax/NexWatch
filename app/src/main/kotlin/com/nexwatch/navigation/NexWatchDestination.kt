@@ -37,6 +37,10 @@ sealed interface NexWatchDestination {
     }
 }
 
+/** Reached from the Watch tab, so it is a route but not a tab. */
+@Serializable
+data object WatchDiagnostics
+
 val NexWatchDestination.label: String
     get() = when (this) {
         NexWatchDestination.Today -> "Today"
