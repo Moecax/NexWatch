@@ -892,6 +892,24 @@ unpair from the design-prompt's Batch 5 stay out: watchfaces and firmware are Ph
 onboarding's existing `unbind`. There is no polished Batch 5 HTML yet (`docs/design/README.md`), so the
 screens are built from the text spec in `docs/design-prompt.md` on existing tokens.
 
+**Landed so far (unverified on the watch).** `WatchSettings`/`WatchSettingChange` (`:core:watch-api`) cover
+DND, alarms, move and drink-water reminders, health monitoring, heart-rate alert, wrist raise, units and
+contacts; `WatchClient.readSettings()` returns what the watch reports, and every save in the UI re-reads it so
+a snapped or refused value shows. `FitCloudSettingsMappers` builds each write from the config the watch last
+reported, so bytes the app has no field for survive. `:feature:watch` replaces the debug screen as the Watch tab
+(Diagnostics is now a row on it) and hides any group the connected watch doesn't support. Exercised on a phone
+against `FakeWatchClient` only.
+
+**Still open, blocking `Done`:**
+- Real-watch round trip for every setting. It needs a BIND (the app on the test phone is unpaired and the watch
+  holds the recon harness's userId), which wipes the watch, so it waits on the user. Assumptions to confirm
+  there: `MinuteWindow` is minutes since midnight, `FcAlarm.repeat` bit order (Monday = bit 0), the
+  `FcFunctionConfig` flag polarity for 12h/imperial/Fahrenheit, `FcConfigFeature.refresh()` really re-reading
+  from the watch, and the interval presets the watch accepts.
+- Camera remote (§8.6): the two camera `WatchEvent`s are still unhandled.
+- Weather condition codes (Phase 4): the Weather screen pushes a test forecast per condition to check them.
+  A scheduled fetch (`WeatherWorker`, §8.7) is not part of this phase.
+
 **Exit criteria**
 - [ ] Every setting round-trips: set it, then read the same value back from the watch.
 - [ ] Only capabilities the connected watch actually supports (§4.5) appear in the UI.
