@@ -1,6 +1,5 @@
 package com.nexwatch.feature.watch
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,24 +32,18 @@ internal fun HealthMonitoringScreen(
                 SwitchRow("Measure in the background", current.enabled, { monitoring = current.copy(enabled = it) })
                 if (current.enabled) {
                     WindowRows(current.window) { monitoring = current.copy(window = it) }
-                    Column {
+                    IntervalPicker(
+                        minutes = current.intervalMinutes,
+                        configurable = state.capabilities?.monitorIntervalConfigurable == true,
+                        options = MONITOR_INTERVALS,
+                    ) { monitoring = current.copy(intervalMinutes = it) }
+                    if (state.capabilities?.monitorIntervalConfigurable == true) {
                         Text(
-                            "Every",
-                            style = MaterialTheme.typography.labelMedium,
+                            "More frequent monitoring uses more watch battery.",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        ChoiceChips(
-                            options = (MONITOR_INTERVALS + current.intervalMinutes).distinct().sorted(),
-                            selected = current.intervalMinutes,
-                            label = { "$it min" },
-                            onSelected = { monitoring = current.copy(intervalMinutes = it) },
-                        )
                     }
-                    Text(
-                        "More frequent monitoring uses more watch battery.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
         }

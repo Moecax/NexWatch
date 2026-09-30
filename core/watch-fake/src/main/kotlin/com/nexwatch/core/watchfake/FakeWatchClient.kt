@@ -226,6 +226,8 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         doNotDisturb = true,
         heartRateAlert = true,
         timeFormat = true,
+        sedentaryIntervalConfigurable = true,
+        monitorIntervalConfigurable = true,
         alarmLimit = 5,
         firmwareVersion = "FAKE-1.0.0",
     )

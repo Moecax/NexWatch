@@ -37,7 +37,9 @@ internal fun RemindersScreen(
         var water by remember(settings.drinkWaterReminder) { mutableStateOf(settings.drinkWaterReminder) }
 
         dnd?.let { current -> DoNotDisturbCard(current) { dnd = it } }
-        sedentary?.let { current -> SedentaryCard(current) { sedentary = it } }
+        sedentary?.let { current ->
+            SedentaryCard(current, state.capabilities?.sedentaryIntervalConfigurable == true) { sedentary = it }
+        }
         water?.let { current -> DrinkWaterCard(current) { water = it } }
 
         val changes = buildList<WatchSettingChange> {
@@ -61,12 +63,16 @@ private fun DoNotDisturbCard(value: DoNotDisturb, onChange: (DoNotDisturb) -> Un
 }
 
 @Composable
-private fun SedentaryCard(value: SedentaryReminder, onChange: (SedentaryReminder) -> Unit) {
+private fun SedentaryCard(
+    value: SedentaryReminder,
+    intervalConfigurable: Boolean,
+    onChange: (SedentaryReminder) -> Unit,
+) {
     SettingsCard("Move reminder") {
         SwitchRow("Remind me to move", value.enabled, { onChange(value.copy(enabled = it)) })
         if (value.enabled) {
             WindowRows(value.window) { onChange(value.copy(window = it)) }
-            IntervalPicker(value.intervalMinutes) { onChange(value.copy(intervalMinutes = it)) }
+            IntervalPicker(value.intervalMinutes, intervalConfigurable) { onChange(value.copy(intervalMinutes = it)) }
             SwitchRow(
                 "Respect Do Not Disturb",
                 value.respectsDoNotDisturb,
@@ -82,7 +88,7 @@ private fun DrinkWaterCard(value: DrinkWaterReminder, onChange: (DrinkWaterRemin
         SwitchRow("Remind me to drink", value.enabled, { onChange(value.copy(enabled = it)) })
         if (value.enabled) {
             WindowRows(value.window) { onChange(value.copy(window = it)) }
-            IntervalPicker(value.intervalMinutes) { onChange(value.copy(intervalMinutes = it)) }
+            IntervalPicker(value.intervalMinutes, configurable = true) { onChange(value.copy(intervalMinutes = it)) }
         }
     }
 }
@@ -94,13 +100,26 @@ internal fun WindowRows(window: MinuteWindow, onChange: (MinuteWindow) -> Unit) 
 }
 
 @Composable
-private fun IntervalPicker(minutes: Int, onChange: (Int) -> Unit) {
+internal fun IntervalPicker(
+    minutes: Int,
+    configurable: Boolean,
+    options: List<Int> = REMINDER_INTERVALS,
+    onChange: (Int) -> Unit,
+) {
+    if (!configurable) {
+        Text(
+            "Every $minutes min, set by the watch",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
     Column {
         Text("Every", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
         // A read-back value outside the presets (the watch snapped it) still has to show up.
         ChoiceChips(
-            options = (REMINDER_INTERVALS + minutes).distinct().sorted(),
+            options = (options + minutes).distinct().sorted(),
             selected = minutes,
             label = { "$it min" },
             onSelected = onChange,

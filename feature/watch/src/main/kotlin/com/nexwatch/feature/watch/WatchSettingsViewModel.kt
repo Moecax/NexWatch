@@ -101,8 +101,11 @@ class WatchSettingsViewModel @Inject constructor(
             WeatherForecast(
                 locationName = "NexWatch",
                 current = WeatherReading(condition, temperatureC),
-                days = List(TEST_FORECAST_DAYS) {
-                    WeatherDayForecast(condition, highC = temperatureC + 2, lowC = temperatureC - 2)
+                // Each forecast day gets a different condition, so one push shows several of
+                // the watch's icons at once.
+                days = List(TEST_FORECAST_DAYS) { offset ->
+                    val next = WeatherCondition.entries[(condition.ordinal + offset + 1) % WeatherCondition.entries.size]
+                    WeatherDayForecast(next, highC = temperatureC + 2, lowC = temperatureC - 2)
                 },
             ),
         )

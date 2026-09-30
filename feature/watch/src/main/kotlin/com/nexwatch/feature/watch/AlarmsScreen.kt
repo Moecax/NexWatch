@@ -92,6 +92,7 @@ private fun AlarmCard(alarm: WatchAlarm, onChange: (WatchAlarm) -> Unit, onDelet
                         onChange(alarm.copy(repeatDays = days))
                     },
                     label = { Text(day.getDisplayName(TextStyle.SHORT, locale)) },
+                    colors = selectableChipColors(),
                 )
             }
         }

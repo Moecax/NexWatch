@@ -161,7 +161,8 @@ private fun WatchOverviewReadyPreview() {
                     capabilities = WatchCapabilities(
                         heartRate = true, spo2 = true, bloodPressure = true, temperature = false, stress = false,
                         sport = true, gps = false, advancedReminders = false, weather = true, contactsLimit = 10,
-                        doNotDisturb = true, heartRateAlert = true, timeFormat = true, alarmLimit = 5,
+                        doNotDisturb = true, heartRateAlert = true, timeFormat = true,
+                        sedentaryIntervalConfigurable = true, monitorIntervalConfigurable = true, alarmLimit = 5,
                         firmwareVersion = "00000105",
                     ),
                     settings = WatchSettings(alarms = emptyList(), contacts = emptyList()),

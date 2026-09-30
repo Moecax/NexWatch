@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -188,10 +189,21 @@ internal fun <T> ChoiceChips(
                 selected = option == selected,
                 onClick = { onSelected(option) },
                 label = { Text(label(option)) },
+                colors = selectableChipColors(),
             )
         }
     }
 }
+
+/**
+ * The default selected fill matches the card behind it, which leaves the choice readable
+ * only by a font-weight change.
+ */
+@Composable
+internal fun selectableChipColors() = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = MaterialTheme.colorScheme.primary,
+    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+)
 
 @Composable
 internal fun SaveButton(onClick: () -> Unit, enabled: Boolean, busy: Boolean) {

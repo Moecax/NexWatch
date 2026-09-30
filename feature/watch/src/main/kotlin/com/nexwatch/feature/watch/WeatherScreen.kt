@@ -34,7 +34,7 @@ internal fun WeatherScreen(
 
         SettingsCard("Send a forecast") {
             Text(
-                "Pushes a three-day forecast so you can see how the watch draws each condition.",
+                "Sends today plus three days, each with a different condition, so you can see how the watch draws each one.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

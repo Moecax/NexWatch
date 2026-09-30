@@ -64,6 +64,8 @@ internal fun FcDeviceInfo.toCapabilities(
     doNotDisturb = isSupportFeature(FcDeviceInfo.Feature.DND),
     heartRateAlert = isSupportFeature(FcDeviceInfo.Feature.HEART_RATE_ALARM),
     timeFormat = isSupportFeature(FcDeviceInfo.Feature.TIME_FORMAT),
+    sedentaryIntervalConfigurable = isSupportFeature(FcDeviceInfo.Feature.SEDENTARY_CONFIG_INTERVAL),
+    monitorIntervalConfigurable = isSupportFeature(FcDeviceInfo.Feature.HEALTH_MONITOR_CONFIG_INTERVAL),
     alarmLimit = alarmLimit?.takeIf { it > 0 },
     firmwareVersion = firmwareVersion,
 )

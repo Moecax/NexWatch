@@ -18,6 +18,9 @@ data class WatchCapabilities(
     val doNotDisturb: Boolean,
     val heartRateAlert: Boolean,
     val timeFormat: Boolean,
+    /** False means the watch fixes the interval and ignores any value written for it. */
+    val sedentaryIntervalConfigurable: Boolean,
+    val monitorIntervalConfigurable: Boolean,
     /** Null when the watch reports no alarm capacity, which hides the Alarms screen. */
     val alarmLimit: Int?,
     val firmwareVersion: String,
