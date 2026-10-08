@@ -54,6 +54,30 @@ class HealthDataNormalizerTest {
     }
 
     @Test
+    fun `a step bucket starts at the previous bucket's end, capped at five minutes`() = runTest(dispatcher) {
+        val db = inMemoryTestDatabase()
+        db.deviceDao().upsert(DeviceEntity("AA:BB", null, null, null, null, boundAtMs = 0))
+        db.rawIngestDao().insert(
+            RawIngestEntity(receivedAt = 0, sdkVersion = "3.0.2.4", dataType = "step", payloadJson = "[]"),
+        )
+        val first = 1_700_000_000_000L
+        val soonAfter = first + 120_000L
+        val afterGap = soonAfter + 3_600_000L
+        val decoder = FakeDecoder(
+            listOf(first, soonAfter, afterGap).map { DecodedHealthRecord.Step(it, it, 10, 7f, 0.4f) },
+        )
+
+        HealthDataNormalizer(db, decoder, dispatchers).processUnprocessed()
+
+        val intervals = db.stepsDao().pageAfter("", 10).map { it.meta.startTime to it.meta.endTime }.sortedBy { it.second }
+        assertEquals(
+            listOf(first - 300_000L to first, first to soonAfter, afterGap - 300_000L to afterGap),
+            intervals,
+        )
+        db.close()
+    }
+
+    @Test
     fun `a decoder exception leaves the row unprocessed with an error recorded`() = runTest(dispatcher) {
         val db = inMemoryTestDatabase()
         db.deviceDao().upsert(DeviceEntity("AA:BB", null, null, null, null, boundAtMs = 0))

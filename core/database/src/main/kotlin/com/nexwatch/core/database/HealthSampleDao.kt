@@ -39,6 +39,36 @@ interface HealthSampleDao {
     @Query("SELECT * FROM stress WHERE pk > :afterId ORDER BY pk LIMIT :limit")
     suspend fun pageStressAfter(afterId: String, limit: Int): List<StressEntity>
 
+    @Query("SELECT * FROM heart_rate WHERE pk IN (:ids)")
+    suspend fun findHeartRateByIds(ids: List<String>): List<HeartRateEntity>
+
+    @Query("SELECT COUNT(*) FROM heart_rate")
+    suspend fun countHeartRate(): Int
+
+    @Query("SELECT * FROM spo2 WHERE pk IN (:ids)")
+    suspend fun findSpo2ByIds(ids: List<String>): List<Spo2Entity>
+
+    @Query("SELECT COUNT(*) FROM spo2")
+    suspend fun countSpo2(): Int
+
+    @Query("SELECT * FROM blood_pressure WHERE pk IN (:ids)")
+    suspend fun findBloodPressureByIds(ids: List<String>): List<BloodPressureEntity>
+
+    @Query("SELECT COUNT(*) FROM blood_pressure")
+    suspend fun countBloodPressure(): Int
+
+    @Query("SELECT * FROM temperature WHERE pk IN (:ids)")
+    suspend fun findTemperatureByIds(ids: List<String>): List<TemperatureEntity>
+
+    @Query("SELECT COUNT(*) FROM temperature")
+    suspend fun countTemperature(): Int
+
+    @Query("SELECT * FROM stress WHERE pk IN (:ids)")
+    suspend fun findStressByIds(ids: List<String>): List<StressEntity>
+
+    @Query("SELECT COUNT(*) FROM stress")
+    suspend fun countStress(): Int
+
     @Query(
         "SELECT * FROM heart_rate WHERE device_id = :deviceId AND start_time BETWEEN :fromMs AND :toMs " +
             "AND deleted = 0 ORDER BY start_time",

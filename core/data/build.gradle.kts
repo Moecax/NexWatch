@@ -3,6 +3,7 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
 plugins {
     id("nexwatch.android.library")
     id("nexwatch.android.hilt")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {

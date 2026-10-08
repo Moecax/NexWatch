@@ -42,6 +42,12 @@ interface SleepDao {
     @Query("SELECT * FROM sleep_session WHERE pk > :afterId ORDER BY pk LIMIT :limit")
     suspend fun pageSessionsAfter(afterId: String, limit: Int): List<SleepSessionEntity>
 
+    @Query("SELECT * FROM sleep_session WHERE pk IN (:ids)")
+    suspend fun findSessionsByIds(ids: List<String>): List<SleepSessionEntity>
+
+    @Query("SELECT COUNT(*) FROM sleep_session")
+    suspend fun countSessions(): Int
+
     @Query("SELECT * FROM sleep_stage WHERE session_id = :sessionId ORDER BY start_time")
     suspend fun stagesForSessionOnce(sessionId: String): List<SleepStageEntity>
 }

@@ -74,8 +74,8 @@ These facts come from the official SDK wiki (github.com/htangsmart/FitCloudPro-S
  ├── :core:model         canonical health record types (pure Kotlin, no Android)
  └── :core:common        dispatchers, Clock, logging, Result types
 
-:sync:healthconnect      first SyncProvider (added in M6)
-:sync:<anything>         future providers, one module each
+:core:sync-healthconnect first SyncProvider (added in M6)
+:core:sync-<anything>    future providers, one module each
 ```
 
 The dependency rules are strict. SDK types never leave `:core:watch-fitcloud`. Room entities never leave `:core:database` and `:core:data`. Export and sync only speak `:core:model`. Enforce this with Gradle module boundaries, not convention. If a module doesn't declare the dependency, it can't import the type.
@@ -341,7 +341,7 @@ sealed interface PushOutcome {
 }
 ```
 
-A provider implements that interface in its own module, registers with Hilt `@IntoSet`, and appears in Settings → Sync. That is the whole integration. It never touches Room, the watch or the scheduler.
+A provider implements that interface in its own module, registers with Hilt `@IntoSet`, and gets a card under Connected services on the Data tab. The card is the only provider-specific code outside the module, because how a provider connects (Health Connect's permission sheet, an OAuth login) differs per provider. The provider never touches Room, the watch or the scheduler.
 
 ### 7.2 SyncEngine
 
@@ -361,7 +361,9 @@ A daily job deletes change-log rows with `seq ≤ min(last_seq)` across enabled 
 
 ### 7.5 First provider: Health Connect
 
-Build this in M6 to prove the abstraction. It runs locally, needs no network, and makes your data available to Google Fit–style apps and anything else that reads Health Connect. The mapping is steps to `StepsRecord`, heart rate to `HeartRateRecord` (grouped into short series), SpO2 to `OxygenSaturationRecord`, blood pressure to `BloodPressureRecord`, sleep to `SleepSessionRecord` with stages, and workouts to `ExerciseSessionRecord` with an `ExerciseRoute`.
+Build this in M6 to prove the abstraction. It runs locally, needs no network, and makes your data available to Google Fit–style apps and anything else that reads Health Connect. The mapping is steps to `StepsRecord` (plus `DistanceRecord` and `ActiveCaloriesBurnedRecord` from the same interval), heart rate to `HeartRateRecord`, SpO2 to `OxygenSaturationRecord`, blood pressure to `BloodPressureRecord`, sleep to `SleepSessionRecord` with stages, and workouts to `ExerciseSessionRecord` with an `ExerciseRoute` and the workout's heart rate as one series.
+
+Heart rate outside workouts is one `HeartRateRecord` per sample, not grouped into series. A series built from whichever samples share a change batch would overwrite earlier samples in the same window with a partial copy. One record per sample keeps one deterministic `clientRecordId` per fact, which is what makes the upsert idempotent. Temperature and stress are not pushed: the GTR 3 Pro reports neither, and Health Connect has no stress type.
 
 ---
 
@@ -541,7 +543,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 6 | Data core (M3) | `phase-6-data-core` | Done |
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Done |
-| 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Not started |
+| 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | In progress |
 | 10 | Extras and hardening (M7) | `phase-10-hardening` | Not started |
 
 Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
@@ -938,10 +940,60 @@ verification hashes), and `CompanionDeviceManager.associate()` throws without
 
 `SyncProvider` API, `SyncEngine`, change-log compaction (§7), and the first provider, Health Connect.
 
+Plan: `docs/superpowers/plans/2026-10-08-phase-9-sync.md`.
+
+**What landed.** `:core:sync-api` holds the §7.1 contract. `SyncEngine` (`:core:data`) runs the §7.3 snapshot
+(head seq recorded first, then each supported table by primary key, 500 per page, position saved after every page)
+and then tails the change log, collapsing repeated entries for a record and loading its current version, with
+tombstones sent as `DELETE`. Provider on/off lives in DataStore (`SyncPrefs`) and progress in `sync_cursor`.
+Turning a provider off deletes its cursor so turning it on again backfills from scratch. A `Fatal` outcome only
+switches it off, so "Reconnect" resumes from the same cursor. `SyncEngineWorker` runs as unique work
+`sync-{id}` (`KEEP`) after every watch sync that changed data and after an import, plus `sync-{id}-periodic`
+every 6 h. `MaintenanceWorker` runs daily while idle and charging: it prunes the journal and compacts the change
+log below the lowest cursor (§7.4). `:core:sync-healthconnect` maps records as §7.5 describes, using the
+record's deterministic ID as `clientRecordId` and its `version` as `clientRecordVersion`. It is ready only
+when every write permission is granted. The Data tab has a Connected services card with the permission flow, a
+rationale screen, backfill progress and error states, and debug-only "Audit Health Connect" and "Re-send
+everything" tools that were used for the checks below.
+
 **Exit criteria**
-- [ ] Enabling Health Connect backfills all existing history.
-- [ ] New records appear in Health Connect within minutes of syncing from the watch.
-- [ ] Forcing retries produces no duplicate records.
+- [x] Enabling Health Connect backfills all existing history. Verified 2026-10-08 on the real phone (Redmi
+      Note 8 Pro, Android 14) against the real watch's synced history. After enabling, the debug audit read back
+      95 `StepsRecord`, 95 `DistanceRecord`, 95 `ActiveCaloriesBurnedRecord` and 8 `SleepSessionRecord` from
+      the app's own origin. That equals the local database exactly (95 step intervals, all with distance and
+      energy above 0, and 8 sleep nights). The watch had recorded no heart rate, SpO2, blood pressure or
+      workouts (its journal payloads for those types were empty), so those types read back 0 on both sides.
+- [ ] New records appear in Health Connect within minutes of syncing from the watch. Not yet verified: the
+      watch had recorded no new activity since 2026-10-04 when this was checked, so a sync produced nothing new
+      to send. The path is covered by JVM tests (the coordinator enqueues sync after any ingest that changed a
+      date, and `SyncEngineTest` covers tailing).
+- [x] Forcing retries produces no duplicate records. Verified 2026-10-08 on the phone: "Re-send everything"
+      (cursor deleted, so a full re-push of the same records) ran four more times. Three runs were force-stopped
+      0.3–1 s after starting, and one was caught mid-snapshot (`snapshot_state` on steps, 0 of 103 pushed).
+      Each resumed on relaunch through WorkManager. The audit afterwards still read 95/95/95/8 with total equal to
+      distinct `clientRecordId`s for every type. `SyncEngineTest` covers the same at the engine level: a retry
+      mid-tail, resuming a snapshot, and duplicate delivery.
+
+**Phase 6 gaps found on hardware, fixed here.** Neither could show up before real data went through the
+pipeline end to end.
+- Nothing wrote the `device` row, and the normaliser does nothing without one. On the phone all 416 journal rows
+  were unprocessed and every canonical table was empty. `DeviceRecorder` now records the bound watch (and a
+  `BOUND` event) before each normalisation. It updates the firmware version when it changes, and treats the
+  first known version after binding as filling in, not as an update.
+- Step buckets were stored as instants (`start == end`) instead of §5.3's interval rule, and Health Connect
+  rejects zero-length step records. The normaliser now applies `start = max(previous end, end − 5 min)`.
+  Schema v2 (`MIGRATION_1_2`, which changes no tables) repairs existing rows and bumps their `version`, so the
+  triggers log the correction for sync providers. The import path applies the same repair to exports written
+  before v2. `MigrationTest` (`MigrationTestHelper`) replaces Phase 6's `SchemaSmokeTest` stand-in. Verified on
+  the phone: after the upgrade all 95 rows were 2–5 min intervals at version 2.
+
+**Deliberately not in this phase.**
+- Workouts are sent as `EXERCISE_TYPE_OTHER_WORKOUT`. The SDK documents no sport-type table and no workout has
+  been recorded on the real watch, so a mapping would be a guess that fails silently.
+- Temperature and stress are not sent (§7.5). The engine supports them, so a provider that wants them only
+  has to list them.
+- Choosing which types a provider receives. Health Connect takes everything it supports, and readiness requires
+  every write permission, because a partial grant would let the cursor move past changes that weren't written.
 
 ### Phase 10 — Extras and hardening (M7)
 

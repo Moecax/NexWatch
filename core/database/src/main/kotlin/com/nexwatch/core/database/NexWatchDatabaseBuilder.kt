@@ -15,4 +15,5 @@ fun buildNexWatchDatabase(context: Context): NexWatchDatabase =
                 allChangeLogTriggerSql().forEach(db::execSQL)
             }
         })
+        .addMigrations(MIGRATION_1_2)
         .build()

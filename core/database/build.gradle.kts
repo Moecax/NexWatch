@@ -27,6 +27,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.sqlite.bundled)
+    testImplementation(libs.androidx.room.testing)
 
     // inMemoryTestDatabase() lives in src/testFixtures so other modules' tests can reuse it
     // (CLAUDE.md I4 trigger installation must stay in exactly one place). These are `api`, not
