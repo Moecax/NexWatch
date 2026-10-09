@@ -27,4 +27,5 @@ object DatabaseModule {
     @Provides fun provideRawIngestDao(db: NexWatchDatabase) = db.rawIngestDao()
     @Provides fun provideChangeLogDao(db: NexWatchDatabase) = db.changeLogDao()
     @Provides fun provideExportHistoryDao(db: NexWatchDatabase) = db.exportHistoryDao()
+    @Provides fun provideSyncCursorDao(db: NexWatchDatabase) = db.syncCursorDao()
 }

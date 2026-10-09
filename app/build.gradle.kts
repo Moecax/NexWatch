@@ -41,6 +41,8 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:export"))
     implementation(project(":core:service"))
+    implementation(project(":core:sync-api"))
+    implementation(project(":core:sync-healthconnect"))
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:today"))
     implementation(project(":feature:health"))

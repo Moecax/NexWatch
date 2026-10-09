@@ -3,6 +3,7 @@ package com.nexwatch
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.nexwatch.core.data.maintenance.MaintenanceWorker
 import com.nexwatch.core.watchfitcloud.FitCloudSdk
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -24,5 +25,6 @@ class NexWatchApplication : Application(), Configuration.Provider {
         // Safe to call unconditionally: ExistingPeriodicWorkPolicy.KEEP is a no-op if already
         // scheduled, and runBackup itself checks BackupSettings.enabled before doing anything.
         com.nexwatch.core.export.BackupWorker.schedulePeriodic(this)
+        MaintenanceWorker.schedulePeriodic(this)
     }
 }

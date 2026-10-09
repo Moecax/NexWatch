@@ -12,6 +12,7 @@ import com.nexwatch.core.database.SleepSessionEntity
 import com.nexwatch.core.database.SleepStageDb
 import com.nexwatch.core.database.SleepStageEntity
 import com.nexwatch.core.database.Spo2Entity
+import com.nexwatch.core.database.STEP_BUCKET_MS
 import com.nexwatch.core.database.StepsEntity
 import com.nexwatch.core.database.StressEntity
 import com.nexwatch.core.database.TemperatureEntity
@@ -86,16 +87,22 @@ class HealthDataNormalizer @Inject constructor(
         return when (record) {
             is DecodedHealthRecord.Step -> {
                 val key = stepsDedupeKey(deviceId, record.endMs)
+                // §5.3: the watch only stamps a bucket's end, so its start is the previous bucket's end, capped
+                // at one bucket length after a gap.
+                val startMs = maxOf(
+                    record.endMs - STEP_BUCKET_MS,
+                    db.stepsDao().previousEndTime(deviceId, record.endMs) ?: Long.MIN_VALUE,
+                )
                 db.stepsDao().insertAll(
                     listOf(
                         StepsEntity(
                             deterministicId(key),
-                            recordMeta(key, deviceId, record.startMs, record.endMs, Origin.MONITOR),
+                            recordMeta(key, deviceId, startMs, record.endMs, Origin.MONITOR),
                             record.count, record.distanceM, record.kcal,
                         ),
                     ),
                 )
-                dateOf(record.endMs, zone)
+                dateOf(startMs, zone)
             }
             is DecodedHealthRecord.HeartRate -> {
                 val key = heartRateDedupeKey(deviceId, record.atMs, origin.name)

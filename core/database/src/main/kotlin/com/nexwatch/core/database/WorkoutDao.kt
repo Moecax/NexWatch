@@ -36,6 +36,12 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout WHERE pk > :afterId ORDER BY pk LIMIT :limit")
     suspend fun pageAfter(afterId: String, limit: Int): List<WorkoutEntity>
 
+    @Query("SELECT * FROM workout WHERE pk IN (:ids)")
+    suspend fun findByIds(ids: List<String>): List<WorkoutEntity>
+
+    @Query("SELECT COUNT(*) FROM workout")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM workout WHERE pk = :pk")
     suspend fun findByPk(pk: String): WorkoutEntity?
 

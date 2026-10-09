@@ -42,6 +42,28 @@
             </intent-filter>
         </activity>
 
+        <!-- Health Connect won't show its permission sheet for an app with no rationale screen (§7.5). -->
+        <activity
+            android:name=".ui.data.HealthConnectRationaleActivity"
+            android:exported="true"
+            android:theme="@style/Theme.NexWatch">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Android 14+: the same screen, reached from Health Connect's own settings. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".ui.data.HealthConnectRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
         <service
             android:name="com.nexwatch.core.service.WatchConnectionService"
             android:exported="false"

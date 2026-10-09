@@ -35,6 +35,8 @@ class ZipImporter @Inject constructor(private val repository: ExportRepository) 
 
         val counts = linkedMapOf<String, Int>()
         counts["steps"] = importRecords(bytes, "records/steps.jsonl", manifest, HealthRecord.Step.serializer()) { repository.insertSteps(it) }
+        // After the whole file, not per batch: a bucket's start depends on its predecessor, which may be in a later batch.
+        repository.repairStepIntervals()
         counts["heart_rate"] = importRecords(bytes, "records/heart_rate.jsonl", manifest, HealthRecord.HeartRate.serializer()) { repository.insertHeartRate(it) }
         counts["spo2"] = importRecords(bytes, "records/spo2.jsonl", manifest, HealthRecord.Spo2.serializer()) { repository.insertSpo2(it) }
         counts["blood_pressure"] = importRecords(bytes, "records/blood_pressure.jsonl", manifest, HealthRecord.BloodPressure.serializer()) { repository.insertBloodPressure(it) }

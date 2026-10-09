@@ -1,6 +1,9 @@
 package com.nexwatch.core.data.export
 
 import com.nexwatch.core.common.CoroutineDispatchers
+import com.nexwatch.core.data.records.toMeta
+import com.nexwatch.core.data.records.toModel
+import com.nexwatch.core.data.records.toModelWithChildren
 import com.nexwatch.core.database.BloodPressureEntity
 import com.nexwatch.core.database.DailySummaryDao
 import com.nexwatch.core.database.DailySummaryEntity
@@ -11,8 +14,6 @@ import com.nexwatch.core.database.ExportHistoryEntity
 import com.nexwatch.core.database.HealthSampleDao
 import com.nexwatch.core.database.HeartRateEntity
 import com.nexwatch.core.database.NEXWATCH_SCHEMA_VERSION
-import com.nexwatch.core.database.Origin
-import com.nexwatch.core.database.RecordMeta
 import com.nexwatch.core.database.SleepDao
 import com.nexwatch.core.database.SleepSessionEntity
 import com.nexwatch.core.database.SleepStageDb
@@ -30,11 +31,6 @@ import com.nexwatch.core.model.DailySummaryRecord
 import com.nexwatch.core.model.Device
 import com.nexwatch.core.model.ExportHistoryEntry
 import com.nexwatch.core.model.HealthRecord
-import com.nexwatch.core.model.RecordOrigin
-import com.nexwatch.core.model.SleepStage
-import com.nexwatch.core.model.SleepStageSpan
-import com.nexwatch.core.model.WorkoutHrPoint
-import com.nexwatch.core.model.WorkoutRoutePoint
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlinx.serialization.json.Json
@@ -59,83 +55,33 @@ class ExportRepository @Inject constructor(
     // ---- paged reads ----
 
     suspend fun pageSteps(afterId: String, limit: Int): List<HealthRecord.Step> =
-        withContext(dispatchers.io) {
-            stepsDao.pageAfter(afterId, limit).map {
-                HealthRecord.Step(it.pk, it.meta.dedupeKey, it.meta.deviceId, it.meta.startTime, it.meta.endTime,
-                    it.meta.zoneOffsetSec, it.meta.origin.toModel(), it.meta.version, it.meta.deleted, it.meta.ingestedAt,
-                    it.count, it.distanceM, it.energyKcal)
-            }
-        }
+        withContext(dispatchers.io) { stepsDao.pageAfter(afterId, limit).map { it.toModel() } }
 
     suspend fun pageHeartRate(afterId: String, limit: Int): List<HealthRecord.HeartRate> =
-        withContext(dispatchers.io) {
-            healthSampleDao.pageHeartRateAfter(afterId, limit).map {
-                HealthRecord.HeartRate(it.pk, it.meta.dedupeKey, it.meta.deviceId, it.meta.startTime, it.meta.endTime,
-                    it.meta.zoneOffsetSec, it.meta.origin.toModel(), it.meta.version, it.meta.deleted, it.meta.ingestedAt, it.bpm)
-            }
-        }
+        withContext(dispatchers.io) { healthSampleDao.pageHeartRateAfter(afterId, limit).map { it.toModel() } }
 
     suspend fun pageSpo2(afterId: String, limit: Int): List<HealthRecord.Spo2> =
-        withContext(dispatchers.io) {
-            healthSampleDao.pageSpo2After(afterId, limit).map {
-                HealthRecord.Spo2(it.pk, it.meta.dedupeKey, it.meta.deviceId, it.meta.startTime, it.meta.endTime,
-                    it.meta.zoneOffsetSec, it.meta.origin.toModel(), it.meta.version, it.meta.deleted, it.meta.ingestedAt, it.percent)
-            }
-        }
+        withContext(dispatchers.io) { healthSampleDao.pageSpo2After(afterId, limit).map { it.toModel() } }
 
     suspend fun pageBloodPressure(afterId: String, limit: Int): List<HealthRecord.BloodPressure> =
-        withContext(dispatchers.io) {
-            healthSampleDao.pageBloodPressureAfter(afterId, limit).map {
-                HealthRecord.BloodPressure(it.pk, it.meta.dedupeKey, it.meta.deviceId, it.meta.startTime, it.meta.endTime,
-                    it.meta.zoneOffsetSec, it.meta.origin.toModel(), it.meta.version, it.meta.deleted, it.meta.ingestedAt,
-                    it.systolic, it.diastolic)
-            }
-        }
+        withContext(dispatchers.io) { healthSampleDao.pageBloodPressureAfter(afterId, limit).map { it.toModel() } }
 
     suspend fun pageTemperature(afterId: String, limit: Int): List<HealthRecord.Temperature> =
-        withContext(dispatchers.io) {
-            healthSampleDao.pageTemperatureAfter(afterId, limit).map {
-                HealthRecord.Temperature(it.pk, it.meta.dedupeKey, it.meta.deviceId, it.meta.startTime, it.meta.endTime,
-                    it.meta.zoneOffsetSec, it.meta.origin.toModel(), it.meta.version, it.meta.deleted, it.meta.ingestedAt, it.celsius)
-            }
-        }
+        withContext(dispatchers.io) { healthSampleDao.pageTemperatureAfter(afterId, limit).map { it.toModel() } }
 
     suspend fun pageStress(afterId: String, limit: Int): List<HealthRecord.Stress> =
-        withContext(dispatchers.io) {
-            healthSampleDao.pageStressAfter(afterId, limit).map {
-                HealthRecord.Stress(it.pk, it.meta.dedupeKey, it.meta.deviceId, it.meta.startTime, it.meta.endTime,
-                    it.meta.zoneOffsetSec, it.meta.origin.toModel(), it.meta.version, it.meta.deleted, it.meta.ingestedAt, it.level)
-            }
-        }
+        withContext(dispatchers.io) { healthSampleDao.pageStressAfter(afterId, limit).map { it.toModel() } }
 
     suspend fun pageSleepSessions(afterId: String, limit: Int): List<HealthRecord.SleepSession> =
         withContext(dispatchers.io) {
-            sleepDao.pageSessionsAfter(afterId, limit).map { session ->
-                val stages = sleepDao.stagesForSessionOnce(session.pk).map {
-                    SleepStageSpan(SleepStage.valueOf(it.stage.name), it.startTime, it.endTime)
-                }
-                HealthRecord.SleepSession(session.pk, session.meta.dedupeKey, session.meta.deviceId, session.meta.startTime,
-                    session.meta.endTime, session.meta.zoneOffsetSec, session.meta.origin.toModel(), session.meta.version,
-                    session.meta.deleted, session.meta.ingestedAt, session.nightDate, session.contentHash, session.score,
-                    session.efficiency, stages)
-            }
+            sleepDao.pageSessionsAfter(afterId, limit).map { it.toModel(sleepDao.stagesForSessionOnce(it.pk)) }
         }
 
     suspend fun pageWorkouts(afterId: String, limit: Int): List<HealthRecord.Workout> =
-        withContext(dispatchers.io) { workoutDao.pageAfter(afterId, limit).map { it.toModelWithChildren() } }
+        withContext(dispatchers.io) { workoutDao.pageAfter(afterId, limit).map { it.toModelWithChildren(workoutDao) } }
 
     suspend fun workoutById(id: String): HealthRecord.Workout? =
-        withContext(dispatchers.io) { workoutDao.findByPk(id)?.toModelWithChildren() }
-
-    private suspend fun WorkoutEntity.toModelWithChildren(): HealthRecord.Workout {
-        val route = workoutDao.routeForWorkoutOnce(pk).map {
-            WorkoutRoutePoint(((it.atMs - meta.startTime) / 1000).toInt(), it.lat, it.lon, it.altitudeM)
-        }
-        val hr = workoutDao.heartRateForWorkoutOnce(pk).map { WorkoutHrPoint(it.atMs, it.bpm) }
-        return HealthRecord.Workout(pk, meta.dedupeKey, meta.deviceId, meta.startTime, meta.endTime, meta.zoneOffsetSec,
-            meta.origin.toModel(), meta.version, meta.deleted, meta.ingestedAt, sportId, sportType, durationS, distanceM,
-            energyKcal, avgHrBpm, maxHrBpm, steps, route, hr)
-    }
+        withContext(dispatchers.io) { workoutDao.findByPk(id)?.toModelWithChildren(workoutDao) }
 
     suspend fun pageDailySummaries(afterId: Long, limit: Int): List<DailySummaryRecord> =
         withContext(dispatchers.io) {
@@ -158,6 +104,9 @@ class ExportRepository @Inject constructor(
     suspend fun insertSteps(records: List<HealthRecord.Step>): Unit = withContext(dispatchers.io) {
         stepsDao.insertAll(records.map { StepsEntity(it.id, it.toMeta(), it.count, it.distanceM, it.energyKcal) })
     }
+
+    /** Exports written before schema v2 carry step buckets as instants; see REPAIR_STEP_INTERVALS_SQL. */
+    suspend fun repairStepIntervals(): Unit = withContext(dispatchers.io) { stepsDao.repairInstantBuckets() }
 
     suspend fun insertHeartRate(records: List<HealthRecord.HeartRate>): Unit = withContext(dispatchers.io) {
         healthSampleDao.insertHeartRate(records.map { HeartRateEntity(it.id, it.toMeta(), it.bpm) })
@@ -239,9 +188,4 @@ class ExportRepository @Inject constructor(
         }
     }
 
-    private fun HealthRecord.toMeta() = RecordMeta(dedupeKey, deviceId, startMs, endMs, zoneOffsetSec,
-        origin.toDb(), version, deleted, ingestedAt)
-
-    private fun Origin.toModel() = RecordOrigin.valueOf(name)
-    private fun RecordOrigin.toDb() = Origin.valueOf(name)
 }

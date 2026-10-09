@@ -7,6 +7,14 @@ import com.nexwatch.core.database.inMemoryTestDatabase
 import com.nexwatch.core.watchapi.HealthDataDecoder
 import com.nexwatch.core.watchfake.FakeWatchClient
 import kotlinx.coroutines.test.runTest
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import com.nexwatch.core.data.identity.WatchIdentityStore
+import com.nexwatch.core.watchapi.WatchState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -23,6 +31,9 @@ class HealthSyncCoordinatorTest {
             DailySummaryAggregator(db, testDispatchers(this)),
             db.deviceDao(),
             db.rawIngestDao(),
+            NoopSyncScheduler,
+            identityStore(this),
+            DeviceRecorder(db.deviceDao(), testDispatchers(this)),
         )
 
         val result = coordinator.syncAndNormalize()
@@ -31,13 +42,58 @@ class HealthSyncCoordinatorTest {
         assertTrue(result.getOrThrow().isEmpty())
         db.close()
     }
+
+    @Test
+    fun `records the bound watch as a device before normalising, once`() = runTest {
+        val db = inMemoryTestDatabase()
+        val fakeClient = FakeWatchClient().apply { forceState(WatchState.Ready(battery = 80)) }
+        val identity = identityStore(this).apply { markBound("AA:BB:CC:DD:EE:FF") }
+        val coordinator = HealthSyncCoordinator(
+            fakeClient,
+            JournalRepository(db.rawIngestDao(), testDispatchers(this)),
+            HealthDataNormalizer(db, noopDecoder(), testDispatchers(this)),
+            DailySummaryAggregator(db, testDispatchers(this)),
+            db.deviceDao(),
+            db.rawIngestDao(),
+            NoopSyncScheduler,
+            identity,
+            DeviceRecorder(db.deviceDao(), testDispatchers(this)),
+        )
+
+        assertTrue(coordinator.syncAndNormalize().isSuccess)
+        assertTrue(coordinator.syncAndNormalize().isSuccess)
+
+        assertEquals(listOf("AA:BB:CC:DD:EE:FF"), db.deviceDao().findAll().map { it.address })
+        assertEquals(listOf("BOUND"), db.deviceDao().observeEvents("AA:BB:CC:DD:EE:FF").first().map { it.type })
+        // With a device row present the journal is processed, not left waiting for one.
+        assertTrue(db.rawIngestDao().findUnprocessedDataTypes().isEmpty())
+        db.close()
+    }
+}
+
+private class InMemoryPreferences : DataStore<Preferences> {
+    private val state = MutableStateFlow(emptyPreferences())
+    override val data get() = state
+    override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
+        transform(state.value).also { state.value = it }
+}
+
+private fun identityStore(scope: kotlinx.coroutines.test.TestScope) = WatchIdentityStore(InMemoryPreferences(), testDispatchers(scope))
+
+private object NoopSyncScheduler : com.nexwatch.core.data.syncengine.SyncScheduler {
+    override suspend fun enqueueEnabled() = Unit
+    override fun enqueue(providerId: String) = Unit
+    override fun enqueueAfter(providerId: String, delay: kotlin.time.Duration) = Unit
+    override fun schedulePeriodic(providerId: String) = Unit
+    override fun cancelPeriodic(providerId: String) = Unit
+    override fun cancel(providerId: String) = Unit
 }
 
 private fun noopDecoder() = object : HealthDataDecoder {
     override fun decode(dataType: String, payloadJson: String) = emptyList<com.nexwatch.core.model.DecodedHealthRecord>()
 }
 
-private fun testDispatchers(scope: kotlinx.coroutines.test.TestScope) = object : com.nexwatch.core.common.CoroutineDispatchers {
+internal fun testDispatchers(scope: kotlinx.coroutines.test.TestScope) = object : com.nexwatch.core.common.CoroutineDispatchers {
     override val io = kotlinx.coroutines.test.StandardTestDispatcher(scope.testScheduler)
     override val default = io
 }

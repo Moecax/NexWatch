@@ -29,6 +29,7 @@ minSdk 26, compileSdk and targetSdk set to the latest stable API. Companion Devi
 | `:core:data` | Repositories, ingestion pipeline, aggregator, SyncEngine | `database`, `watch-api`, `sync-api`, `model`, `common` |
 | `:core:export` | JSONL+ZIP, CSV and GPX exporters and the importer | `:core:model`, `:core:data` |
 | `:core:sync-api` | `SyncProvider` interface. **Pure Kotlin** | `:core:model` |
+| `:core:sync-healthconnect` | `HealthConnectSyncProvider`, the first `SyncProvider`; the only module that imports the Health Connect client | `:core:sync-api`, `:core:model`, `:core:common` |
 | `:core:service` | Foreground service, notification listener, companion presence, boot receiver, workers | `data`, `watch-api`, `common` |
 | `:core:common` | Dispatchers, Clock, logging, result types | nothing |
 

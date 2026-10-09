@@ -77,7 +77,10 @@ private fun decodeBase64Array(payloadJson: String): List<ByteArray> {
     return (0 until array.length()).map { Base64.getDecoder().decode(array.getString(it)) }
 }
 
-/** Distance arrives in km (recon: 0.00915 km for 14 steps); canonical unit is metres. */
+/**
+ * Distance arrives in km (recon: 0.00915 km for 14 steps); canonical unit is metres. The watch stamps only the
+ * bucket's end; the normaliser derives its start from the previous bucket (§5.3), so start is left at the end here.
+ */
 internal fun FcStepData.toDecodedStep() = DecodedHealthRecord.Step(
     startMs = timestamp,
     endMs = timestamp,

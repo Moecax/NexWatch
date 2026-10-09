@@ -3,6 +3,7 @@ package com.nexwatch.core.export
 import androidx.room.useWriterConnection
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.data.export.ExportRepository
+import com.nexwatch.core.database.NEXWATCH_SCHEMA_VERSION
 import com.nexwatch.core.database.NexWatchDatabase
 import com.nexwatch.core.database.Origin
 import com.nexwatch.core.database.RecordMeta
@@ -66,6 +67,22 @@ class ZipImporterTest {
     }
 
     @Test
+    fun `step buckets exported as instants come back as intervals`() = runTest(dispatcher) {
+        val db = inMemoryTestDatabase()
+        val repo = ExportRepository(db.stepsDao(), db.healthSampleDao(), db.sleepDao(), db.workoutDao(),
+            db.dailySummaryDao(), db.deviceDao(), db.exportHistoryDao(), dispatchers)
+        val bytes = exportOneStep(db, repo)
+        wipeTables(db, "steps")
+
+        ZipImporter(repo).import(ByteArrayInputStream(bytes))
+
+        val step = db.stepsDao().pageAfter("", 100).single()
+        assertEquals(0L to 1L, step.meta.startTime to step.meta.endTime)
+        assertEquals(2, step.meta.version)
+        db.close()
+    }
+
+    @Test
     fun `a tampered records file is rejected instead of silently imported`() = runTest(dispatcher) {
         val db = inMemoryTestDatabase()
         val repo = ExportRepository(db.stepsDao(), db.healthSampleDao(), db.sleepDao(), db.workoutDao(),
@@ -93,15 +110,18 @@ class ZipImporterTest {
                 zip.readBytes().toString(Charsets.UTF_8)
             }
         }
-        val bumped = manifestJson.replace("\"dbSchemaVersion\":1", "\"dbSchemaVersion\":2")
+        val bumped = manifestJson.replace(
+            "\"dbSchemaVersion\":$NEXWATCH_SCHEMA_VERSION",
+            "\"dbSchemaVersion\":${NEXWATCH_SCHEMA_VERSION + 1}",
+        )
         val tampered = rewriteEntry(bytes, "manifest.json", bumped.toByteArray())
         wipeTables(db, "steps")
 
         val thrown = assertThrows(ImportException.UnsupportedSchema::class.java) {
             kotlinx.coroutines.runBlocking { ZipImporter(repo).import(ByteArrayInputStream(tampered)) }
         }
-        assertEquals(2, thrown.fileSchemaVersion)
-        assertEquals(1, thrown.appSchemaVersion)
+        assertEquals(NEXWATCH_SCHEMA_VERSION + 1, thrown.fileSchemaVersion)
+        assertEquals(NEXWATCH_SCHEMA_VERSION, thrown.appSchemaVersion)
         db.close()
     }
 

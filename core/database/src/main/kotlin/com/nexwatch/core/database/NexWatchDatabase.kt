@@ -4,7 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 
 /** Exposed publicly so :core:data's ExportRepository can stamp it into export manifests (§6.1). */
-const val NEXWATCH_SCHEMA_VERSION = 1
+const val NEXWATCH_SCHEMA_VERSION = 2
 
 @Database(
     entities = [
@@ -29,4 +29,5 @@ abstract class NexWatchDatabase : RoomDatabase() {
     abstract fun rawIngestDao(): RawIngestDao
     abstract fun changeLogDao(): ChangeLogDao
     abstract fun exportHistoryDao(): ExportHistoryDao
+    abstract fun syncCursorDao(): SyncCursorDao
 }

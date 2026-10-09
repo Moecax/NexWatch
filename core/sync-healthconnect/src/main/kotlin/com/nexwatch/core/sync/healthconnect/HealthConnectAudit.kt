@@ -1,0 +1,67 @@
+package com.nexwatch.core.sync.healthconnect
+
+import android.content.Context
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
+import androidx.health.connect.client.records.BloodPressureRecord
+import androidx.health.connect.client.records.DistanceRecord
+import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.OxygenSaturationRecord
+import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.metadata.DataOrigin
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import com.nexwatch.core.common.CoroutineDispatchers
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.withContext
+import java.time.Instant
+import javax.inject.Inject
+import kotlin.reflect.KClass
+
+data class HealthConnectAuditRow(val type: String, val total: Int, val distinctClientIds: Int)
+
+/**
+ * Debug-only check for Phase 9's exit criteria: how many records this app has in Health Connect per type,
+ * and whether any clientRecordId appears twice. Needs the read permissions that only the debug manifest
+ * declares.
+ */
+class HealthConnectAudit @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val dispatchers: CoroutineDispatchers,
+) {
+    suspend fun run(): List<HealthConnectAuditRow> = withContext(dispatchers.io) {
+        val client = HealthConnectClient.getOrCreate(context)
+        AUDITED.map { type ->
+            val clientIds = mutableListOf<String?>()
+            var pageToken: String? = null
+            do {
+                val response = client.readRecords(
+                    ReadRecordsRequest(
+                        recordType = type,
+                        timeRangeFilter = TimeRangeFilter.after(Instant.EPOCH),
+                        dataOriginFilter = setOf(DataOrigin(context.packageName)),
+                        pageSize = 5_000,
+                        pageToken = pageToken,
+                    ),
+                )
+                response.records.mapTo(clientIds) { it.metadata.clientRecordId }
+                pageToken = response.pageToken
+            } while (pageToken != null)
+            HealthConnectAuditRow(type.simpleName.orEmpty(), clientIds.size, clientIds.toSet().size)
+        }
+    }
+
+    companion object {
+        private val AUDITED: List<KClass<out Record>> = listOf(
+            StepsRecord::class, DistanceRecord::class, ActiveCaloriesBurnedRecord::class, HeartRateRecord::class,
+            OxygenSaturationRecord::class, BloodPressureRecord::class, SleepSessionRecord::class,
+            ExerciseSessionRecord::class,
+        )
+
+        val readPermissions: Set<String> = AUDITED.map { HealthPermission.getReadPermission(it) }.toSet()
+    }
+}

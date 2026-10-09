@@ -16,8 +16,21 @@ interface StepsDao {
     @Query("SELECT * FROM steps WHERE pk > :afterId ORDER BY pk LIMIT :limit")
     suspend fun pageAfter(afterId: String, limit: Int): List<StepsEntity>
 
+    @Query("SELECT * FROM steps WHERE pk IN (:ids)")
+    suspend fun findByIds(ids: List<String>): List<StepsEntity>
+
+    @Query("SELECT COUNT(*) FROM steps")
+    suspend fun count(): Int
+
     @Query("SELECT MAX(end_time) FROM steps WHERE device_id = :deviceId AND deleted = 0")
     suspend fun latestEndTime(deviceId: String): Long?
+
+    @Query("SELECT MAX(end_time) FROM steps WHERE device_id = :deviceId AND end_time < :beforeMs AND deleted = 0")
+    suspend fun previousEndTime(deviceId: String, beforeMs: Long): Long?
+
+    /** Idempotent: only rows still stored as instants change. See [REPAIR_STEP_INTERVALS_SQL]. */
+    @Query(REPAIR_STEP_INTERVALS_SQL)
+    suspend fun repairInstantBuckets()
 
     @Query(
         "SELECT SUM(count) AS steps, SUM(distance_m) AS distanceM, SUM(energy_kcal) AS energyKcal " +

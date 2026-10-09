@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexwatch.core.data.backup.BackupPrefs
 import com.nexwatch.core.data.export.ExportRepository
+import com.nexwatch.core.data.syncengine.SyncRepository
 import com.nexwatch.core.export.BackupWorker
 import com.nexwatch.core.export.JsonlZipExporter
 import com.nexwatch.core.export.ZipImporter
@@ -30,6 +31,7 @@ class DataViewModel @Inject constructor(
     private val importer: ZipImporter,
     private val exportRepository: ExportRepository,
     val backupPrefs: BackupPrefs,
+    private val syncRepository: SyncRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<DataUiState>(DataUiState.Idle)
@@ -54,7 +56,11 @@ class DataViewModel @Inject constructor(
             runCatching {
                 val input = contentResolver.openInputStream(source) ?: error("Could not open $source for reading")
                 input.use { importer.import(it) }
-            }.onSuccess { _state.value = DataUiState.ImportSuccess(it.recordCounts) }
+            }.onSuccess {
+                // Imported rows land in the change log like synced ones; push them now, not at the next ingest.
+                syncRepository.syncEnabledNow()
+                _state.value = DataUiState.ImportSuccess(it.recordCounts)
+            }
                 .onFailure { _state.value = DataUiState.Failed(it.message ?: "Import failed") }
         }
     }
