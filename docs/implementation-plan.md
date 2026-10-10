@@ -544,7 +544,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Done |
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Done |
-| 10 | Extras and hardening (M7) | `phase-10-hardening` | Blocked (vendor cloud access and Realtek DFU vendoring need a decision — see Phase 10) |
+| 10 | Extras and hardening (M7) | `phase-10-hardening` | Blocked (firmware update needs a decision on its file source and Realtek DFU vendoring — see Phase 10) |
 
 Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
 
@@ -1015,6 +1015,9 @@ watchfaces and firmware the same way, through Realtek DFU (`DfuMode.MODE_8762C`)
 until it is. The watch uses the GUI watchface format, with a round 466×466 screen. Of its four dial slots, only
 one takes pushes, and that slot holds the face currently on screen (store dial 114003). A custom watchface
 replaces it.
+
+**Custom watchfaces are postponed** (user decision, 2026-10-10). They are out of this phase, and nothing below
+is needed for them now. The probe findings above stay recorded for when they come back.
 
 **Blocked on decisions only the user can make:**
 1. **The vendor's cloud.** Custom watchface templates and firmware files exist only on FitCloud's server
