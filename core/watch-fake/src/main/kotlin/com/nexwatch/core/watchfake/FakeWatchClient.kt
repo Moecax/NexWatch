@@ -153,7 +153,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
 
     override suspend fun sendNotification(n: OutgoingNotification): SendResult = mutex.withLock {
         val current = _state.value
-        if (current !is WatchState.Ready) return@withLock SendResult.Dropped("watch not ready")
+        if (current !is WatchState.Ready) return@withLock SendResult.Dropped(SendResult.DropReason.WATCH_NOT_READY)
         delay(COMMAND_DELAY_MS)
         SendResult.Sent
     }

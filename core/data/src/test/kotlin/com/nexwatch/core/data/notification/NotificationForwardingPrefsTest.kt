@@ -42,4 +42,14 @@ class NotificationForwardingPrefsTest {
         prefs.setAllowedPackages(setOf("com.example.app"))
         assertEquals(setOf("com.example.app"), prefs.settings.first().allowedPackages)
     }
+
+    @Test
+    fun `setPackageAllowed adds to and removes from the default allowlist`() = runTest(dispatcher) {
+        prefs.setPackageAllowed("com.google.android.gm", allowed = true)
+        prefs.setPackageAllowed("com.whatsapp", allowed = false)
+        val allowed = prefs.settings.first().allowedPackages
+        assertTrue("com.google.android.gm" in allowed)
+        assertTrue("com.whatsapp" !in allowed)
+        assertTrue("org.telegram.messenger" in allowed)
+    }
 }

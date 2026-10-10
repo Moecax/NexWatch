@@ -19,5 +19,6 @@ sealed interface OnboardingEvent {
     data object ConfirmPair : OnboardingEvent
     data object PairingContinue : OnboardingEvent
     data object RetryPairing : OnboardingEvent
+    data object TestBackgroundConnection : OnboardingEvent
     data object FinishOnboarding : OnboardingEvent
 }

@@ -51,7 +51,9 @@ later phase decides it actually needs them.
 `ext-realtek-dfu`, `ext-realtek-bbpro`, `ext-realtek-file`, `ext-sensorgame`,
 `sdk-aliagent`, and `sdk-fitcloud-compat` (all also present in the source
 repo's `/libs/ext`) are **not** copied here. Nothing in the plan currently
-needs them; firmware update (Phase 10) is the first thing that might.
+needs them. Firmware update and custom watchfaces would need `ext-realtek-dfu` (this
+watch's IC is Realtek 8762C), but Phase 10 dropped the first and postponed the second
+(`docs/implementation-plan.md` §12).
 
 ## Local repo wiring
 

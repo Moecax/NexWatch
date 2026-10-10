@@ -543,8 +543,8 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 6 | Data core (M3) | `phase-6-data-core` | Done |
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Done |
-| 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | In progress |
-| 10 | Extras and hardening (M7) | `phase-10-hardening` | Not started |
+| 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Done |
+| 10 | Extras and hardening (M7) | `phase-10-hardening` | In progress |
 
 Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
 
@@ -745,7 +745,7 @@ for this phase's onboarding flow, so the association typically never reaches
 `onAssociationCreated` and `CompanionPresenceService.onDeviceAppeared` is not exercised on
 device yet. LOGIN reconnection via `WatchConnectionService` (launch- and boot-triggered) is the
 only path that's proven end-to-end; CDM presence as a reliability improvement over that is left
-for a follow-up that wires the consent dialog.
+for a follow-up that wires the consent dialog. (Wired in Phase 10, see there.)
 
 **Descoped to Phase 6.** §8.2's "triggers a health sync, debounced, on `Ready`" and §8.7's
 `WatchSyncWorker` both assume a journal to write into. `WatchClient.syncHealthData()` is
@@ -963,10 +963,15 @@ everything" tools that were used for the checks below.
       the app's own origin. That equals the local database exactly (95 step intervals, all with distance and
       energy above 0, and 8 sleep nights). The watch had recorded no heart rate, SpO2, blood pressure or
       workouts (its journal payloads for those types were empty), so those types read back 0 on both sides.
-- [ ] New records appear in Health Connect within minutes of syncing from the watch. Not yet verified: the
-      watch had recorded no new activity since 2026-10-04 when this was checked, so a sync produced nothing new
-      to send. The path is covered by JVM tests (the coordinator enqueues sync after any ingest that changed a
-      date, and `SyncEngineTest` covers tailing).
+- [x] New records appear in Health Connect within minutes of syncing from the watch. Verified 2026-10-10 on the
+      phone, after the merge, against activity the watch recorded after 2026-10-04: ten unattended watch syncs
+      since the merge ingested 73 new step intervals and a ninth sleep night. The latest, at 02:30:11.867 UTC,
+      brought 10 intervals and the new night, and the debug audit (which now also reports, per type, when Health
+      Connect stored the newest record) shows the newest `StepsRecord`,
+      `DistanceRecord` and `ActiveCaloriesBurnedRecord` written at 02:30:12.830 and the new `SleepSessionRecord`
+      at 02:30:12.827, about one second later. Totals matched the local database exactly (168/168/168 and 9, no
+      duplicate `clientRecordId`), the cursor sat at the change-log head, and compaction had emptied the change
+      log.
 - [x] Forcing retries produces no duplicate records. Verified 2026-10-08 on the phone: "Re-send everything"
       (cursor deleted, so a full re-push of the same records) ran four more times. Three runs were force-stopped
       0.3–1 s after starting, and one was caught mid-snapshot (`snapshot_state` on steps, 0 of 103 pushed).
@@ -1000,8 +1005,93 @@ pipeline end to end.
 Custom watchfaces, firmware update (last, with the battery and connection preconditions from Batch 5 §9), and a final stress/polish pass.
 
 **Exit criteria**
-- [ ] Firmware update is tested only after taking a full export first.
+- [ ] ~~Firmware update is tested only after taking a full export first.~~ Descoped with firmware update (below).
 - [ ] A one-week soak shows no data gaps and stays within the §9.1 budgets.
+
+**Scope after the 2026-10-10 decisions: hardening only.** Custom watchfaces are postponed and firmware update is
+dropped (user decisions, 2026-10-10). Firmware update came with three costs: it needs `ext-realtek-dfu` vendored,
+a source for firmware files (the vendor's server or a file the user supplies), and a flash that can brick the
+watch. There is no known reason this watch needs newer firmware than `00000105`. So NexWatch vendors no Realtek
+library, needs no network permission, and contacts no vendor server. What is left is the hardening below and the
+one-week soak.
+
+**What the real watch says about the watchface and firmware work** (probe on 2026-10-10, details in
+`docs/recon.md` §3 Q4). The IC is `IC_8762C` and the watch doesn't report platform OTA, so the SDK sends
+watchfaces and firmware the same way, through Realtek DFU (`DfuMode.MODE_8762C`). That path needs
+`com.realsil.sdk.dfu` from `ext-realtek-dfu`, which isn't vendored, so neither feature can run on this watch
+until it is. The watch uses the GUI watchface format, with a round 466×466 screen. Of its four dial slots, only
+one takes pushes, and that slot holds the face currently on screen (store dial 114003). A custom watchface
+replaces it.
+
+**If either feature comes back,** both need `ext-realtek-dfu` vendored from the SDK's GitHub mirror, with
+checksums as `third_party/maven/README.md` describes. The mirror now ships SDK 3.0.2.7 alongside
+`ext-realtek-dfu-1.0.4`, so the extension's compatibility with the vendored 3.0.2.4 has to be checked, or both
+re-vendored together. Both also need files from the vendor's server (`fitcloud.hetangsmart.com`). The vendor's
+sample calls it over plain HTTP, but it also answers HTTPS with a valid certificate. Using it sends the watch's
+hardware info string, LCD id and UI version to the vendor. The SDK's own downloader needs OkHttp, which NexWatch
+doesn't ship, so the app would download files itself and hand the SDK a `file://` URI.
+
+**Hardening landed so far.** Companion Device Manager association, which Phase 5 left without its consent
+dialog, now works. `CompanionAssociator` (`:core:service`) runs `associate()` and hands the system's consent
+`IntentSender` to the UI to launch. Onboarding launches it right after a successful pair. The Watch tab has a
+"Wake when watch is nearby" row for a watch that was paired earlier, which covers this phone. Presence
+observation starts once the association exists, using `ObservingDevicePresenceRequest` on API 36+. Checked on
+the phone: the row opens the system dialog, and declining leaves the row Off with an explanation. The dialog
+ignores injected taps, so the user accepted it by hand. `dumpsys companiondevice` then showed the association
+for `C1:A1:B2:29:7A:0D` with presence notification on and the watch present, and the system had bound
+`CompanionPresenceService`.
+
+**Notifications and calls (Batch 6), added after the phone turned out to forward nothing.** The notification
+listener had lost its access, and nothing in the app checked for that or showed it. Onboarding was the only
+place that asked, and there was no screen to manage forwarding at all.
+- The §8.5 pipeline now returns a reason for every skip (`PipelineDecision`). `SendResult.Dropped` carries a
+  typed reason. The forwarder records what actually happened, and before this it counted dropped and failed
+  sends as forwarded. It also serialises the pipeline, whose dedupe and throttle maps were being hit from
+  parallel coroutines.
+- `NotificationActivityLog` (`:core:data`) holds the last 100 attempts in memory only. These are titles from
+  allowed apps, never message text, so nothing with content reaches disk. Skips for apps the user didn't allow are
+  never logged. `DiagnosticsStore` persists a per-day "forwarded today" count.
+- The Watch tab's first row is "Notifications and calls", as the main-tabs design has it. It opens a screen
+  with the master switch and today's count, a "notification access is off" card that deep-links to NexWatch's
+  own access page, and a Calls card. The SDK's built-in telephony has no toggles, so the Calls card shows
+  whether each capability has its permission, and can request the missing ones. From there, a searchable app
+  list puts messaging apps first under Suggested, and the forwarding log can be filtered by All, Sent or Skipped.
+- The Today screen shows a banner whenever forwarding is on but access is off. It is re-checked on every
+  resume, which is what §8.5 asks for.
+- Checked on the phone: the listener is allowed and live, all three call capabilities read Ready, the app list
+  shows real icons with Telegram and Messages under Suggested, and allowing and disallowing an app persists.
+  On 2026-10-11 a real SMS from Google Messages reached the watch, and the log showed it as Sent, with "1 forwarded
+  today". A Telegram message and an incoming call (alert and reject from the watch) haven't been checked since
+  Phase 5. The soak will cover them.
+
+**Onboarding's "Keep it running" buttons now work.** Phase 2 left all three as no-ops.
+- "Allow" asks for the battery-optimisation exemption directly. It needs `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`,
+  and falls back to the full list. It turns into "Allowed" once granted, re-read on resume.
+- "Enable" tries the known OEM autostart managers (Xiaomi, Transsion, Oppo, Vivo, Huawei), then NexWatch's app
+  info page.
+- "Test" sends a real test notification through the watch client and reports the result.
+- The helpers are `BackgroundRunning` and `NotificationAccess` in `:core:service`. On the phone, every target
+  screen resolves except Xiaomi's autostart manager, which this AOSP-based ROM doesn't have, so it falls back as
+  intended. The screen itself only shows on an unpaired install, so it was checked through ViewModel tests,
+  not by unpairing the watch.
+
+### Not scheduled yet
+
+Known work that no phase owns yet. Turn items into a phase (with a branch and exit criteria) before starting them.
+
+- **Main tabs redesign.** Today, Health, Watch and Data rebuilt to `docs/design/NexWatch Main Tabs (polished).html`.
+  The natural next phase.
+- **Screens with no design yet:** Workouts (Batch 4), metric detail (Batch 3), Data export and import flow
+  (Batch 7), and system surfaces (Batch 8).
+- **Watch features:** camera remote (§8.6, needs a phone with a working camera), a scheduled `WeatherWorker`
+  (§8.7, needs a weather source and a location decision), and display brightness and timeout.
+- **Notification extras from §8.5:** coalescing a burst into "3 new messages" (the throttle drops them today), and
+  the optional "don't forward while I'm using my phone".
+- **Postponed by the user:** custom watchfaces (Phase 10 has the requirements). Firmware update is dropped.
+- **Checks that need more real data:** the Phase 6 decoder mappings, the calorie scale and resting heart rate,
+  a sleep-session replay test, the Phase 7 round trip with real data, a workout sport-type mapping for Health
+  Connect, and §14 Q1, Q2 and Q5. Health monitoring was off on the watch until now, which is why there was no
+  heart rate, SpO2 or blood pressure data.
 
 ---
 

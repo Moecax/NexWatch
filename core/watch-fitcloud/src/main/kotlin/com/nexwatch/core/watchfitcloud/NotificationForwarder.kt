@@ -6,11 +6,16 @@ import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.watchapi.WatchClient
-import com.nexwatch.core.watchapi.WatchState
+import com.nexwatch.core.watchapi.SendResult
+import com.nexwatch.core.watchapi.notification.ForwardingLogEntry
+import com.nexwatch.core.watchapi.notification.ForwardingOutcome
+import com.nexwatch.core.watchapi.notification.ForwardingSkip
 import com.nexwatch.core.watchapi.notification.IncomingNotification
 import com.nexwatch.core.watchapi.notification.NotificationFilterPipeline
 import com.nexwatch.core.watchapi.notification.NotificationForwardedRecorder
 import com.nexwatch.core.watchapi.notification.NotificationForwardingSettingsProvider
+import com.nexwatch.core.watchapi.notification.PipelineDecision
+import com.nexwatch.core.watchapi.notification.SkipReason
 import com.topstep.fitcloud.sdk.v2.FcSDK
 import com.topstep.fitcloud.sdk.v2.utils.notification.AbsNotificationListenerService
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,16 +54,33 @@ class NotificationForwarder : AbsNotificationListenerService() {
         if (sbn == null) return
         val incoming = sbn.toIncomingNotification()
         scope.launch {
-            if (watchClient.state.value !is WatchState.Ready) return@launch
             val settings = settingsProvider.settings.first()
-            val outgoing = pipeline.evaluate(
-                incoming = incoming,
-                settings = settings,
-                ownPackageName = applicationContext.packageName,
-                nowMs = System.currentTimeMillis(),
-            ) ?: return@launch
-            watchClient.sendNotification(outgoing)
-            runCatching { forwardedRecorder.recordForwarded(System.currentTimeMillis()) }
+            val nowMs = System.currentTimeMillis()
+            // Notifications arrive on parallel coroutines and the pipeline's dedupe and throttle
+            // maps aren't thread-safe.
+            val decision = synchronized(pipeline) {
+                pipeline.evaluate(incoming, settings, ownPackageName = applicationContext.packageName, nowMs = nowMs)
+            }
+            val outcome = when (decision) {
+                is PipelineDecision.Skip -> when (decision.reason) {
+                    SkipReason.DUPLICATE -> ForwardingOutcome.Skipped(ForwardingSkip.DUPLICATE)
+                    SkipReason.THROTTLED -> ForwardingOutcome.Skipped(ForwardingSkip.THROTTLED)
+                    // Not worth a log line, and the log must never list apps the user didn't allow.
+                    SkipReason.DISABLED, SkipReason.OWN_APP, SkipReason.NOT_ALLOWED, SkipReason.NOT_A_MESSAGE -> return@launch
+                }
+                is PipelineDecision.Forward -> when (val result = watchClient.sendNotification(decision.notification)) {
+                    SendResult.Sent -> ForwardingOutcome.Sent
+                    is SendResult.Dropped -> ForwardingOutcome.Skipped(
+                        when (result.reason) {
+                            SendResult.DropReason.WATCH_NOT_READY -> ForwardingSkip.WATCH_DISCONNECTED
+                            SendResult.DropReason.WATCH_BUSY -> ForwardingSkip.WATCH_BUSY
+                        },
+                    )
+                    is SendResult.Failed -> ForwardingOutcome.Failed(result.reason)
+                }
+            }
+            val title = (decision as? PipelineDecision.Forward)?.notification?.title ?: incoming.title ?: incoming.packageName
+            runCatching { forwardedRecorder.record(ForwardingLogEntry(nowMs, incoming.packageName, title, outcome)) }
         }
     }
 

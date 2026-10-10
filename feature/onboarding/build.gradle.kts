@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:watch-api"))
     implementation(project(":core:data"))
+    implementation(project(":core:service"))
     implementation(project(":core:model"))
     implementation(project(":core:common"))
     implementation(platform(libs.androidx.compose.bom))

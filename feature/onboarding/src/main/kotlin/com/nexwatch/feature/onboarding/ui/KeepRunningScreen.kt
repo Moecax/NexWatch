@@ -29,13 +29,18 @@ import com.nexwatch.core.designsystem.component.EntranceItem
 import com.nexwatch.core.designsystem.component.PremiumBackground
 import com.nexwatch.core.designsystem.component.PrimaryButton
 import com.nexwatch.core.designsystem.component.SecondaryButton
+import com.nexwatch.core.designsystem.component.StatusChip
+import com.nexwatch.core.designsystem.component.StatusTone
 import com.nexwatch.core.designsystem.theme.WatchMotion
 import com.nexwatch.core.designsystem.theme.WatchShapes
 import com.nexwatch.core.designsystem.theme.WatchTheme
+import com.nexwatch.feature.onboarding.BackgroundTest
 
 /** design-prompt.md Batch 1 #7 — Keep it running. */
 @Composable
 fun KeepRunningScreen(
+    batteryUnrestricted: Boolean,
+    backgroundTest: BackgroundTest,
     onBatteryOptimization: () -> Unit,
     onAutostartHint: () -> Unit,
     onTestBackgroundConnection: () -> Unit,
@@ -53,7 +58,13 @@ fun KeepRunningScreen(
             )
         }
         EntranceItem(index = 2) {
-            KeepRunningCard("Allow unrestricted battery use", "Prevents Android from pausing the connection.", "Allow", onBatteryOptimization)
+            KeepRunningCard(
+                title = "Allow unrestricted battery use",
+                description = "Prevents Android from pausing the connection.",
+                actionLabel = "Allow",
+                onAction = onBatteryOptimization,
+                done = if (batteryUnrestricted) "Allowed" else null,
+            )
         }
         EntranceItem(index = 3) {
             KeepRunningCard(
@@ -67,10 +78,11 @@ fun KeepRunningScreen(
         EntranceItem(index = 4) {
             KeepRunningCard(
                 title = "Test background connection",
-                description = "Confirms the watch stays connected with the app closed.",
-                actionLabel = "Test",
+                description = "Sends a test notification to your watch.",
+                actionLabel = if (backgroundTest == BackgroundTest.Running) "Testing…" else "Test",
                 onAction = onTestBackgroundConnection,
                 leading = { LivePulseIndicator() },
+                result = backgroundTest,
             )
         }
         EntranceItem(index = 5, modifier = Modifier.padding(top = 24.dp)) {
@@ -87,6 +99,8 @@ private fun KeepRunningCard(
     onAction: () -> Unit,
     hint: String? = null,
     leading: (@Composable () -> Unit)? = null,
+    done: String? = null,
+    result: BackgroundTest = BackgroundTest.Idle,
 ) {
     Column(
         Modifier
@@ -116,7 +130,21 @@ private fun KeepRunningCard(
                 Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        SecondaryButton(text = actionLabel, onClick = onAction, modifier = Modifier.padding(top = 12.dp))
+        when (result) {
+            BackgroundTest.Passed -> StatusChip("Sent. Your watch should buzz now.", StatusTone.SUCCESS, Modifier.padding(top = 12.dp))
+            is BackgroundTest.Failed -> StatusChip(result.reason, StatusTone.WARNING, Modifier.padding(top = 12.dp))
+            BackgroundTest.Idle, BackgroundTest.Running -> Unit
+        }
+        if (done != null) {
+            StatusChip(done, StatusTone.SUCCESS, Modifier.padding(top = 12.dp))
+        } else {
+            SecondaryButton(
+                text = actionLabel,
+                onClick = onAction,
+                enabled = result != BackgroundTest.Running,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
     }
 }
 
@@ -153,7 +181,14 @@ private fun LivePulseIndicator() {
 private fun KeepRunningScreenPreview() {
     WatchTheme {
         PremiumBackground {
-            KeepRunningScreen(onBatteryOptimization = {}, onAutostartHint = {}, onTestBackgroundConnection = {}, onDone = {})
+            KeepRunningScreen(
+                batteryUnrestricted = false,
+                backgroundTest = BackgroundTest.Idle,
+                onBatteryOptimization = {},
+                onAutostartHint = {},
+                onTestBackgroundConnection = {},
+                onDone = {},
+            )
         }
     }
 }

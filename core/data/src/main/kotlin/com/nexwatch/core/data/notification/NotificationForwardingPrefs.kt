@@ -41,6 +41,14 @@ class NotificationForwardingPrefs @Inject constructor(
         Unit
     }
 
+    suspend fun setPackageAllowed(packageName: String, allowed: Boolean): Unit = withContext(dispatchers.io) {
+        dataStore.edit { prefs ->
+            val current = prefs[ALLOWED_PACKAGES_KEY] ?: DEFAULT_ALLOWED_PACKAGES
+            prefs[ALLOWED_PACKAGES_KEY] = if (allowed) current + packageName else current - packageName
+        }
+        Unit
+    }
+
     private companion object {
         val ENABLED_KEY = booleanPreferencesKey("forwarding_enabled")
         val ALLOWED_PACKAGES_KEY = stringSetPreferencesKey("allowed_packages")

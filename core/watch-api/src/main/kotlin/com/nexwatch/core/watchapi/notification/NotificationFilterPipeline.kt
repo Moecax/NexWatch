@@ -7,6 +7,21 @@ data class NotificationForwardingSettings(
     val allowedPackages: Set<String>,
 )
 
+sealed interface PipelineDecision {
+    data class Forward(val notification: OutgoingNotification) : PipelineDecision
+    data class Skip(val reason: SkipReason) : PipelineDecision
+}
+
+enum class SkipReason {
+    DISABLED,
+    OWN_APP,
+    NOT_ALLOWED,
+    /** Ongoing, a group summary, or a progress/transport/service/status category. */
+    NOT_A_MESSAGE,
+    DUPLICATE,
+    THROTTLED,
+}
+
 private const val DEDUPE_WINDOW_MS = 60_000L
 private const val DEDUPE_CAPACITY = 50
 private const val THROTTLE_WINDOW_MS = 5_000L
@@ -17,6 +32,7 @@ private val PACKAGE_TO_TYPE = mapOf(
     "com.whatsapp" to OutgoingNotification.NotificationType.WHATSAPP,
     "org.telegram.messenger" to OutgoingNotification.NotificationType.TELEGRAM,
     "com.google.android.apps.messaging" to OutgoingNotification.NotificationType.SMS,
+    "com.android.messaging" to OutgoingNotification.NotificationType.SMS,
     "com.samsung.android.messaging" to OutgoingNotification.NotificationType.SMS,
 )
 
@@ -39,31 +55,33 @@ class NotificationFilterPipeline {
         settings: NotificationForwardingSettings,
         ownPackageName: String,
         nowMs: Long,
-    ): OutgoingNotification? {
-        if (!settings.enabled) return null
-        if (incoming.packageName == ownPackageName) return null
-        if (incoming.packageName !in settings.allowedPackages) return null
-        if (incoming.isOngoing || incoming.isGroupSummary) return null
-        if (incoming.category in DROPPED_CATEGORIES) return null
+    ): PipelineDecision {
+        if (!settings.enabled) return PipelineDecision.Skip(SkipReason.DISABLED)
+        if (incoming.packageName == ownPackageName) return PipelineDecision.Skip(SkipReason.OWN_APP)
+        if (incoming.packageName !in settings.allowedPackages) return PipelineDecision.Skip(SkipReason.NOT_ALLOWED)
+        if (incoming.isOngoing || incoming.isGroupSummary) return PipelineDecision.Skip(SkipReason.NOT_A_MESSAGE)
+        if (incoming.category in DROPPED_CATEGORIES) return PipelineDecision.Skip(SkipReason.NOT_A_MESSAGE)
 
         val title = incoming.title ?: incoming.packageName
         val text = incoming.text.orEmpty()
 
         val contentHash = (incoming.packageName.hashCode() * 31 + title.hashCode()) * 31 + text.hashCode()
         val lastSeenAt = recentHashes[contentHash]
-        if (lastSeenAt != null && nowMs - lastSeenAt < DEDUPE_WINDOW_MS) return null
+        if (lastSeenAt != null && nowMs - lastSeenAt < DEDUPE_WINDOW_MS) return PipelineDecision.Skip(SkipReason.DUPLICATE)
         recentHashes[contentHash] = nowMs
 
         val lastSentAt = lastSentPerPackage[incoming.packageName]
-        if (lastSentAt != null && nowMs - lastSentAt < THROTTLE_WINDOW_MS) return null
+        if (lastSentAt != null && nowMs - lastSentAt < THROTTLE_WINDOW_MS) return PipelineDecision.Skip(SkipReason.THROTTLED)
         lastSentPerPackage[incoming.packageName] = nowMs
 
         val type = PACKAGE_TO_TYPE[incoming.packageName] ?: OutgoingNotification.NotificationType.OTHERS_APP
-        return OutgoingNotification(
-            sourcePackage = incoming.packageName,
-            type = type,
-            title = title,
-            content = text.take(MAX_CONTENT_LENGTH),
+        return PipelineDecision.Forward(
+            OutgoingNotification(
+                sourcePackage = incoming.packageName,
+                type = type,
+                title = title,
+                content = text.take(MAX_CONTENT_LENGTH),
+            ),
         )
     }
 }

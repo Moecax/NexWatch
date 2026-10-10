@@ -14,6 +14,9 @@ data class OutgoingNotification(
 
 sealed interface SendResult {
     data object Sent : SendResult
-    data class Dropped(val reason: String) : SendResult
+    data class Dropped(val reason: DropReason) : SendResult
     data class Failed(val reason: String) : SendResult
+
+    /** §4.3: a notification that can't go out now is dropped, never queued. */
+    enum class DropReason { WATCH_NOT_READY, WATCH_BUSY }
 }

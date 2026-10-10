@@ -134,7 +134,22 @@ Answer each against the real watch:
      watch model) or skip until needed.
 4. **Which Realtek DFU extension matches the 8763E chip, and does the
    sample app's firmware update work on it?**
-   - Answer:
+   - Answer (partial, read off the real watch 2026-10-10 by a throwaway probe in
+     `readCapabilities()`): `FcDeviceInfo.getIcType()` is **`IC_8762C`** and the watch does
+     **not** report the platform-OTA feature, so `FcDfuManager` picks `DfuMode.MODE_8762C` for
+     every DFU type — firmware *and* watchfaces. That path calls into `com.realsil.sdk.dfu`
+     (`DfuAdapter`, `DfuConfig`, `GattConfig`, `OtaDeviceInfo`), which lives in
+     `ext-realtek-dfu` and is not vendored, so neither a firmware update nor a watchface push
+     can run until that AAR is. Whether the update itself works is still untested; it needs a
+     firmware file and a full export first (§12 Phase 10).
+   - Other facts from the same probe, for Phase 10's watchface work: hardware info string
+     `00000000492600480BD7000027F300005550511500000000000001052310241120527040BBCF`;
+     `GUI`, `DIAL_PUSH`, `DIAL_CUSTOM` and `DIAL_COMPONENT` supported; UI `1993-04`;
+     `FcDialPushInfo`: lcd `22`, round 466×466, tool version `1.5`, four dial spaces — three
+     built-in (`DIAL_TYPE_NONE`, dials 6/7/8, not pushable) and one pushable `DIAL_TYPE_NORMAL`
+     space at position 3 holding store dial `114003` (bin flag `0xA1`), which is the face
+     currently shown. A custom watchface therefore overwrites the user's current face; there is
+     no spare slot.
 5. **Does the sample app use connection-priority changes during bulk
    transfers, and does the SDK expose them?**
    - Answer:
@@ -143,7 +158,11 @@ Answer each against the real watch:
    throwaway test (or check the sample app if it already does this) and
    record exactly which grants come bundled versus which still need a
    separate runtime request.
-   - Answer:
+   - Answer (consent dialog only, 2026-10-10, Redmi Note 8 Pro on Android 14): the system's
+     "Allow the app NexWatch to access GTR 3 Pro?" dialog lists **Notifications, Phone, Call
+     logs, SMS and Contacts** as bundled with the association. The dialog ignores injected
+     (`adb input`) taps, so accepting it is the user's step; what is actually granted after
+     "Allow" is not yet recorded.
 
 ## 4. 24-hour FitCloudPro baseline
 
