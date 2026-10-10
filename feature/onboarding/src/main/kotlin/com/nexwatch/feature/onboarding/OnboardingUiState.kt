@@ -6,6 +6,13 @@ enum class PermissionItem { BLUETOOTH, NOTIFICATIONS, NOTIFICATION_ACCESS, PHONE
 
 enum class PermissionStatus { NOT_GRANTED, GRANTED, SKIPPED }
 
+sealed interface BackgroundTest {
+    data object Idle : BackgroundTest
+    data object Running : BackgroundTest
+    data object Passed : BackgroundTest
+    data class Failed(val reason: String) : BackgroundTest
+}
+
 data class DiscoveredDevice(val address: String, val displayName: String, val signalBars: Int)
 
 data class ProfileInput(
@@ -31,6 +38,7 @@ data class OnboardingUiState(
     val pairedBattery: Int? = null,
     val pairedFirmwareVersion: String? = null,
     val pairingError: String? = null,
+    val backgroundTest: BackgroundTest = BackgroundTest.Idle,
 ) {
     val grantedPermissionCount: Int
         get() = permissions.values.count { it == PermissionStatus.GRANTED || it == PermissionStatus.SKIPPED }

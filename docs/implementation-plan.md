@@ -1060,7 +1060,38 @@ place that asked, and there was no screen to manage forwarding at all.
   resume, which is what §8.5 asks for.
 - Checked on the phone: the listener is allowed and live, all three call capabilities read Ready, the app list
   shows real icons with Telegram and Messages under Suggested, and allowing and disallowing an app persists.
-  Not yet checked: a real Telegram message, SMS and phone call reaching the watch and showing in the log.
+  On 2026-10-11 a real SMS from Google Messages reached the watch, and the log showed it as Sent, with "1 forwarded
+  today". A Telegram message and an incoming call (alert and reject from the watch) haven't been checked since
+  Phase 5. The soak will cover them.
+
+**Onboarding's "Keep it running" buttons now work.** Phase 2 left all three as no-ops.
+- "Allow" asks for the battery-optimisation exemption directly. It needs `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`,
+  and falls back to the full list. It turns into "Allowed" once granted, re-read on resume.
+- "Enable" tries the known OEM autostart managers (Xiaomi, Transsion, Oppo, Vivo, Huawei), then NexWatch's app
+  info page.
+- "Test" sends a real test notification through the watch client and reports the result.
+- The helpers are `BackgroundRunning` and `NotificationAccess` in `:core:service`. On the phone, every target
+  screen resolves except Xiaomi's autostart manager, which this AOSP-based ROM doesn't have, so it falls back as
+  intended. The screen itself only shows on an unpaired install, so it was checked through ViewModel tests,
+  not by unpairing the watch.
+
+### Not scheduled yet
+
+Known work that no phase owns yet. Turn items into a phase (with a branch and exit criteria) before starting them.
+
+- **Main tabs redesign.** Today, Health, Watch and Data rebuilt to `docs/design/NexWatch Main Tabs (polished).html`.
+  The natural next phase.
+- **Screens with no design yet:** Workouts (Batch 4), metric detail (Batch 3), Data export and import flow
+  (Batch 7), and system surfaces (Batch 8).
+- **Watch features:** camera remote (§8.6, needs a phone with a working camera), a scheduled `WeatherWorker`
+  (§8.7, needs a weather source and a location decision), and display brightness and timeout.
+- **Notification extras from §8.5:** coalescing a burst into "3 new messages" (the throttle drops them today), and
+  the optional "don't forward while I'm using my phone".
+- **Postponed by the user:** custom watchfaces (Phase 10 has the requirements). Firmware update is dropped.
+- **Checks that need more real data:** the Phase 6 decoder mappings, the calorie scale and resting heart rate,
+  a sleep-session replay test, the Phase 7 round trip with real data, a workout sport-type mapping for Health
+  Connect, and §14 Q1, Q2 and Q5. Health monitoring was off on the watch until now, which is why there was no
+  heart rate, SpO2 or blood pressure data.
 
 ---
 

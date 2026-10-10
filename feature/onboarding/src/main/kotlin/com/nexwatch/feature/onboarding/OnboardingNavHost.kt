@@ -7,11 +7,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nexwatch.core.service.AssociationResult
+import com.nexwatch.core.service.BackgroundRunning
 import com.nexwatch.core.service.CompanionAssociatorEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import com.nexwatch.feature.onboarding.ui.FindWatchScreen
@@ -86,15 +90,26 @@ fun OnboardingNavHost(onOnboardingComplete: () -> Unit) {
             )
         }
 
-        OnboardingStep.KeepRunning -> KeepRunningScreen(
-            onBatteryOptimization = {},
-            onAutostartHint = {},
-            onTestBackgroundConnection = {},
-            onDone = {
-                viewModel.onEvent(OnboardingEvent.FinishOnboarding)
-                onOnboardingComplete()
-            },
-        )
+        OnboardingStep.KeepRunning -> {
+            val context = LocalContext.current
+            // The exemption is granted in a system dialog, so re-read it when the user comes back.
+            var batteryUnrestricted by remember { mutableStateOf(BackgroundRunning.isUnrestricted(context)) }
+            LifecycleResumeEffect(Unit) {
+                batteryUnrestricted = BackgroundRunning.isUnrestricted(context)
+                onPauseOrDispose {}
+            }
+            KeepRunningScreen(
+                batteryUnrestricted = batteryUnrestricted,
+                backgroundTest = state.backgroundTest,
+                onBatteryOptimization = { BackgroundRunning.requestUnrestricted(context) },
+                onAutostartHint = { BackgroundRunning.openAutostartSettings(context) },
+                onTestBackgroundConnection = { viewModel.onEvent(OnboardingEvent.TestBackgroundConnection) },
+                onDone = {
+                    viewModel.onEvent(OnboardingEvent.FinishOnboarding)
+                    onOnboardingComplete()
+                },
+            )
+        }
     }
 }
 

@@ -12,4 +12,7 @@
 
     <!-- CompanionAssociator.startObserving(), declared here for the same reason as above. -->
     <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
+
+    <!-- BackgroundRunning.requestUnrestricted(): the one-tap exemption dialog needs it. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 </manifest>

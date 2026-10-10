@@ -113,6 +113,24 @@ class OnboardingViewModelTest {
         OnboardingViewModel(client, WatchIdentityStore(InMemoryPreferencesDataStore(), UnconfinedDispatchers)) to client
 
     @Test
+    fun `background test sends a notification to a connected watch`() = runTest(mainDispatcher) {
+        val (viewModel, client) = viewModel()
+        client.forceState(WatchState.Ready(battery = 80))
+        viewModel.onEvent(OnboardingEvent.TestBackgroundConnection)
+        advanceUntilIdle()
+        assertEquals(BackgroundTest.Passed, viewModel.uiState.value.backgroundTest)
+    }
+
+    @Test
+    fun `background test fails clearly when the watch isn't connected`() = runTest(mainDispatcher) {
+        val (viewModel, client) = viewModel()
+        client.forceState(WatchState.Waiting(nextRetryAt = null))
+        viewModel.onEvent(OnboardingEvent.TestBackgroundConnection)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.backgroundTest is BackgroundTest.Failed)
+    }
+
+    @Test
     fun `starts on Welcome`() = runTest(mainDispatcher) {
         val (viewModel, _) = viewModel()
         assertEquals(OnboardingStep.Welcome, viewModel.uiState.value.step)
