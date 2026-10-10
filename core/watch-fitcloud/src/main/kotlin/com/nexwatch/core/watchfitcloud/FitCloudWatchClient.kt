@@ -308,10 +308,10 @@ class FitCloudWatchClient @Inject constructor(
     }
 
     override suspend fun sendNotification(n: OutgoingNotification): SendResult {
-        if (state.value !is WatchState.Ready) return SendResult.Dropped("watch not ready")
+        if (state.value !is WatchState.Ready) return SendResult.Dropped(SendResult.DropReason.WATCH_NOT_READY)
         // §4.3: dropped, never queued. The bus is busy with something longer, and a
         // notification queued behind it would arrive too late to be worth anything.
-        if (!mutex.tryLock()) return SendResult.Dropped("watch bus busy")
+        if (!mutex.tryLock()) return SendResult.Dropped(SendResult.DropReason.WATCH_BUSY)
         return try {
             withTimeout(NOTIFICATION_TIMEOUT) {
                 @Suppress("DEPRECATION")

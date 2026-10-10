@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Watch
@@ -47,6 +48,7 @@ internal fun WatchOverviewScreen(
     onOpenDiagnostics: () -> Unit,
     presence: PresenceUiState = PresenceUiState(),
     onEnablePresence: () -> Unit = {},
+    notificationsValue: String? = null,
 ) {
     val capabilities = state.capabilities
     val settings = state.settings
@@ -63,6 +65,11 @@ internal fun WatchOverviewScreen(
         )
         NoticeLine(state.notice)
         if (!state.isReady) NotConnectedNote()
+
+        // Not gated on the watch being connected: these are phone-side settings.
+        SettingsEntry(Icons.AutoMirrored.Filled.Message, "Notifications and calls", notificationsValue, enabled = true) {
+            onOpen(WatchSection.NOTIFICATIONS)
+        }
 
         // Only what this watch reports as supported gets a row (§4.5).
         val rows = buildList {

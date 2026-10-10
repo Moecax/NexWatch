@@ -1036,9 +1036,31 @@ dialog, now works. `CompanionAssociator` (`:core:service`) runs `associate()` an
 `IntentSender` to the UI to launch. Onboarding launches it right after a successful pair. The Watch tab has a
 "Wake when watch is nearby" row for a watch that was paired earlier, which covers this phone. Presence
 observation starts once the association exists, using `ObservingDevicePresenceRequest` on API 36+. Checked on
-the phone: the row opens the system dialog, and declining leaves the row Off with an explanation. Accepting is
-a user step, because the dialog ignores injected taps, so `CompanionPresenceService.onDeviceAppeared` is still
-unexercised.
+the phone: the row opens the system dialog, and declining leaves the row Off with an explanation. The dialog
+ignores injected taps, so the user accepted it by hand. `dumpsys companiondevice` then showed the association
+for `C1:A1:B2:29:7A:0D` with presence notification on and the watch present, and the system had bound
+`CompanionPresenceService`.
+
+**Notifications and calls (Batch 6), added after the phone turned out to forward nothing.** The notification
+listener had lost its access, and nothing in the app checked for that or showed it. Onboarding was the only
+place that asked, and there was no screen to manage forwarding at all.
+- The §8.5 pipeline now returns a reason for every skip (`PipelineDecision`). `SendResult.Dropped` carries a
+  typed reason. The forwarder records what actually happened, and before this it counted dropped and failed
+  sends as forwarded. It also serialises the pipeline, whose dedupe and throttle maps were being hit from
+  parallel coroutines.
+- `NotificationActivityLog` (`:core:data`) holds the last 100 attempts in memory only. These are titles from
+  allowed apps, never message text, so nothing with content reaches disk. Skips for apps the user didn't allow are
+  never logged. `DiagnosticsStore` persists a per-day "forwarded today" count.
+- The Watch tab's first row is "Notifications and calls", as the main-tabs design has it. It opens a screen
+  with the master switch and today's count, a "notification access is off" card that deep-links to NexWatch's
+  own access page, and a Calls card. The SDK's built-in telephony has no toggles, so the Calls card shows
+  whether each capability has its permission, and can request the missing ones. From there, a searchable app
+  list puts messaging apps first under Suggested, and the forwarding log can be filtered by All, Sent or Skipped.
+- The Today screen shows a banner whenever forwarding is on but access is off. It is re-checked on every
+  resume, which is what §8.5 asks for.
+- Checked on the phone: the listener is allowed and live, all three call capabilities read Ready, the app list
+  shows real icons with Telegram and Messages under Suggested, and allowing and disallowing an app persists.
+  Not yet checked: a real Telegram message, SMS and phone call reaching the watch and showing in the log.
 
 ---
 

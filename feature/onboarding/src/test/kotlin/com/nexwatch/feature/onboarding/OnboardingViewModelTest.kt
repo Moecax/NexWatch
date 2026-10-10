@@ -86,7 +86,7 @@ private class FailingWatchClient(
     override fun liveHeartRate(): Flow<Int> = emptyFlow()
     override suspend fun batteryLevel(): Int = 0
     override suspend fun findWatch() = Unit
-    override suspend fun sendNotification(n: OutgoingNotification): SendResult = SendResult.Dropped("unused")
+    override suspend fun sendNotification(n: OutgoingNotification): SendResult = SendResult.Dropped(SendResult.DropReason.WATCH_NOT_READY)
     override suspend fun applySettings(change: WatchSettingChange) = Unit
     override suspend fun readSettings() = WatchSettings()
     override suspend fun pushWeather(forecast: WeatherForecast) = Unit
