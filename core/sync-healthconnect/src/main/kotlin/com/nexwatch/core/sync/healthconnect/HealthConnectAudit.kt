@@ -22,7 +22,17 @@ import java.time.Instant
 import javax.inject.Inject
 import kotlin.reflect.KClass
 
-data class HealthConnectAuditRow(val type: String, val total: Int, val distinctClientIds: Int)
+/**
+ * [newestWriteAt] is when Health Connect last stored a record of this type for the newest data, which against
+ * the local `ingested_at` shows how long a watch sync took to reach Health Connect.
+ */
+data class HealthConnectAuditRow(
+    val type: String,
+    val total: Int,
+    val distinctClientIds: Int,
+    val newestStart: Instant?,
+    val newestWriteAt: Instant?,
+)
 
 /**
  * Debug-only check for Phase 9's exit criteria: how many records this app has in Health Connect per type,
@@ -37,6 +47,7 @@ class HealthConnectAudit @Inject constructor(
         val client = HealthConnectClient.getOrCreate(context)
         AUDITED.map { type ->
             val clientIds = mutableListOf<String?>()
+            var newest: Record? = null
             var pageToken: String? = null
             do {
                 val response = client.readRecords(
@@ -49,10 +60,30 @@ class HealthConnectAudit @Inject constructor(
                     ),
                 )
                 response.records.mapTo(clientIds) { it.metadata.clientRecordId }
+                newest = (response.records + listOfNotNull(newest)).maxByOrNull { it.start() }
                 pageToken = response.pageToken
             } while (pageToken != null)
-            HealthConnectAuditRow(type.simpleName.orEmpty(), clientIds.size, clientIds.toSet().size)
+            HealthConnectAuditRow(
+                type = type.simpleName.orEmpty(),
+                total = clientIds.size,
+                distinctClientIds = clientIds.toSet().size,
+                newestStart = newest?.start(),
+                newestWriteAt = newest?.metadata?.lastModifiedTime,
+            )
         }
+    }
+
+    // IntervalRecord and InstantRecord are internal to the client library, so each audited type is listed.
+    private fun Record.start(): Instant = when (this) {
+        is StepsRecord -> startTime
+        is DistanceRecord -> startTime
+        is ActiveCaloriesBurnedRecord -> startTime
+        is HeartRateRecord -> startTime
+        is SleepSessionRecord -> startTime
+        is ExerciseSessionRecord -> startTime
+        is OxygenSaturationRecord -> time
+        is BloodPressureRecord -> time
+        else -> Instant.EPOCH
     }
 
     companion object {

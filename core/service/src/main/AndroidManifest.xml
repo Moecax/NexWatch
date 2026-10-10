@@ -9,4 +9,7 @@
       harmlessly with :app's own declaration of the same permission.
     -->
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+
+    <!-- CompanionAssociator.startObserving(), declared here for the same reason as above. -->
+    <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
 </manifest>

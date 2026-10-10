@@ -543,8 +543,8 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 6 | Data core (M3) | `phase-6-data-core` | Done |
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Done |
-| 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | In progress |
-| 10 | Extras and hardening (M7) | `phase-10-hardening` | Not started |
+| 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Done |
+| 10 | Extras and hardening (M7) | `phase-10-hardening` | Blocked (vendor cloud access and Realtek DFU vendoring need a decision — see Phase 10) |
 
 Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
 
@@ -745,7 +745,7 @@ for this phase's onboarding flow, so the association typically never reaches
 `onAssociationCreated` and `CompanionPresenceService.onDeviceAppeared` is not exercised on
 device yet. LOGIN reconnection via `WatchConnectionService` (launch- and boot-triggered) is the
 only path that's proven end-to-end; CDM presence as a reliability improvement over that is left
-for a follow-up that wires the consent dialog.
+for a follow-up that wires the consent dialog. (Wired in Phase 10, see there.)
 
 **Descoped to Phase 6.** §8.2's "triggers a health sync, debounced, on `Ready`" and §8.7's
 `WatchSyncWorker` both assume a journal to write into. `WatchClient.syncHealthData()` is
@@ -963,10 +963,15 @@ everything" tools that were used for the checks below.
       the app's own origin. That equals the local database exactly (95 step intervals, all with distance and
       energy above 0, and 8 sleep nights). The watch had recorded no heart rate, SpO2, blood pressure or
       workouts (its journal payloads for those types were empty), so those types read back 0 on both sides.
-- [ ] New records appear in Health Connect within minutes of syncing from the watch. Not yet verified: the
-      watch had recorded no new activity since 2026-10-04 when this was checked, so a sync produced nothing new
-      to send. The path is covered by JVM tests (the coordinator enqueues sync after any ingest that changed a
-      date, and `SyncEngineTest` covers tailing).
+- [x] New records appear in Health Connect within minutes of syncing from the watch. Verified 2026-10-10 on the
+      phone, after the merge, against activity the watch recorded after 2026-10-04: ten unattended watch syncs
+      since the merge ingested 73 new step intervals and a ninth sleep night. The latest, at 02:30:11.867 UTC,
+      brought 10 intervals and the new night, and the debug audit (which now also reports, per type, when Health
+      Connect stored the newest record) shows the newest `StepsRecord`,
+      `DistanceRecord` and `ActiveCaloriesBurnedRecord` written at 02:30:12.830 and the new `SleepSessionRecord`
+      at 02:30:12.827, about one second later. Totals matched the local database exactly (168/168/168 and 9, no
+      duplicate `clientRecordId`), the cursor sat at the change-log head, and compaction had emptied the change
+      log.
 - [x] Forcing retries produces no duplicate records. Verified 2026-10-08 on the phone: "Re-send everything"
       (cursor deleted, so a full re-push of the same records) ran four more times. Three runs were force-stopped
       0.3–1 s after starting, and one was caught mid-snapshot (`snapshot_state` on steps, 0 of 103 pushed).
@@ -1002,6 +1007,40 @@ Custom watchfaces, firmware update (last, with the battery and connection precon
 **Exit criteria**
 - [ ] Firmware update is tested only after taking a full export first.
 - [ ] A one-week soak shows no data gaps and stays within the §9.1 budgets.
+
+**What the real watch says about the watchface and firmware work** (probe on 2026-10-10, details in
+`docs/recon.md` §3 Q4). The IC is `IC_8762C` and the watch doesn't report platform OTA, so the SDK sends
+watchfaces and firmware the same way, through Realtek DFU (`DfuMode.MODE_8762C`). That path needs
+`com.realsil.sdk.dfu` from `ext-realtek-dfu`, which isn't vendored, so neither feature can run on this watch
+until it is. The watch uses the GUI watchface format, with a round 466×466 screen. Of its four dial slots, only
+one takes pushes, and that slot holds the face currently on screen (store dial 114003). A custom watchface
+replaces it.
+
+**Blocked on decisions only the user can make:**
+1. **The vendor's cloud.** Custom watchface templates and firmware files exist only on FitCloud's server
+   (`fitcloud.hetangsmart.com`). The vendor's sample calls it over plain HTTP. It also answers HTTPS with a
+   valid certificate. Using it means sending the watch's hardware info string, LCD id and UI version to the
+   vendor, and adding the app's first network permission. The alternatives:
+   - Allow it, HTTPS only, with the SDK's own downloader bypassed. The SDK downloads through OkHttp, which
+     NexWatch doesn't ship, so the app downloads to its own storage and hands the SDK a `file://` URI.
+   - Or install firmware only from a file the user picks, and drop custom watchfaces.
+   A request to the vendor API from the development machine was refused by the session's permission
+   policy, so the response shapes (including whether download URLs are HTTPS) are unverified.
+2. **Vendoring `ext-realtek-dfu`** from the same GitHub mirror as the SDK, with checksums and verification
+   metadata as `third_party/maven/README.md` describes. The mirror now publishes SDK 3.0.2.7 next to
+   `ext-realtek-dfu-1.0.4`. Whether that extension works with the vendored 3.0.2.4 has to be checked, or both
+   have to be re-vendored together.
+3. **Real-watch tests.** A watchface push replaces the user's current face. A firmware flash can brick the
+   watch, so it waits for a full export (the exit criterion above) and the user's go-ahead.
+
+**Hardening landed so far.** Companion Device Manager association, which Phase 5 left without its consent
+dialog, now works. `CompanionAssociator` (`:core:service`) runs `associate()` and hands the system's consent
+`IntentSender` to the UI to launch. Onboarding launches it right after a successful pair. The Watch tab has a
+"Wake when watch is nearby" row for a watch that was paired earlier, which covers this phone. Presence
+observation starts once the association exists, using `ObservingDevicePresenceRequest` on API 36+. Checked on
+the phone: the row opens the system dialog, and declining leaves the row Off with an explanation. Accepting is
+a user step, because the dialog ignores injected taps, so `CompanionPresenceService.onDeviceAppeared` is still
+unexercised.
 
 ---
 

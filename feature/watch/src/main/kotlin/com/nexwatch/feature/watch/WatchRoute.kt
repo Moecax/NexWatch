@@ -1,5 +1,9 @@
 package com.nexwatch.feature.watch
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,8 +31,16 @@ internal enum class WatchSection {
 fun WatchRoute(
     onOpenDiagnostics: () -> Unit,
     viewModel: WatchSettingsViewModel = hiltViewModel(),
+    presenceViewModel: CompanionPresenceViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val presence by presenceViewModel.uiState.collectAsStateWithLifecycle()
+    val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        presenceViewModel.onConsentResult(it.resultCode == Activity.RESULT_OK)
+    }
+    LaunchedEffect(presenceViewModel) {
+        presenceViewModel.consentRequests.collect { consent.launch(IntentSenderRequest.Builder(it).build()) }
+    }
     var section by rememberSaveable { mutableStateOf<WatchSection?>(null) }
 
     // Keyed on readiness so a reconnect re-reads, and a screen that isn't showing never does.
@@ -49,6 +61,8 @@ fun WatchRoute(
             },
             onFindWatch = viewModel::findWatch,
             onOpenDiagnostics = onOpenDiagnostics,
+            presence = presence,
+            onEnablePresence = presenceViewModel::enable,
         )
         WatchSection.REMINDERS -> RemindersScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.HEALTH_MONITORING -> HealthMonitoringScreen(state, back) { viewModel.apply(*it.toTypedArray()) }

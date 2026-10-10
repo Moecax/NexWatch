@@ -153,7 +153,8 @@ private fun HealthConnectDebugTools(providerId: String, viewModel: SyncServicesV
             state.rows.forEach { row ->
                 val duplicates = row.total - row.distinctClientIds
                 Text(
-                    "${row.type}: ${row.total}" + if (duplicates > 0) " ($duplicates duplicates)" else " (no duplicates)",
+                    "${row.type}: ${row.total}" + (if (duplicates > 0) " ($duplicates duplicates)" else " (no duplicates)") +
+                        (row.newestStart?.let { " · newest $it written ${row.newestWriteAt}" } ?: ""),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

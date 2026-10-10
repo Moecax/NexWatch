@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Cloud
@@ -44,6 +45,8 @@ internal fun WatchOverviewScreen(
     onOpen: (WatchSection) -> Unit,
     onFindWatch: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    presence: PresenceUiState = PresenceUiState(),
+    onEnablePresence: () -> Unit = {},
 ) {
     val capabilities = state.capabilities
     val settings = state.settings
@@ -82,7 +85,32 @@ internal fun WatchOverviewScreen(
         rows.forEach { row ->
             SettingsEntry(row.icon, row.title, row.value, enabled = state.isReady) { onOpen(row.section) }
         }
+        if (presence.available) PresenceEntry(presence, onEnablePresence)
         SettingsEntry(Icons.Filled.BugReport, "Diagnostics", null, enabled = true, onClick = onOpenDiagnostics)
+    }
+}
+
+@Composable
+private fun PresenceEntry(presence: PresenceUiState, onEnable: () -> Unit) {
+    val value = when {
+        presence.associated -> "On"
+        presence.busy -> "Turning on…"
+        else -> "Off"
+    }
+    Column {
+        SettingsEntry(
+            Icons.Filled.BluetoothSearching,
+            "Wake when watch is nearby",
+            value,
+            enabled = !presence.associated && !presence.busy,
+            onClick = onEnable,
+        )
+        Text(
+            presence.failure ?: "Lets Android start NexWatch when the watch comes into range, even after it was closed.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 40.dp),
+        )
     }
 }
 
@@ -170,6 +198,7 @@ private fun WatchOverviewReadyPreview() {
                 onOpen = {},
                 onFindWatch = {},
                 onOpenDiagnostics = {},
+                presence = PresenceUiState(available = true),
             )
         }
     }
