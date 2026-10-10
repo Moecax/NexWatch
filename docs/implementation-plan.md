@@ -544,7 +544,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Done |
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Done |
-| 10 | Extras and hardening (M7) | `phase-10-hardening` | Blocked (firmware update needs a decision on its file source and Realtek DFU vendoring — see Phase 10) |
+| 10 | Extras and hardening (M7) | `phase-10-hardening` | In progress |
 
 Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
 
@@ -1005,8 +1005,15 @@ pipeline end to end.
 Custom watchfaces, firmware update (last, with the battery and connection preconditions from Batch 5 §9), and a final stress/polish pass.
 
 **Exit criteria**
-- [ ] Firmware update is tested only after taking a full export first.
+- [ ] ~~Firmware update is tested only after taking a full export first.~~ Descoped with firmware update (below).
 - [ ] A one-week soak shows no data gaps and stays within the §9.1 budgets.
+
+**Scope after the 2026-10-10 decisions: hardening only.** Custom watchfaces are postponed and firmware update is
+dropped (user decisions, 2026-10-10). Firmware update came with three costs: it needs `ext-realtek-dfu` vendored,
+a source for firmware files (the vendor's server or a file the user supplies), and a flash that can brick the
+watch. There is no known reason this watch needs newer firmware than `00000105`. So NexWatch vendors no Realtek
+library, needs no network permission, and contacts no vendor server. What is left is the hardening below and the
+one-week soak.
 
 **What the real watch says about the watchface and firmware work** (probe on 2026-10-10, details in
 `docs/recon.md` §3 Q4). The IC is `IC_8762C` and the watch doesn't report platform OTA, so the SDK sends
@@ -1016,25 +1023,13 @@ until it is. The watch uses the GUI watchface format, with a round 466×466 scre
 one takes pushes, and that slot holds the face currently on screen (store dial 114003). A custom watchface
 replaces it.
 
-**Custom watchfaces are postponed** (user decision, 2026-10-10). They are out of this phase, and nothing below
-is needed for them now. The probe findings above stay recorded for when they come back.
-
-**Blocked on decisions only the user can make:**
-1. **The vendor's cloud.** Custom watchface templates and firmware files exist only on FitCloud's server
-   (`fitcloud.hetangsmart.com`). The vendor's sample calls it over plain HTTP. It also answers HTTPS with a
-   valid certificate. Using it means sending the watch's hardware info string, LCD id and UI version to the
-   vendor, and adding the app's first network permission. The alternatives:
-   - Allow it, HTTPS only, with the SDK's own downloader bypassed. The SDK downloads through OkHttp, which
-     NexWatch doesn't ship, so the app downloads to its own storage and hands the SDK a `file://` URI.
-   - Or install firmware only from a file the user picks, and drop custom watchfaces.
-   A request to the vendor API from the development machine was refused by the session's permission
-   policy, so the response shapes (including whether download URLs are HTTPS) are unverified.
-2. **Vendoring `ext-realtek-dfu`** from the same GitHub mirror as the SDK, with checksums and verification
-   metadata as `third_party/maven/README.md` describes. The mirror now publishes SDK 3.0.2.7 next to
-   `ext-realtek-dfu-1.0.4`. Whether that extension works with the vendored 3.0.2.4 has to be checked, or both
-   have to be re-vendored together.
-3. **Real-watch tests.** A watchface push replaces the user's current face. A firmware flash can brick the
-   watch, so it waits for a full export (the exit criterion above) and the user's go-ahead.
+**If either feature comes back,** both need `ext-realtek-dfu` vendored from the SDK's GitHub mirror, with
+checksums as `third_party/maven/README.md` describes. The mirror now ships SDK 3.0.2.7 alongside
+`ext-realtek-dfu-1.0.4`, so the extension's compatibility with the vendored 3.0.2.4 has to be checked, or both
+re-vendored together. Both also need files from the vendor's server (`fitcloud.hetangsmart.com`). The vendor's
+sample calls it over plain HTTP, but it also answers HTTPS with a valid certificate. Using it sends the watch's
+hardware info string, LCD id and UI version to the vendor. The SDK's own downloader needs OkHttp, which NexWatch
+doesn't ship, so the app would download files itself and hand the SDK a `file://` URI.
 
 **Hardening landed so far.** Companion Device Manager association, which Phase 5 left without its consent
 dialog, now works. `CompanionAssociator` (`:core:service`) runs `associate()` and hands the system's consent
