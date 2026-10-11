@@ -91,6 +91,11 @@ Work happens one phase of `docs/implementation-plan.md` §12 at a time, never tw
 - **`docs/implementation-plan.md` §12 is the living source of truth for this project.** The moment a phase's status changes — started, blocked, done — update its row and checklist in the same change, before that change is considered finished. An out-of-date plan is worse than no plan, because the next session trusts it.
 - If a phase's scope turns out to be wrong once you're in it, fix §12 (and the referenced sections) in the same change rather than drifting silently from what's written.
 
+### Releases
+
+- Releases are cut by the Release workflow: `gh workflow run release.yml -f bump=patch|minor|major` (or `recut` to rebuild the latest tag). It derives the version from the highest `vX.Y.Z` tag, builds and tags the signed APK, and publishes it as a GitHub Release whose notes are grouped from the Conventional Commit subjects since the previous tag. It never commits to `main`.
+- The version lives only in the git tags. Never hand-edit `versionName`/`versionCode`, and never create `v*` tags by hand.
+
 ### Code style
 
 - Do not add comments that restate what the code already says. A comment earns its place by explaining *why* — a non-obvious constraint, an SDK quirk, an invariant from this file — not *what* the next line does.

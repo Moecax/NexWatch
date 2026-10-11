@@ -1,0 +1,113 @@
+# Cut a release on demand: Actions > Release > Run workflow, or
+#   gh workflow run release.yml -f bump=minor
+#
+# patch/minor/major bump from the highest vX.Y.Z tag, so the current version never has to be
+# remembered. recut rebuilds and republishes the highest tag without bumping, e.g. after a
+# failed run. The tag is only pushed once the APK has built, so a broken build doesn't burn a
+# version number. Nothing is committed: main only accepts pull requests, so the notes live on
+# the GitHub Release instead of in a CHANGELOG file.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options: [patch, minor, major, recut]
+        default: patch
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only release from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Releases are cut from main; this run is on ${{ github.ref_name }}."
+          exit 1
+
+      - name: Check signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NEXWATCH_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.NEXWATCH_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.NEXWATCH_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.NEXWATCH_KEY_PASSWORD }}
+        run: |
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret NEXWATCH_$name is not set."
+              exit 1
+            fi
+          done
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # Full history and tags: the version comes from the tags, the notes from the log.
+          fetch-depth: 0
+
+      - name: Work out version and release notes
+        id: prep
+        run: bash .github/release/prepare.sh "${{ inputs.bump }}"
+
+      - name: Tag
+        if: inputs.bump != 'recut'
+        env:
+          TAG: ${{ steps.prep.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "NexWatch $TAG"
+
+      - name: Check out the tag being re-cut
+        if: inputs.bump == 'recut'
+        run: git checkout "${{ steps.prep.outputs.tag }}"
+
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          # Matches the daemon toolchain in gradle/gradle-daemon-jvm.properties.
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NEXWATCH_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+
+      - name: Test and build release APK
+        env:
+          NEXWATCH_KEYSTORE: ${{ runner.temp }}/release.jks
+          NEXWATCH_KEYSTORE_PASSWORD: ${{ secrets.NEXWATCH_KEYSTORE_PASSWORD }}
+          NEXWATCH_KEY_ALIAS: ${{ secrets.NEXWATCH_KEY_ALIAS }}
+          NEXWATCH_KEY_PASSWORD: ${{ secrets.NEXWATCH_KEY_PASSWORD }}
+        run: ./gradlew test :app:assembleRelease -Pnexwatch.versionName=${{ steps.prep.outputs.version }}
+
+      - name: Push tag
+        if: inputs.bump != 'recut'
+        run: git push origin "${{ steps.prep.outputs.tag }}"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.prep.outputs.tag }}
+          VERSION: ${{ steps.prep.outputs.version }}
+          NOTES: ${{ steps.prep.outputs.notes_file }}
+        run: |
+          apk="$RUNNER_TEMP/NexWatch-$VERSION.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          title="NexWatch $VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$title" --notes-file "$NOTES"
+            gh release upload "$TAG" "$apk" --clobber
+          else
+            gh release create "$TAG" "$apk" --title "$title" --notes-file "$NOTES" --verify-tag
+          fi

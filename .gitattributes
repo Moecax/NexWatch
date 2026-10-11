@@ -6,3 +6,6 @@
 # endings on checkout, which changes their bytes and fails verification on Windows
 # while the binary .aar files still pass. Keep this tree exactly as committed.
 third_party/maven/** -text
+
+# Run by bash on the Linux release runner, where a CR breaks every line.
+*.sh text eol=lf
