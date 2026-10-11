@@ -5,17 +5,46 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// The Release workflow (.github/workflows/release.yml) passes the version it derived from the
+// git tags; nothing in the repo stores it, so local builds are always 0.0.0-dev.
+val releaseVersionName = providers.gradleProperty("nexwatch.versionName").orElse("0.0.0-dev").get()
+
+// Monotonic as long as minor and patch stay below 1000.
+fun versionCodeOf(versionName: String): Int {
+    val match = Regex("""^(\d+)\.(\d+)\.(\d+)$""").find(versionName) ?: return 1
+    val (major, minor, patch) = match.destructured.toList().map { it.toInt() }
+    return major * 1_000_000 + minor * 1_000 + patch
+}
+
+// Set only in CI from repository secrets, so a release build without them comes out unsigned
+// rather than signed with a throwaway key that couldn't install over a real release.
+val releaseKeystore = providers.environmentVariable("NEXWATCH_KEYSTORE").orNull
+
 android {
     namespace = "com.nexwatch"
 
     defaultConfig {
         applicationId = "com.nexwatch"
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionCodeOf(releaseVersionName)
+        versionName = releaseVersionName
+    }
+
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = providers.environmentVariable("NEXWATCH_KEYSTORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("NEXWATCH_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("NEXWATCH_KEY_PASSWORD").get()
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (releaseKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             optimization {
                 enable = true
                 keepRules {
