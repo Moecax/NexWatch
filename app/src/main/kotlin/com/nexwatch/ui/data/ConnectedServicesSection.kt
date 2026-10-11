@@ -1,5 +1,15 @@
 package com.nexwatch.ui.data
 
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.HealthAndSafety
+import androidx.compose.material.icons.rounded.PauseCircle
+import androidx.compose.ui.text.font.FontWeight
+import com.nexwatch.core.designsystem.component.IconBadge
+import com.nexwatch.core.designsystem.component.NexCard
+import com.nexwatch.core.designsystem.component.WatchSwitch
+import com.nexwatch.core.designsystem.theme.SkyBlue
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,7 +62,6 @@ fun ConnectedServicesSection(viewModel: SyncServicesViewModel = hiltViewModel())
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshReadiness() }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Connected services", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         statuses.forEach { status ->
             if (status.id == HealthConnectSyncProvider.PROVIDER_ID) {
                 HealthConnectCard(status, readiness[status.id], viewModel)
@@ -83,51 +92,53 @@ private fun HealthConnectCard(status: SyncProviderStatus, readiness: Readiness?,
         }
     }
 
-    Surface(shape = WatchShapes.card, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().toggleable(
-                    value = status.enabled,
-                    role = Role.Switch,
-                    onValueChange = { on -> if (on) connect() else viewModel.setEnabled(status.id, false) },
-                ),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(status.displayName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        statusLine(status),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(checked = status.enabled, onCheckedChange = null)
+    val problem = problemFor(status, readiness)
+    NexCard(contentPadding = PaddingValues(0.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth().toggleable(
+                value = status.enabled,
+                role = Role.Switch,
+                onValueChange = { on -> if (on) connect() else viewModel.setEnabled(status.id, false) },
+            ).padding(horizontal = 16.dp, vertical = 12.dp),
+        ) {
+            IconBadge(Icons.Rounded.HealthAndSafety, tint = SkyBlue, background = SkyBlue.copy(alpha = 0.14f))
+            Text(status.displayName, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            WatchSwitch(checked = status.enabled, onCheckedChange = null)
+        }
+        Column(modifier = Modifier.padding(start = 66.dp, end = 16.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val backfill = status.backfill?.takeIf { status.enabled && it.total > 0 }
+            when {
+                problem != null -> StatusChip(problem, StatusTone.ERROR)
+                !status.enabled -> StatusChip("Off", StatusTone.NEUTRAL, icon = Icons.Rounded.PauseCircle)
+                backfill != null -> StatusChip("Sending history", StatusTone.INFO, icon = Icons.Rounded.CloudUpload)
+                status.lastSuccessAt != null -> StatusChip(statusLine(status), StatusTone.SUCCESS)
+                else -> StatusChip("Starting", StatusTone.INFO, icon = Icons.Rounded.CloudUpload)
             }
-
-            status.backfill?.takeIf { status.enabled && it.total > 0 }?.let { backfill ->
+            backfill?.let {
+                val number = NumberFormat.getIntegerInstance()
+                Text(
+                    "${number.format(it.pushed)} of ${number.format(it.total)} records sent",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 LinearProgressIndicator(
-                    progress = { backfill.pushed.toFloat() / backfill.total },
+                    progress = { it.pushed.toFloat() / it.total },
                     modifier = Modifier.fillMaxWidth(),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    drawStopIndicator = {},
                 )
             }
-
-            val problem = problemFor(status, readiness)
-            if (problem != null) {
-                StatusChip(problem, StatusTone.ERROR)
-                TextButton(onClick = connect) { Text("Reconnect") }
-            } else if (status.enabled && status.backfill == null && status.lastSuccessAt != null) {
-                StatusChip("Up to date", StatusTone.SUCCESS)
-            }
-
             Text(
                 "Shares ${status.supportedTypes.sortedBy { it.ordinal }.joinToString { it.label }}. Data already sent " +
                     "stays in Health Connect if you turn this off.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-
-            if (status.enabled) {
-                SecondaryButton("Sync now", onClick = { viewModel.syncNow(status.id) })
+            when {
+                problem != null -> TextButton(onClick = connect) { Text("Reconnect", fontWeight = FontWeight.Bold) }
+                status.enabled -> TextButton(onClick = { viewModel.syncNow(status.id) }) { Text("Sync now", fontWeight = FontWeight.Bold) }
             }
             if (BuildConfig.DEBUG) {
                 HealthConnectDebugTools(status.id, viewModel)
@@ -173,17 +184,12 @@ private fun AddServicePlaceholder() {
             drawRoundRect(
                 color = border,
                 style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f))),
-                cornerRadius = CornerRadius(16.dp.toPx()),
+                cornerRadius = CornerRadius(22.dp.toPx()),
             )
         },
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Add service", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                "More services coming",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text("More services can plug in here later", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -194,7 +200,7 @@ private fun statusLine(status: SyncProviderStatus): String {
     return when {
         !status.enabled -> "Off"
         backfill != null -> "Sending history… ${number.format(backfill.pushed)} of ${number.format(backfill.total)} records"
-        status.lastSuccessAt != null -> "Up to date · " + DateUtils.getRelativeTimeSpanString(
+        status.lastSuccessAt != null -> "Up to date, " + DateUtils.getRelativeTimeSpanString(
             status.lastSuccessAt!!, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
         )
         else -> "Starting…"

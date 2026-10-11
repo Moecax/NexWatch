@@ -544,7 +544,8 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 7 | Export / import (M4) | `phase-7-export-import` | Done |
 | 8 | Watch control (M5) | `phase-8-watch-control` | Done |
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Done |
-| 10 | Extras and hardening (M7) | `phase-10-hardening` | In progress |
+| 10 | Extras and hardening (M7) | `phase-10-hardening` | In progress (soak only) |
+| 11 | Main tabs redesign | `phase-11-main-tabs` | In progress |
 
 Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
 
@@ -1075,12 +1076,59 @@ place that asked, and there was no screen to manage forwarding at all.
   intended. The screen itself only shows on an unpaired install, so it was checked through ViewModel tests,
   not by unpairing the watch.
 
+### Phase 11 — Main tabs redesign
+
+Today, Health, Watch and Data rebuilt to `docs/design/NexWatch Main Tabs (polished).html`, with the data and
+actions those screens show wired to real sources. **Started on 2026-10-11 at the user's request while Phase 10's
+one-week soak is still running.** That is the one exception to "sequential, not parallel": the soak is wall-clock
+time on the phone, not code, and this phase touches none of the hardening work. Phase 10 closes when the soak
+does.
+
+**Exit criteria**
+- [x] All four tabs follow the polished design on the theme's tokens, with no hex in screens and Part C motion:
+  staggered entrance, press scale, and one looping animation per screen.
+- [x] Every number on the four tabs comes from the database or the watch, and empty, disconnected and
+  first-day states say what is missing instead of showing zeros.
+- [x] Sync now, Find watch, wrist raise, export with progress, share, restore and auto-backup all work from the
+  tabs, and every sync records its time.
+- [x] Build, unit tests and lint pass. Checked on the phone with the real watch on 2026-10-11.
+- [ ] The user reviews and merges the PR.
+
+**What landed**
+- Design system: `NexCard`, `ListRow`/`RowGroup`, `MetricText` (tabular figures), `StatusChip` tones with a live
+  dot, `WatchGlyph`/`WatchRender` (static 10:10 hands), and charts in `chart/Charts.kt` (activity rings, a
+  day range chart you can scrub, hypnogram, column and stacked column charts). New tokens are sleep-stage colours
+  and watch-render colours.
+- Data: read-only DAO queries for latest HR, SpO2 and BP, a 24-hour SpO2 low, and per-local-day HR, SpO2 and BP
+  aggregates (bucketed in SQL, no schema change). `StorageRepository` gives per-type record counts, the earliest
+  record and the database size.
+- Sync: `WatchSync` is now the only way into `HealthSyncCoordinator`. It serialises runs, reports progress
+  (fraction and data type), and writes `lastSyncAt`, which nothing wrote before. The service, the worker and the
+  Sync now buttons all go through it.
+- Today: watch strip (link state, battery, last sync, sync progress), activity rings, heart rate for the day with
+  min/max band, last night's hypnogram, SpO2 and BP, last workout, a "signed in elsewhere" banner whose Retry uses
+  LOGIN (never BIND), and the notification-access banner.
+- Health: 7 and 30 day ranges over heart rate, sleep stages, steps against goal, SpO2, BP and workouts.
+  Metrics the watch reports it can't measure (stress, skin temperature) are named in a footnote.
+- Watch: hero with firmware, ID suffix, connection and battery, Find watch with an 8-second ring state, Sync
+  now, an in-place wrist-raise switch, and the grouped settings rows.
+- Data: storage breakdown, export with per-table progress, then share or save, restore, auto-backup with folder
+  and last run, and Health Connect restyled.
+
+**Follow-ups this phase found, not done here**
+- The watch reports no active minutes, so Today has two rings (steps, calories), not three.
+- Goals are constants (10,000 steps, 600 kcal) until there is a goals setting.
+- No Settings screen and no metric detail screens yet, so the design's settings icon and tile chevrons are left
+  out.
+- No sport-type name mapping, so every workout is labelled "Workout".
+- Manrope isn't bundled. The tabs use the system sans with tabular figures.
+
 ### Not scheduled yet
 
 Known work that no phase owns yet. Turn items into a phase (with a branch and exit criteria) before starting them.
 
-- **Main tabs redesign.** Today, Health, Watch and Data rebuilt to `docs/design/NexWatch Main Tabs (polished).html`.
-  The natural next phase.
+- **Goals and Settings:** a goals setting (steps, calories) and a Settings screen, both of which the main tabs
+  design points at.
 - **Screens with no design yet:** Workouts (Batch 4), metric detail (Batch 3), Data export and import flow
   (Batch 7), and system surfaces (Batch 8).
 - **Watch features:** camera remote (§8.6, needs a phone with a working camera), a scheduled `WeatherWorker`

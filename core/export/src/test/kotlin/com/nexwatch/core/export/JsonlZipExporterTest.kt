@@ -31,6 +31,23 @@ class JsonlZipExporterTest {
     }
 
     @Test
+    fun `export reports every table as it finishes, in write order`() = runTest(dispatcher) {
+        val db = inMemoryTestDatabase()
+        db.stepsDao().insertAll(
+            listOf(StepsEntity(pkFor("s1"), RecordMeta("s1", DEVICE_ID, 1_000, 2_000, 0, Origin.MONITOR, ingestedAt = 0), 10, 8f, 1f)),
+        )
+        val repo = ExportRepository(db.stepsDao(), db.healthSampleDao(), db.sleepDao(), db.workoutDao(),
+            db.dailySummaryDao(), db.deviceDao(), db.exportHistoryDao(), dispatchers)
+        val reported = mutableListOf<Pair<String, Int>>()
+
+        val history = JsonlZipExporter(repo, FixedAppVersion()).export(ByteArrayOutputStream()) { table, count -> reported += table to count }
+
+        assertEquals(history.recordCounts.toList(), reported)
+        assertEquals("steps" to 1, reported.first())
+        db.close()
+    }
+
+    @Test
     fun `export writes a well-formed empty zip for a fresh database`() = runTest(dispatcher) {
         val db = inMemoryTestDatabase()
         val repo = ExportRepository(db.stepsDao(), db.healthSampleDao(), db.sleepDao(), db.workoutDao(),

@@ -46,6 +46,11 @@ class DiagnosticsStore @Inject constructor(
         Unit
     }
 
+    suspend fun recordSync(atMs: Long): Unit = withContext(dispatchers.io) {
+        dataStore.edit { it[LAST_SYNC_KEY] = atMs }
+        Unit
+    }
+
     suspend fun recordForwarded(atMs: Long, zone: ZoneId = ZoneId.systemDefault()): Unit = withContext(dispatchers.io) {
         val day = Instant.ofEpochMilli(atMs).atZone(zone).toLocalDate().toEpochDay()
         dataStore.edit { prefs ->

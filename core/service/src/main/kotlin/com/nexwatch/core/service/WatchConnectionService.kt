@@ -11,7 +11,7 @@ import android.os.IBinder
 import androidx.core.content.ContextCompat
 import com.nexwatch.core.data.diagnostics.DiagnosticsStore
 import com.nexwatch.core.data.identity.WatchIdentityStore
-import com.nexwatch.core.data.sync.HealthSyncCoordinator
+import com.nexwatch.core.data.sync.WatchSync
 import com.nexwatch.core.data.sync.WatchSyncWorker
 import com.nexwatch.core.service.notification.ServiceNotifications
 import com.nexwatch.core.watchapi.WatchClient
@@ -41,7 +41,7 @@ class WatchConnectionService : Service() {
     @Inject lateinit var watchClient: WatchClient
     @Inject lateinit var identityStore: WatchIdentityStore
     @Inject lateinit var diagnosticsStore: DiagnosticsStore
-    @Inject lateinit var syncCoordinator: HealthSyncCoordinator
+    @Inject lateinit var watchSync: WatchSync
 
     // A bare SupervisorJob still routes an uncaught child exception to the thread's default
     // handler (it only isolates siblings from each other), which would otherwise kill the
@@ -134,7 +134,7 @@ class WatchConnectionService : Service() {
                 // date whose rows are already marked processed. A running sync must finish.
                 .collect { state ->
                     if (state is WatchState.Ready) {
-                        syncCoordinator.syncAndNormalize()
+                        watchSync.run()
                         WatchSyncWorker.enqueueCatchUp(applicationContext)
                     }
                 }

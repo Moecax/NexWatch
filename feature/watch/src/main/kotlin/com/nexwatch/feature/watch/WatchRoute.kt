@@ -39,7 +39,9 @@ fun WatchRoute(
     viewModel: WatchSettingsViewModel = hiltViewModel(),
     presenceViewModel: CompanionPresenceViewModel = hiltViewModel(),
     notificationsViewModel: NotificationsViewModel = hiltViewModel(),
+    statusViewModel: WatchStatusViewModel = hiltViewModel(),
 ) {
+    val status by statusViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val notifications by notificationsViewModel.uiState.collectAsStateWithLifecycle()
     // Access and phone permissions are changed in system screens, so re-read them on every return.
@@ -80,6 +82,10 @@ fun WatchRoute(
             onOpenDiagnostics = onOpenDiagnostics,
             presence = presence,
             onEnablePresence = presenceViewModel::enable,
+            status = status,
+            onSyncNow = statusViewModel::syncNow,
+            onWristRaiseChange = viewModel::setWristRaise,
+            onDismissNotice = viewModel::dismissNotice,
             notificationsValue = when {
                 !notifications.accessGranted -> "Access off"
                 notifications.enabled -> "On, ${notifications.installedAllowedCount} apps"

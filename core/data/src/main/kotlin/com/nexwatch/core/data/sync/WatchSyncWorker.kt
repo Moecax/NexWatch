@@ -18,17 +18,17 @@ private const val CATCH_UP_WORK_NAME = "watch-sync-catch-up"
 
 /**
  * §8.7's safety net — WorkManager-scheduled per CLAUDE.md I5's explicit carve-out, not a
- * connection poll. Runs the same HealthSyncCoordinator the Ready-trigger uses (Task 19).
+ * connection poll. Runs through the same WatchSync queue as the Ready-trigger and the "Sync now" buttons.
  */
 @HiltWorker
 class WatchSyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
-    private val coordinator: HealthSyncCoordinator,
+    private val watchSync: WatchSync,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val outcome = coordinator.syncAndNormalize()
+        val outcome = watchSync.run()
         return if (outcome.isSuccess) Result.success() else Result.retry()
     }
 

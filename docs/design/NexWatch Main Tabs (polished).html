@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NexWatch: Today, Health, Watch and Data</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=add_circle,alarm,backup,battery_5_bar,battery_full,bedtime,blood_pressure,bluetooth_disabled,bluetooth_searching,check_circle,chevron_right,cloud_upload,contacts,database,directions_bike,directions_run,directions_walk,do_not_disturb_on,download,error,exercise,favorite,health_and_safety,info,local_fire_department,lock,monitor_heart,notifications,partly_cloudy_day,pause_circle,settings,share,signal_cellular_alt,spo2,stop_circle,straighten,sync,timer,today,touch_app,troubleshoot,upload_file,vibration,watch,watch_screentime,wifi&display=block" rel="stylesheet">
+<style>
+  /* ============================================================
+     Tokens. Mirrors :core:designsystem and docs/design-prompt.md.
+     The four --sleep-* stage tints are NEW: add them to Color.kt /
+     WatchColors before building the hypnogram in Compose.
+     ============================================================ */
+  :root{
+    --electric-blue:#168CFF;
+    --deep-blue:#1554D1;
+    --sky-blue:#28B8FF;
+    --cyan:#16D9E3;
+    --aqua:#43F2C5;
+    --mint:#38E8A5;
+
+    --midnight:#050816;
+    --deep-navy:#080D20;
+    --navy:#0D1428;
+    --blue-navy:#121B35;
+    --border:#243252;
+    --slate:#5C6E96;
+
+    --text-primary:#F7FAFF;
+    --text-secondary:#A8B4CC;
+    --text-muted:#687590;
+
+    --success:#20D889;
+    --warning:#FFB52E;
+    --error:#FF4969;
+
+    --heart:#FF4775;
+    --activity:#25D98B;
+    --sleep:#7655E8;
+    --sleep-text:#9A82FF;
+    --calories:#FF8A32;
+
+    --sleep-deep:#5B3FCF;
+    --sleep-rem:#7655E8;
+    --sleep-light:#9A82FF;
+    --sleep-awake:#CFC3FF;
+
+    --on-primary:#050816;
+
+    --ease-out: cubic-bezier(.23,1,.32,1);
+    --ease-in-out: cubic-bezier(.77,0,.175,1);
+    --ease-drawer: cubic-bezier(.32,.72,0,1);
+
+    --radius-card:22px;
+    --radius-control:14px;
+    --radius-pill:999px;
+
+    --hairline:rgba(36,50,82,.5);
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  ::selection{ background:var(--electric-blue); color:var(--on-primary); }
+  html{ color-scheme:dark; }
+  body{
+    background:var(--midnight);
+    font-family:'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color:var(--text-primary);
+    -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--deep-navy); }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:var(--radius-pill); border:2px solid var(--deep-navy); }
+  *{ scrollbar-color:var(--border) var(--deep-navy); scrollbar-width:thin; }
+  :focus-visible{ outline:2px solid var(--sky-blue); outline-offset:3px; border-radius:6px; }
+  button{ font:inherit; color:inherit; background:none; border:none; cursor:pointer; -webkit-tap-highlight-color:transparent; text-align:inherit; }
+  ul{ list-style:none; }
+
+  .ms{
+    font-family:'Material Symbols Rounded';
+    font-weight:normal; font-style:normal;
+    font-size:22px; line-height:1;
+    display:inline-block; white-space:nowrap; direction:ltr;
+    letter-spacing:normal; text-transform:none;
+    font-feature-settings:'liga';
+    font-variation-settings:'FILL' 0,'wght' 450,'GRAD' 0,'opsz' 24;
+    user-select:none;
+    flex:none;
+  }
+  .ms.fill{ font-variation-settings:'FILL' 1,'wght' 450,'GRAD' 0,'opsz' 24; }
+  .ms.sm{ font-size:18px; font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 20; }
+  .ms.sm.fill{ font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20; }
+  .c-heart{ color:var(--heart); } .c-activity{ color:var(--activity); } .c-cal{ color:var(--calories); }
+  .c-sleep{ color:var(--sleep-text); } .c-cyan{ color:var(--cyan); } .c-blue{ color:var(--electric-blue); } .c-sky{ color:var(--sky-blue); }
+
+  /* ============================================================
+     Document chrome (annotation around the artifact, not app UI)
+     ============================================================ */
+  .doc-page{
+    background:
+      radial-gradient(1200px 480px at 15% -10%, rgba(22,140,255,.09), transparent 60%),
+      var(--midnight);
+    min-height:100vh;
+  }
+  .doc-header{ max-width:1320px; margin:0 auto; padding:56px 32px 8px; }
+  .doc-header h1{ font-size:28px; font-weight:700; letter-spacing:-0.02em; }
+  .doc-header p{ margin-top:10px; max-width:66ch; font-size:15px; line-height:1.6; color:var(--text-secondary); }
+
+  .proto{
+    max-width:1320px; margin:0 auto; padding:36px 32px 24px;
+    display:grid; grid-template-columns:auto minmax(0, 520px); gap:56px; align-items:start;
+  }
+  .notes{ position:sticky; top:40px; padding-top:28px; }
+  .notes-tabs{ display:flex; gap:6px; flex-wrap:wrap; }
+  .notes-tabs button{
+    height:36px; padding:0 14px; border-radius:var(--radius-pill);
+    font-size:13.5px; font-weight:700; color:var(--text-secondary);
+    border:1px solid var(--hairline);
+    transition:background-color 180ms var(--ease-out), color 180ms var(--ease-out), transform 140ms var(--ease-out);
+  }
+  .notes-tabs button:active{ transform:scale(.96); }
+  .notes-tabs button[aria-pressed="true"]{ background:var(--blue-navy); color:var(--text-primary); border-color:var(--border); }
+  .notes-body{ margin-top:22px; transition:opacity 160ms var(--ease-out), filter 160ms var(--ease-out); }
+  .notes-body.mid-change{ opacity:.35; filter:blur(3px); }
+  .notes-body h2{ font-size:22px; font-weight:700; letter-spacing:-0.02em; }
+  .notes-job{ margin-top:8px; font-size:15.5px; line-height:1.55; color:var(--text-primary); max-width:46ch; }
+  .notes-body ul{ margin-top:18px; display:grid; gap:12px; }
+  .notes-body li{ position:relative; padding-left:18px; font-size:14px; line-height:1.6; color:var(--text-secondary); max-width:58ch; }
+  .notes-body li::before{ content:''; position:absolute; left:2px; top:.72em; width:6px; height:1.5px; background:var(--slate); }
+  .notes-try{
+    margin-top:22px; padding:14px 16px; border-radius:16px;
+    background:var(--navy); border:1px solid var(--hairline);
+    font-size:14px; line-height:1.55; color:var(--text-secondary);
+    display:flex; gap:10px;
+  }
+  .notes-try .ms{ color:var(--sky-blue); font-size:20px; }
+  .notes-try b{ color:var(--text-primary); font-weight:600; }
+
+  .states{ max-width:1400px; margin:0 auto; padding:56px 32px 120px; }
+  .states > h2{ font-size:22px; font-weight:700; letter-spacing:-0.02em; }
+  .states > p{ margin-top:8px; font-size:15px; line-height:1.6; color:var(--text-secondary); max-width:66ch; }
+  .gallery{ margin-top:36px; display:flex; flex-wrap:wrap; gap:56px 40px; align-items:flex-start; }
+  .frame{ display:flex; flex-direction:column; gap:14px; }
+  .frame-label{ font-size:13px; font-weight:600; color:var(--text-secondary); padding-left:6px; }
+  .frame-label b{ color:var(--text-primary); font-weight:700; }
+
+  /* ============================================================
+     Phone frame
+     ============================================================ */
+  .phone-shell{
+    width:412px; height:915px; border-radius:52px; padding:10px;
+    background:linear-gradient(160deg,#1a2340,#0a0f22 55%);
+    box-shadow:0 40px 80px -32px rgba(0,0,0,.65), 0 1px 0 rgba(255,255,255,.04) inset;
+    flex:none;
+  }
+  .phone-screen{
+    position:relative; width:100%; height:100%;
+    border-radius:44px; overflow:hidden;
+    background:linear-gradient(180deg,#050816 0%, #0D1428 55%, #111B38 100%);
+  }
+  .status-bar{
+    position:absolute; top:0; left:0; right:0; height:44px; z-index:3;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 26px; font-size:13px; font-weight:700;
+    background:linear-gradient(180deg, rgba(5,8,22,.96) 55%, rgba(5,8,22,0));
+  }
+  .status-bar .sys{ display:flex; gap:4px; align-items:center; }
+  .status-bar .ms{ font-size:16px; font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20; }
+
+  .tab-panel{
+    position:absolute; top:44px; bottom:80px; left:0; right:0;
+    overflow-y:auto; overscroll-behavior:contain;
+    padding:8px 20px 28px;
+    display:none;
+  }
+  .tab-panel.active{ display:block; }
+  .tab-panel::-webkit-scrollbar{ width:0; }
+  .tab-panel{ scrollbar-width:none; }
+  .tab-panel > * + *{ margin-top:12px; }
+
+  .bnav{
+    position:absolute; left:0; right:0; bottom:0; height:80px; z-index:3;
+    background:rgba(8,13,32,.94);
+    border-top:1px solid var(--hairline);
+    display:grid; grid-template-columns:repeat(4,1fr);
+    padding:10px 8px 18px;
+  }
+  .bnav button{ display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px; font-weight:600; color:var(--text-secondary); }
+  .bnav .pill{ width:60px; height:30px; border-radius:var(--radius-pill); display:flex; align-items:center; justify-content:center; }
+  .bnav .ms{ font-size:22px; }
+  /* Tab switches are instant on purpose (Part C: never animate an action repeated all day). */
+  .bnav button[aria-selected="true"]{ color:var(--text-primary); }
+  .bnav button[aria-selected="true"] .pill{ background:rgba(22,140,255,.18); color:var(--sky-blue); }
+  .bnav button[aria-selected="true"] .ms{ font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24; }
+  .home-indicator{ position:absolute; bottom:7px; left:50%; transform:translateX(-50%); width:120px; height:4px; border-radius:var(--radius-pill); background:rgba(247,250,255,.32); z-index:4; }
+
+  /* Entrance: one authored moment per frame, played once when it scrolls into view. */
+  .reveal{
+    opacity:0; transform:translateY(10px); filter:blur(6px);
+    transition:opacity 560ms var(--ease-out), transform 560ms var(--ease-out), filter 560ms var(--ease-out);
+  }
+  .in-view .reveal{ opacity:1; transform:none; filter:none; }
+  .in-view .d1{ transition-delay:60ms; } .in-view .d2{ transition-delay:120ms; }
+  .in-view .d3{ transition-delay:180ms; } .in-view .d4{ transition-delay:240ms; }
+  .in-view .d5{ transition-delay:300ms; } .in-view .d6{ transition-delay:360ms; }
+
+  /* ============================================================
+     Shared app components
+     ============================================================ */
+  .headline{ font-size:26px; font-weight:700; letter-spacing:-0.02em; line-height:1.15; }
+  .screen-sub{ margin-top:6px; font-size:14px; line-height:1.5; color:var(--text-secondary); }
+  .metric{ font-size:44px; font-weight:700; letter-spacing:-0.03em; line-height:1; }
+  .metric .unit, .kpi .unit{ font-size:15px; font-weight:600; color:var(--text-secondary); letter-spacing:0; margin-left:5px; }
+
+  .surface{
+    background:var(--navy);
+    border:1px solid rgba(36,50,82,.55);
+    border-radius:var(--radius-card);
+    box-shadow:0 18px 40px -28px rgba(0,0,0,.6);
+  }
+  .card{ padding:16px 18px; }
+  .card-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .card-title{ display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:700; color:var(--text-primary); }
+  .card-meta{ font-size:12.5px; font-weight:600; color:var(--text-secondary); }
+
+  .press{ transition:transform 150ms var(--ease-out), background-color 200ms var(--ease-out), opacity 200ms var(--ease-out); }
+  .press:active{ transform:scale(.97); }
+  .press-soft:active{ transform:scale(.985); }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:48px; padding:0 18px; border-radius:var(--radius-control);
+    font-size:15px; font-weight:700; letter-spacing:-0.01em; white-space:nowrap;
+  }
+  .btn .ms{ font-size:20px; }
+  .btn-primary{ background:linear-gradient(180deg, var(--electric-blue), var(--deep-blue)); color:var(--on-primary); }
+  .btn-secondary{ background:var(--blue-navy); color:var(--text-primary); border:1px solid rgba(36,50,82,.9); }
+  .btn[disabled]{ background:var(--blue-navy); color:var(--text-muted); border:1px solid rgba(36,50,82,.9); pointer-events:none; }
+  .btn-text{ height:40px; padding:0 12px; color:var(--sky-blue); font-size:14px; }
+
+  .icon-btn{ width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text-secondary); flex:none; }
+  .icon-btn.tonal{ background:var(--blue-navy); border:1px solid rgba(36,50,82,.9); color:var(--text-primary); }
+  .icon-btn:active{ transform:scale(.92); }
+
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    height:26px; padding:0 10px 0 8px; border-radius:var(--radius-pill);
+    font-size:12.5px; font-weight:700; white-space:nowrap;
+  }
+  .chip .ms{ font-size:15px; font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 20; }
+  .chip.success{ background:rgba(32,216,137,.14); color:var(--success); }
+  .chip.info{ background:rgba(22,140,255,.16); color:var(--sky-blue); }
+  .chip.neutral{ background:var(--blue-navy); color:var(--text-secondary); }
+  .chip.error{ background:rgba(255,73,105,.14); color:var(--error); }
+  .chip.warning{ background:rgba(255,181,46,.14); color:var(--warning); }
+
+  /* The single live animation on Today: connection is a real, continuous state. */
+  .live-dot{ position:relative; width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; margin:0 2px; }
+  .live-dot::after{ content:''; position:absolute; inset:0; border-radius:50%; background:currentColor; animation:pulse 2.2s var(--ease-out) infinite; }
+  @keyframes pulse{ 0%{ transform:scale(1); opacity:.6; } 70%,100%{ transform:scale(2.8); opacity:0; } }
+
+  .progress-track{ height:6px; border-radius:var(--radius-pill); background:var(--blue-navy); overflow:hidden; }
+  .progress-fill{
+    height:100%; width:100%; border-radius:var(--radius-pill);
+    background:linear-gradient(90deg, var(--electric-blue), var(--cyan));
+    transform-origin:left center; transform:scaleX(0);
+    transition:transform 520ms var(--ease-out);
+  }
+
+  .swap{ transition:filter 160ms var(--ease-out), opacity 160ms var(--ease-out); }
+  .mid-change{ filter:blur(3px); opacity:.45; }
+
+  .switch{
+    position:relative; width:52px; height:32px; border-radius:var(--radius-pill); flex:none;
+    background:var(--blue-navy); border:2px solid var(--slate);
+    transition:background-color 200ms var(--ease-out), border-color 200ms var(--ease-out);
+  }
+  .switch::after{
+    content:''; position:absolute; top:50%; left:6px; width:16px; height:16px; margin-top:-8px;
+    border-radius:50%; background:var(--slate);
+    transition:transform 240ms var(--ease-out), background-color 200ms var(--ease-out);
+  }
+  .switch[aria-checked="true"]{ background:var(--cyan); border-color:var(--cyan); }
+  .switch[aria-checked="true"]::after{ transform:translateX(18px) scale(1.5); background:var(--midnight); }
+  .switch:active::after{ transform:scale(1.2); }
+  .switch[aria-checked="true"]:active::after{ transform:translateX(18px) scale(1.65); }
+
+  .group-label{ font-size:13px; font-weight:700; color:var(--text-secondary); padding:0 4px; }
+  .tab-panel > .group-label{ margin-top:22px; }
+  .tab-panel > .group-label + *{ margin-top:8px; }
+
+  .rows{ overflow:hidden; }
+  .row{
+    display:flex; align-items:center; gap:14px; width:100%;
+    min-height:60px; padding:12px 16px;
+    border-top:1px solid var(--hairline);
+    transition:background-color 160ms var(--ease-out);
+  }
+  .rows > .row:first-child, .rows > :first-child .row{ border-top:none; }
+  button.row:active{ background:rgba(18,27,53,.9); }
+  .ib{ width:36px; height:36px; border-radius:11px; background:var(--blue-navy); color:var(--text-secondary); display:flex; align-items:center; justify-content:center; flex:none; }
+  .ib .ms{ font-size:20px; }
+  .row-text{ flex:1 1 auto; min-width:0; }
+  .row-title{ font-size:15px; font-weight:600; }
+  .row-desc{ margin-top:2px; font-size:13px; line-height:1.45; color:var(--text-secondary); }
+  .row-value{ font-size:13.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap; }
+  .chev{ color:var(--text-muted); font-size:20px; margin-left:-6px; }
+  .is-disabled .row-title{ color:var(--text-muted); }
+  .is-disabled .ib{ opacity:.55; }
+
+  /* ============================================================
+     Today
+     ============================================================ */
+  .t-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-top:6px; }
+  .t-date{ font-size:13.5px; font-weight:600; color:var(--text-secondary); }
+  .t-head .headline{ margin-top:4px; }
+  .t-head .icon-btn{ margin-right:-8px; }
+
+  .strip{ padding:12px 12px 12px 14px; }
+  .strip-row{ display:flex; align-items:center; gap:12px; }
+  .mini-watch{
+    width:42px; height:42px; border-radius:50%; flex:none;
+    background:conic-gradient(from 200deg, #3a4468, #131a30 40%, #4c5a86 60%, #131a30 85%, #3a4468);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mini-watch span{
+    width:34px; height:34px; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, #10182e, #050914 72%);
+    display:flex; align-items:center; justify-content:center;
+    font-size:9.5px; font-weight:800; letter-spacing:-0.02em;
+  }
+  .strip-text{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:5px; }
+  .strip-sub{ display:flex; align-items:center; gap:4px; font-size:13px; font-weight:500; color:var(--text-secondary); }
+  .strip-sub .ms{ font-size:16px; }
+  .strip-progress{ display:grid; grid-template-rows:0fr; transition:grid-template-rows 260ms var(--ease-out); }
+  .strip-progress > div{ overflow:hidden; }
+  .strip-progress p{ margin-top:8px; font-size:12.5px; font-weight:600; color:var(--text-secondary); display:flex; justify-content:space-between; }
+  .strip-progress .progress-track{ margin-top:12px; }
+  .is-syncing .strip-progress{ grid-template-rows:1fr; }
+  .is-syncing [data-action="sync"] .ms{ animation:spin 1s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .banner{
+    display:flex; gap:12px; padding:14px 14px 12px 14px;
+    border-radius:18px; background:rgba(255,73,105,.10); border:1px solid rgba(255,73,105,.28);
+  }
+  .banner > .ms{ color:var(--error); font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24; }
+  .banner-title{ font-size:14.5px; font-weight:700; }
+  .banner-desc{ margin-top:3px; font-size:13px; line-height:1.45; color:var(--text-secondary); }
+  .banner .btn-text{ margin:6px 0 0 -12px; }
+
+  .act-grid{ display:grid; grid-template-columns:128px 1fr; gap:18px; align-items:center; }
+  .rings{ width:128px; height:128px; display:block; }
+  .ring-track{ fill:none; stroke-width:11; stroke-opacity:.15; }
+  .ring-fill{
+    fill:none; stroke-width:11; stroke-linecap:round;
+    stroke-dasharray:100; stroke-dashoffset:100;
+    transition:stroke-dashoffset 1100ms var(--ease-in-out);
+  }
+  .in-view .ring-fill{ stroke-dashoffset:var(--off); }
+  .in-view .ring-fill:nth-of-type(4){ transition-delay:90ms; }
+  .in-view .ring-fill:nth-of-type(6){ transition-delay:180ms; }
+  .ring-fill.zero{ opacity:0; }
+  .act-list{ display:grid; gap:12px; }
+  .act-list li{ display:flex; align-items:center; gap:10px; }
+  .act-list .ms{ font-size:20px; font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20; }
+  .act-val{ font-size:20px; font-weight:700; letter-spacing:-0.02em; line-height:1.1; }
+  .act-val small{ font-size:13px; font-weight:600; color:var(--text-secondary); letter-spacing:0; margin-left:2px; }
+  .act-lab{ font-size:12.5px; font-weight:600; color:var(--text-secondary); margin-top:1px; }
+  .act-foot{
+    margin-top:14px; padding-top:12px; border-top:1px solid var(--hairline);
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px; font-weight:600; color:var(--text-secondary);
+  }
+  .act-foot span{ display:inline-flex; align-items:center; gap:6px; }
+  .act-foot b{ color:var(--text-primary); font-weight:700; }
+
+  .hr-top{ margin-top:12px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; }
+  .hr-now{ font-size:12.5px; font-weight:600; color:var(--text-secondary); margin-top:6px; }
+  .hr-stats{ display:flex; gap:18px; padding-bottom:4px; }
+  .hr-stats dt{ font-size:12px; font-weight:600; color:var(--text-secondary); }
+  .hr-stats dd{ margin-top:2px; font-size:17px; font-weight:700; letter-spacing:-0.01em; text-align:left; }
+  .hr-stats dd small{ font-size:12px; color:var(--text-secondary); font-weight:600; margin-left:2px; }
+
+  .chart-wrap{ position:relative; margin-top:12px; touch-action:none; cursor:crosshair; border-radius:8px; }
+  .chart-wrap svg{ display:block; width:100%; height:auto; overflow:visible; }
+  .axis{ font-size:10.5px; font-weight:600; fill:var(--text-muted); font-family:inherit; }
+  .grid-line{ stroke:var(--border); stroke-opacity:.45; stroke-width:1; }
+  .ref-line{ stroke:var(--text-secondary); stroke-opacity:.55; stroke-width:1; stroke-dasharray:3 4; }
+  .cursor-line{ stroke:var(--text-secondary); stroke-opacity:.6; stroke-width:1; }
+  .tip{
+    position:absolute; top:-6px; transform:translate(-50%,-100%);
+    padding:6px 10px; border-radius:var(--radius-pill);
+    background:var(--blue-navy); border:1px solid var(--border);
+    font-size:12.5px; font-weight:700; white-space:nowrap; pointer-events:none;
+    box-shadow:0 10px 24px -12px rgba(0,0,0,.7);
+  }
+  .tip span{ color:var(--text-secondary); font-weight:600; }
+  .chart-empty{
+    position:absolute; inset:0 0 18px 0; display:flex; align-items:center; justify-content:center; text-align:center;
+    padding:0 28px; font-size:13.5px; line-height:1.5; color:var(--text-secondary);
+  }
+
+  .split{ display:grid; grid-template-columns:1.12fr 1fr; gap:12px; }
+  .split .stack{ display:grid; gap:12px; }
+  .split .card{ padding:14px 16px; }
+  .mini-val{ margin-top:10px; font-size:28px; font-weight:700; letter-spacing:-0.03em; line-height:1; }
+  .mini-val .unit{ font-size:13px; font-weight:600; color:var(--text-secondary); letter-spacing:0; margin-left:3px; }
+  .mini-cap{ margin-top:6px; font-size:12.5px; line-height:1.4; color:var(--text-secondary); }
+  .score{ display:inline-flex; align-items:baseline; gap:4px; margin-top:6px; font-size:12.5px; font-weight:600; color:var(--text-secondary); }
+  .score b{ color:var(--sleep-text); font-size:14px; font-weight:800; }
+  .hypno{ display:block; width:100%; height:auto; margin-top:12px; }
+  .hypno-axis{ display:flex; justify-content:space-between; margin-top:6px; font-size:10.5px; font-weight:600; color:var(--text-muted); }
+
+  .row-link{ display:flex; align-items:center; gap:14px; width:100%; padding:12px 14px; }
+  .ib.activity{ background:rgba(37,217,139,.12); color:var(--activity); }
+
+  /* ============================================================
+     Health
+     ============================================================ */
+  .seg{
+    position:relative; display:grid; grid-template-columns:1fr 1fr;
+    height:44px; padding:4px; border-radius:var(--radius-control); background:var(--blue-navy);
+  }
+  .seg .thumb{
+    position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px);
+    border-radius:10px; background:var(--electric-blue);
+    transition:transform 260ms var(--ease-in-out);
+  }
+  .seg[data-index="1"] .thumb{ transform:translateX(100%); }
+  .seg button{ position:relative; z-index:1; font-size:14px; font-weight:700; color:var(--text-secondary); text-align:center; transition:color 200ms var(--ease-out); }
+  .seg button[aria-pressed="true"]{ color:var(--on-primary); }
+
+  .tiles > * + *{ margin-top:12px; }
+  .tile{ display:block; width:100%; padding:16px 18px; }
+  .tile-head{ display:flex; align-items:center; justify-content:space-between; }
+  .tile-kpis{ margin-top:10px; display:flex; align-items:flex-end; gap:22px; }
+  .kpi{ font-size:30px; font-weight:700; letter-spacing:-0.03em; line-height:1; }
+  .kpi-cap{ margin-top:5px; font-size:12.5px; font-weight:600; color:var(--text-secondary); }
+  .kpi-2{ font-size:17px; font-weight:700; letter-spacing:-0.01em; line-height:1; padding-bottom:1px; }
+  .kpi-2 .unit{ font-size:12px; font-weight:600; color:var(--text-secondary); margin-left:3px; }
+  .tile svg.chart{ display:block; width:100%; height:auto; margin-top:14px; overflow:visible; }
+  .legend-inline{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; font-size:12px; font-weight:600; color:var(--text-secondary); }
+  .legend-inline span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend-inline i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+  .pair{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .pair .tile{ padding:14px 16px; }
+  .pair .kpi{ font-size:26px; }
+
+  .wk-list{ margin-top:8px; }
+  .wk{ display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--hairline); }
+  .wk:first-child{ border-top:none; }
+  .wk .ib{ width:34px; height:34px; background:rgba(255,138,50,.12); color:var(--calories); }
+  .wk-name{ font-size:14px; font-weight:600; }
+  .wk-meta{ font-size:12.5px; color:var(--text-secondary); margin-top:1px; }
+  .wk-hr{ margin-left:auto; text-align:right; font-size:13px; font-weight:700; white-space:nowrap; }
+  .wk-hr small{ display:block; font-size:11.5px; color:var(--text-secondary); font-weight:600; }
+
+  .footnote{ display:flex; gap:10px; padding:4px 6px; font-size:13px; line-height:1.5; color:var(--text-secondary); }
+  .footnote .ms{ font-size:18px; color:var(--text-secondary); margin-top:1px; }
+
+  /* ============================================================
+     Watch
+     ============================================================ */
+  .w-hero{ padding:18px; display:grid; grid-template-columns:120px 1fr; gap:18px; align-items:center; }
+  .w-render{ position:relative; width:120px; height:148px; }
+  .w-strap{ position:absolute; left:50%; transform:translateX(-50%); width:56px; height:40px; border-radius:12px; background:linear-gradient(180deg,#161d33,#0c1122); }
+  .w-strap.top{ top:0; } .w-strap.bottom{ bottom:0; }
+  .w-bezel{
+    position:absolute; top:16px; left:4px; width:112px; height:112px; border-radius:50%;
+    background:conic-gradient(from 200deg, #3a4468, #131a30 40%, #4c5a86 60%, #131a30 85%, #3a4468);
+    box-shadow:0 18px 32px -14px rgba(0,0,0,.6);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .w-face{
+    position:relative; width:96px; height:96px; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, #10182e, #050914 72%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .w-face svg{ position:absolute; inset:0; }
+  .w-time{ font-size:20px; font-weight:800; letter-spacing:-0.03em; }
+  .w-date{ font-size:8.5px; font-weight:700; color:var(--text-secondary); margin-top:1px; }
+  .w-btn{ position:absolute; right:0; width:4px; border-radius:2px; background:#2a3454; }
+  .w-btn.b1{ top:54px; height:14px; } .w-btn.b2{ top:74px; height:9px; }
+  .wave{ position:absolute; top:16px; left:4px; width:112px; height:112px; border-radius:50%; border:1.5px solid var(--electric-blue); opacity:0; pointer-events:none; }
+  .ringing .wave{ animation:wave 1.8s var(--ease-out) infinite; }
+  .ringing .wave:nth-child(2){ animation-delay:.6s; }
+  .ringing .wave:nth-child(3){ animation-delay:1.2s; }
+  @keyframes wave{ 0%{ transform:scale(.96); opacity:.7; } 100%{ transform:scale(1.55); opacity:0; } }
+  .ringing .w-bezel{ animation:buzz 1.8s var(--ease-out) infinite; }
+  @keyframes buzz{ 0%,24%,100%{ transform:none; } 4%{ transform:translateX(-1.5px); } 8%{ transform:translateX(1.5px); } 12%{ transform:translateX(-1px); } 16%{ transform:translateX(1px); } }
+
+  .w-name{ font-size:18px; font-weight:700; letter-spacing:-0.01em; }
+  .w-id{ font-size:12.5px; color:var(--text-secondary); margin-top:2px; font-weight:500; }
+  .w-hero .chip{ margin-top:10px; }
+  .batt{ margin-top:12px; }
+  .batt-row{ display:flex; justify-content:space-between; font-size:12.5px; font-weight:600; color:var(--text-secondary); }
+  .batt-row b{ color:var(--text-primary); font-weight:700; }
+  .batt .progress-track{ margin-top:6px; height:5px; }
+  .batt .progress-fill{ background:var(--success); transform:scaleX(var(--lvl)); transition:none; }
+  .w-actions{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .w-actions .btn{ width:100%; }
+  .w-note{ display:flex; gap:10px; padding:12px 14px; border-radius:16px; background:var(--blue-navy); font-size:13px; line-height:1.5; color:var(--text-secondary); }
+  .w-note .ms{ font-size:18px; color:var(--text-secondary); margin-top:1px; }
+
+  /* ============================================================
+     Data
+     ============================================================ */
+  .stack-bar{ display:flex; gap:3px; height:12px; margin-top:16px; }
+  .stack-bar i{ display:block; height:100%; border-radius:4px; min-width:4px; }
+  .legend{ margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+  .legend li{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text-secondary); }
+  .legend i{ width:10px; height:10px; border-radius:3px; flex:none; }
+  .legend b{ margin-left:auto; color:var(--text-primary); font-weight:700; }
+
+  .exp{ padding:16px 18px; }
+  .exp-actions{ display:grid; grid-template-columns:1.25fr 1fr; gap:10px; margin-top:14px; }
+  .exp-actions .btn{ width:100%; }
+  .exp-lines{ display:grid; gap:10px; margin-top:14px; }
+  .exp-line{ display:grid; grid-template-columns:112px 1fr 54px; align-items:center; gap:10px; font-size:13px; font-weight:600; color:var(--text-secondary); }
+  .exp-line b{ text-align:right; font-weight:700; color:var(--text-primary); }
+  .exp-line .progress-track{ height:5px; }
+  .exp-line .progress-fill{ transition:transform 420ms var(--ease-out); }
+  .exp-done{ display:flex; gap:12px; align-items:center; margin-top:14px; padding:12px; border-radius:16px; background:var(--blue-navy); }
+  .exp-done .ib{ background:rgba(32,216,137,.14); color:var(--success); }
+  .exp-file{ font-size:14px; font-weight:700; word-break:break-all; }
+  .privacy{ margin-top:14px; display:flex; gap:8px; font-size:12.5px; line-height:1.45; color:var(--text-secondary); }
+  .privacy .ms{ font-size:16px; margin-top:1px; }
+  [data-exp="idle"] .exp-lines, [data-exp="idle"] .exp-done,
+  [data-exp="running"] .exp-done, [data-exp="done"] .exp-lines{ display:none; }
+
+  .kv{ display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-top:1px solid var(--hairline); font-size:13.5px; color:var(--text-secondary); font-weight:500; }
+  .kv b{ color:var(--text-primary); font-weight:600; text-align:right; }
+  .kv-wrap{ padding:0 16px 4px 66px; }
+
+  .hc-badge{ width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:rgba(22,140,255,.14); color:var(--sky-blue); flex:none; }
+  .hc-body{ padding:0 16px 16px 66px; }
+  .hc-body p{ font-size:13px; line-height:1.5; color:var(--text-secondary); }
+  .hc-body .progress-track{ margin:4px 0 10px; }
+  .hc-actions{ display:flex; gap:4px; margin:6px 0 0 -12px; }
+  .add-svc{ display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius-card); border:1.5px dashed var(--border); color:var(--text-secondary); font-size:13.5px; font-weight:600; }
+
+  /* ============================================================
+     Responsive page chrome
+     ============================================================ */
+  @media (max-width: 1040px){
+    .proto{ grid-template-columns:1fr; justify-items:center; gap:24px; }
+    .notes{ position:static; padding-top:0; max-width:520px; }
+  }
+  @media (max-width: 480px){
+    .doc-header, .proto, .states{ padding-left:16px; padding-right:16px; }
+    .phone-shell{ zoom:.86; }
+    .gallery{ justify-content:center; }
+  }
+  @media (hover:hover) and (pointer:fine){
+    button.row:hover{ background:rgba(18,27,53,.6); }
+    .tile:hover{ border-color:rgba(36,50,82,.95); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ transform:none; filter:none; transition:opacity 220ms ease; }
+    .ring-fill{ transition:stroke-dashoffset 1ms; }
+    .live-dot::after, .ringing .wave, .ringing .w-bezel, .is-syncing [data-action="sync"] .ms{ animation:none; }
+    .ringing .wave:first-child{ opacity:.6; transform:scale(1.2); }
+    .press:active, .icon-btn:active{ transform:none; }
+    .mid-change{ filter:none; }
+  }
+</style>
+</head>
+<body>
+<div class="doc-page">
+  <header class="doc-header">
+    <h1>NexWatch main tabs: Today, Health, Watch, Data</h1>
+    <p>A working prototype of the four bottom-nav destinations, built on the Part A tokens and the Part C motion system. Every number comes from the design prompt's sample day, and only metrics this watch actually measures appear. The states below the prototype cover syncing, out of range, first day, and error cases.</p>
+  </header>
+
+  <section class="proto">
+    <div class="frame" data-observe>
+      <div class="phone-shell"><div class="phone-screen" id="proto"></div></div>
+    </div>
+    <aside class="notes" aria-live="polite">
+      <div class="notes-tabs" id="notes-tabs"></div>
+      <div class="notes-body swap" id="notes-body"></div>
+    </aside>
+  </section>
+
+  <section class="states">
+    <h2>States</h2>
+    <p>The screens a user actually hits outside the happy path. Last-known data stays visible everywhere, with its age stated, instead of being swapped for an empty screen.</p>
+    <div class="gallery" id="gallery"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ------------------------------------------------------------
+     Sample data (design-prompt Part A) and deterministic series.
+     Today is Saturday 10 October 2026, 16:24.
+     ------------------------------------------------------------ */
+  function rng(seed){ var s = seed >>> 0; return function(){ s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
+  var fmt = function(n){ return n.toLocaleString('en-GB'); };
+  var ic = function(name, cls){ return '<span class="ms ' + (cls || '') + '" aria-hidden="true">' + name + '</span>'; };
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+
+  // 15-minute heart-rate buckets from 00:00 to 16:15. Walk at 12:20 drives the 138 peak.
+  var HR_DAY = (function(){
+    var r = rng(11), out = [];
+    for (var i = 0; i < 66; i++){
+      var h = i / 4, avg;
+      if (h < 6.25) avg = 58 + Math.sin(i * 0.7) * 1.4 + r() * 1.5;
+      else if (h < 7.5) avg = 63 + (h - 6.25) * 6 + r() * 3;
+      else if (h < 12.25) avg = 73 + r() * 9;
+      else if (h < 12.9) avg = 106 + r() * 9;
+      else if (h < 13.5) avg = 88 - (h - 12.9) * 12 + r() * 3;
+      else avg = 72 + r() * 8;
+      var spread = h < 6.25 ? 2 + r() * 2 : 4 + r() * 6;
+      out.push({ avg: Math.round(avg), min: Math.max(55, Math.round(avg - spread)), max: Math.min(131, Math.round(avg + spread * 1.3)) });
+    }
+    out[12].min = 54;
+    out[50].max = 138;
+    out[65].avg = 72;
+    return out;
+  })();
+
+  // Last night: 23:05 to 06:17, stage minutes sum to Deep 85, REM 98, Light 231, Awake 18.
+  var NIGHT = [['light',18],['deep',42],['light',26],['rem',18],['awake',4],['light',34],['deep',28],['light',30],['rem',24],
+               ['light',32],['deep',15],['awake',6],['light',28],['rem',27],['light',36],['awake',3],['rem',29],['light',27],['awake',5]];
+
+  var DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function series(n){
+    var r = rng(n * 97 + 5), days = [];
+    for (var i = 0; i < n; i++){
+      var last = i === n - 1;
+      var total = last ? 432 : Math.round(372 + r() * 112);
+      var deep = last ? 85 : Math.round(total * (0.16 + r() * 0.06));
+      var rem = last ? 98 : Math.round(total * (0.19 + r() * 0.06));
+      var awake = last ? 18 : Math.round(total * (0.03 + r() * 0.03));
+      days.push({
+        steps: last ? 8432 : n === 7 ? [11240, 7385, 10512, 6930, 9815, 12087][i] : Math.round(6200 + r() * 6600),
+        rest: last ? 61 : Math.round(58 + r() * 6),
+        min: last ? 54 : Math.round(51 + r() * 6),
+        max: last ? 138 : Math.round(112 + r() * 40),
+        sleep: { total: total, deep: deep, rem: rem, awake: awake, light: total - deep - rem - awake },
+        spo2: last ? 97 : Math.round(95 + r() * 3),
+        spo2Low: last ? 94 : Math.round(91 + r() * 4),
+        sys: last ? 118 : Math.round(111 + r() * 14),
+        dia: last ? 77 : Math.round(71 + r() * 9)
+      });
+    }
+    return days;
+  }
+  var RANGES = { 7: series(7), 30: series(30) };
+
+  function avg(a, f){ return a.reduce(function(s, d){ return s + f(d); }, 0) / a.length; }
+  function hm(min){ return Math.floor(min / 60) + ' h ' + pad(Math.round(min % 60)) + ' m'; }
+
+  /* ------------------------------------------------------------
+     Chart primitives (SVG, sized in real px of the card's inner width)
+     ------------------------------------------------------------ */
+  function smooth(pts){
+    if (!pts.length) return '';
+    var d = 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+    for (var i = 0; i < pts.length - 1; i++){
+      var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ' C' + c1x.toFixed(1) + ',' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ',' + c2y.toFixed(1) + ' ' + p2[0].toFixed(1) + ',' + p2[1].toFixed(1);
+    }
+    return d;
+  }
+
+  var HR_W = 314, HR_H = 128, HR_PT = 6, HR_PB = 22, HR_LO = 40, HR_HI = 150;
+  function hrX(i){ return (i + 0.5) / 96 * HR_W; }
+  function hrY(v){ return HR_PT + (1 - (v - HR_LO) / (HR_HI - HR_LO)) * (HR_H - HR_PT - HR_PB); }
+
+  function hrDayChart(upto, empty){
+    var s = '<svg viewBox="0 0 ' + HR_W + ' ' + HR_H + '" role="img" aria-label="Heart rate today, 15-minute range band">';
+    s += '<defs><linearGradient id="hrBand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--heart)" stop-opacity=".32"/><stop offset="1" stop-color="var(--heart)" stop-opacity=".1"/></linearGradient></defs>';
+    [60, 100, 140].forEach(function(v){
+      s += '<line class="grid-line" x1="0" x2="' + HR_W + '" y1="' + hrY(v) + '" y2="' + hrY(v) + '"/>';
+      s += '<text class="axis" x="' + (HR_W) + '" y="' + (hrY(v) - 4) + '" text-anchor="end">' + v + '</text>';
+    });
+    ['00:00','06:00','12:00','18:00'].forEach(function(t, k){
+      s += '<text class="axis" x="' + (k * HR_W / 4 + (k ? 0 : 1)) + '" y="' + (HR_H - 4) + '" text-anchor="' + (k ? 'middle' : 'start') + '">' + t + '</text>';
+    });
+    if (!empty){
+      var data = HR_DAY.slice(0, upto);
+      var top = data.map(function(b, i){ return [hrX(i), hrY(b.max)]; });
+      var bot = data.map(function(b, i){ return [hrX(i), hrY(b.min)]; }).reverse();
+      var band = smooth(top) + ' L' + bot[0][0].toFixed(1) + ',' + bot[0][1].toFixed(1) + smooth(bot).replace(/^M[^C]+/, '') + ' Z';
+      s += '<line class="ref-line" x1="0" x2="' + HR_W + '" y1="' + hrY(61) + '" y2="' + hrY(61) + '"/>';
+      s += '<path d="' + band + '" fill="url(#hrBand)"/>';
+      s += '<path d="' + smooth(data.map(function(b, i){ return [hrX(i), hrY(b.avg)]; })) + '" fill="none" stroke="var(--heart)" stroke-width="2" stroke-linecap="round"/>';
+      var li = data.length - 1;
+      s += '<circle cx="' + hrX(li) + '" cy="' + hrY(data[li].avg) + '" r="4" fill="var(--heart)" stroke="var(--navy)" stroke-width="2"/>';
+      s += '<g class="cursor" visibility="hidden"><line class="cursor-line" y1="' + HR_PT + '" y2="' + (HR_H - HR_PB) + '"/><circle r="4.5" fill="var(--text-primary)" stroke="var(--heart)" stroke-width="2"/></g>';
+    }
+    return s + '</svg>';
+  }
+
+  function hypnoSvg(w, h){
+    var lanes = { awake: 0, rem: 1, light: 2, deep: 3 }, lh = h / 4, x = 0, s = '';
+    s += '<svg class="hypno" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Sleep stages from 23:05 to 06:17">';
+    for (var k = 0; k < 4; k++) s += '<rect x="0" y="' + (k * lh + 1) + '" width="' + w + '" height="' + (lh - 2) + '" rx="2" fill="var(--blue-navy)" opacity=".55"/>';
+    NIGHT.forEach(function(sp){
+      var sw = sp[1] / 432 * w;
+      s += '<rect x="' + x.toFixed(2) + '" y="' + (lanes[sp[0]] * lh + 1) + '" width="' + Math.max(1.2, sw - 0.6).toFixed(2) + '" height="' + (lh - 2) + '" rx="2" fill="var(--sleep-' + sp[0] + ')"/>';
+      x += sw;
+    });
+    return s + '</svg>';
+  }
+
+  function xLabels(n, w, y){
+    var s = '';
+    if (n === 7){
+      for (var i = 0; i < 7; i++){
+        var cx = (i + 0.5) * w / 7;
+        s += '<text class="axis" x="' + cx + '" y="' + y + '" text-anchor="middle">' + (i === 6 ? 'Today' : DAY_NAMES[i]) + '</text>';
+      }
+    } else {
+      [['11 Sep', 0, 'start'], ['21 Sep', 10, 'middle'], ['1 Oct', 20, 'middle'], ['Today', 29, 'end']].forEach(function(l){
+        var cx = l[2] === 'start' ? 0 : l[2] === 'end' ? w : (l[1] + 0.5) * w / 30;
+        s += '<text class="axis" x="' + cx + '" y="' + y + '" text-anchor="' + l[2] + '">' + l[0] + '</text>';
+      });
+    }
+    return s;
+  }
+
+  function colChart(n, opts){
+    var w = opts.w || 314, h = opts.h || 92, pb = 18, pt = 4, inner = h - pb - pt;
+    var slot = w / n, bw = Math.min(n === 7 ? 22 : 6, slot * 0.62);
+    var y = function(v){ return pt + (1 - (v - opts.lo) / (opts.hi - opts.lo)) * inner; };
+    var s = '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + opts.label + '">';
+    (opts.grid || []).forEach(function(v){ s += '<line class="grid-line" x1="0" x2="' + w + '" y1="' + y(v) + '" y2="' + y(v) + '"/>'; });
+    s += opts.draw({ y: y, slot: slot, bw: bw, w: w, n: n, base: pt + inner });
+    s += xLabels(n, w, h - 3);
+    return s + '</svg>';
+  }
+
+  function stepsChart(days){
+    var n = days.length;
+    return colChart(n, { lo: 0, hi: 14000, h: 96, label: 'Daily steps against a 10,000 goal', draw: function(c){
+      var s = '';
+      days.forEach(function(d, i){
+        var x = (i + 0.5) * c.slot - c.bw / 2, top = c.y(d.steps), today = i === n - 1;
+        s += '<rect x="' + x + '" y="' + top + '" width="' + c.bw + '" height="' + (c.base - top) + '" rx="' + Math.min(5, c.bw / 2) + '" fill="var(--activity)" fill-opacity="' + (today ? .45 : d.steps >= 10000 ? 1 : .78) + '"/>';
+      });
+      s += '<line x1="0" x2="' + c.w + '" y1="' + c.y(10000) + '" y2="' + c.y(10000) + '" stroke="var(--activity)" stroke-opacity=".7" stroke-dasharray="3 4"/>';
+      s += '<text class="axis" x="' + c.w + '" y="' + (c.y(10000) - 5) + '" text-anchor="end">Goal 10k</text>';
+      return s;
+    }});
+  }
+
+  function hrRangeChart(days){
+    return colChart(days.length, { lo: 45, hi: 155, h: 96, grid: [60, 100, 140], label: 'Daily heart-rate range with resting heart rate', draw: function(c){
+      var s = '', bw = Math.min(c.bw, days.length === 7 ? 12 : 5);
+      days.forEach(function(d, i){
+        var cx = (i + 0.5) * c.slot;
+        s += '<rect x="' + (cx - bw / 2) + '" y="' + c.y(d.max) + '" width="' + bw + '" height="' + (c.y(d.min) - c.y(d.max)) + '" rx="' + bw / 2 + '" fill="var(--heart)" fill-opacity=".5"/>';
+        s += '<circle cx="' + cx + '" cy="' + c.y(d.rest) + '" r="' + (days.length === 7 ? 3.5 : 2.2) + '" fill="var(--heart)"/>';
+      });
+      return s;
+    }});
+  }
+
+  function sleepChart(days){
+    return colChart(days.length, { lo: 0, hi: 540, h: 96, label: 'Nightly sleep by stage', draw: function(c){
+      var s = '';
+      days.forEach(function(d, i){
+        var x = (i + 0.5) * c.slot - c.bw / 2, yb = c.base;
+        ['deep','rem','light','awake'].forEach(function(k){
+          var hgt = c.base - c.y(d.sleep[k]);
+          s += '<rect x="' + x + '" y="' + (yb - hgt) + '" width="' + c.bw + '" height="' + Math.max(0, hgt - 1) + '" rx="2" fill="var(--sleep-' + k + ')"/>';
+          yb -= hgt;
+        });
+      });
+      return s;
+    }});
+  }
+
+  function spo2Chart(days){
+    return colChart(days.length, { lo: 88, hi: 100, h: 74, w: 140, grid: [90, 95], label: 'Daily SpO2 average and lowest reading', draw: function(c){
+      var s = '';
+      days.forEach(function(d, i){
+        var cx = (i + 0.5) * c.slot;
+        s += '<line x1="' + cx + '" x2="' + cx + '" y1="' + c.y(d.spo2Low) + '" y2="' + c.y(d.spo2) + '" stroke="var(--cyan)" stroke-opacity=".4" stroke-width="' + (days.length === 7 ? 2 : 1) + '" stroke-linecap="round"/>';
+        s += '<circle cx="' + cx + '" cy="' + c.y(d.spo2) + '" r="' + (days.length === 7 ? 3.2 : 1.8) + '" fill="var(--cyan)"/>';
+      });
+      return s;
+    }}).replace(xLabels(days.length, 140, 71), miniLabels(days.length, 140, 71));
+  }
+
+  function bpChart(days){
+    return colChart(days.length, { lo: 60, hi: 135, h: 74, w: 140, grid: [80, 120], label: 'Daily blood pressure, systolic to diastolic', draw: function(c){
+      var s = '', bw = days.length === 7 ? 7 : 3;
+      days.forEach(function(d, i){
+        var cx = (i + 0.5) * c.slot;
+        s += '<rect x="' + (cx - bw / 2) + '" y="' + c.y(d.sys) + '" width="' + bw + '" height="' + (c.y(d.dia) - c.y(d.sys)) + '" rx="' + bw / 2 + '" fill="var(--sky-blue)" fill-opacity=".8"/>';
+      });
+      return s;
+    }}).replace(xLabels(days.length, 140, 71), miniLabels(days.length, 140, 71));
+  }
+
+  function miniLabels(n, w, y){
+    return '<text class="axis" x="0" y="' + y + '">' + (n === 7 ? 'Sun' : '11 Sep') + '</text><text class="axis" x="' + w + '" y="' + y + '" text-anchor="end">Today</text>';
+  }
+
+  function rings(vals){
+    var radii = [57, 44, 31], s = '<svg class="rings" viewBox="0 0 128 128" role="img" aria-label="' + vals.map(function(v){ return v.label + ' ' + v.pct + ' percent of goal'; }).join(', ') + '">';
+    vals.forEach(function(v, i){
+      s += '<circle class="ring-track" cx="64" cy="64" r="' + radii[i] + '" style="stroke:var(' + v.c + ')"/>';
+      s += '<circle class="ring-fill' + (v.pct ? '' : ' zero') + '" data-ring="' + i + '" cx="64" cy="64" r="' + radii[i] + '" pathLength="100" transform="rotate(-90 64 64)" style="stroke:var(' + v.c + ');--off:' + (100 - Math.min(100, v.pct)) + '"/>';
+    });
+    return s + '</svg>';
+  }
+
+  /* ------------------------------------------------------------
+     Screens
+     ------------------------------------------------------------ */
+  function statusChip(mode){
+    if (mode === 'syncing') return '<span class="chip info">' + ic('sync') + 'Syncing</span>';
+    if (mode === 'away') return '<span class="chip neutral">' + ic('bluetooth_disabled') + 'Not nearby</span>';
+    if (mode === 'error') return '<span class="chip error">' + ic('error') + 'Can’t log in</span>';
+    return '<span class="chip success"><span class="live-dot"></span>Connected</span>';
+  }
+
+  function todayScreen(mode){
+    var away = mode === 'away', empty = mode === 'empty', error = mode === 'error', syncing = mode === 'syncing';
+    var a = away ? { steps: 2140, kcal: 118, active: 9, km: '1.6', hr: 68, upto: 33 } :
+            empty ? { steps: 0, kcal: 0, active: 0, km: '0.0', hr: null, upto: 0 } :
+                    { steps: 8432, kcal: 412, active: 38, km: '6.1', hr: 72, upto: 66 };
+    var asOf = away || error ? '<span class="card-meta">As of 08:12</span>' : '<span class="card-meta">Today</span>';
+    var sub = away ? 'Last seen 08:12. Reconnects on its own when in range.' :
+              error ? 'Last synced 08:12' :
+              empty ? ic('battery_5_bar', 'sm') + '72%<span aria-hidden="true">&nbsp;·&nbsp;</span>Synced just now' :
+                      ic('battery_5_bar', 'sm') + '72%<span aria-hidden="true">&nbsp;·&nbsp;</span><span data-sync-label>Synced 4 min ago</span>';
+    var h = '';
+    h += '<header class="t-head reveal"><div><p class="t-date">Saturday 10 October</p><h1 class="headline">Good afternoon, Des</h1></div>' +
+         '<button class="icon-btn press" aria-label="Settings">' + ic('settings') + '</button></header>';
+
+    if (error){
+      h += '<div class="banner reveal d1" role="alert">' + ic('error') + '<div><p class="banner-title">Your watch is signed in to another app</p>' +
+           '<p class="banner-desc">Close the vendor app or any other watch app on this phone, then retry.</p>' +
+           '<button class="btn btn-text press">Retry</button></div></div>';
+    }
+
+    h += '<section class="surface strip reveal d1' + (syncing ? ' is-syncing' : '') + '" data-strip aria-label="Watch status">' +
+         '<div class="strip-row"><div class="mini-watch"><span>16:24</span></div>' +
+         '<div class="strip-text"><span data-chip>' + statusChip(mode) + '</span><p class="strip-sub">' + sub + '</p></div>' +
+         (away || error ? '' : '<button class="icon-btn tonal" data-action="sync" aria-label="Sync now">' + ic('sync') + '</button>') +
+         '</div><div class="strip-progress"><div><div class="progress-track"><div class="progress-fill" data-sync-fill style="transform:scaleX(' + (syncing ? .6 : 0) + ')"></div></div>' +
+         '<p><span data-sync-phase>Reading heart rate</span><span data-sync-pct>60%</span></p></div></div></section>';
+
+    var pct = function(v, g){ return Math.round(v / g * 100); };
+    h += '<section class="surface card reveal d2" aria-label="Activity"><div class="act-grid">' +
+         rings([{ pct: pct(a.steps, 10000), c: '--activity', label: 'Steps' }, { pct: pct(a.kcal, 600), c: '--calories', label: 'Calories' }, { pct: pct(a.active, 60), c: '--electric-blue', label: 'Active minutes' }]) +
+         '<ul class="act-list">' +
+         '<li>' + ic('directions_walk', 'c-activity') + '<div><p class="act-val"><span class="swap" data-steps>' + fmt(a.steps) + '</span><small>/ 10,000</small></p><p class="act-lab">Steps</p></div></li>' +
+         '<li>' + ic('local_fire_department', 'c-cal') + '<div><p class="act-val"><span class="swap" data-kcal>' + a.kcal + '</span><small>/ 600 kcal</small></p><p class="act-lab">Calories</p></div></li>' +
+         '<li>' + ic('timer', 'c-blue') + '<div><p class="act-val">' + a.active + '<small>/ 60 min</small></p><p class="act-lab">Active minutes</p></div></li>' +
+         '</ul></div>' +
+         '<div class="act-foot"><span>' + ic('straighten', 'sm') + '<b>' + a.km + ' km</b></span><span class="swap" data-goal-left>' +
+         (empty ? 'Wear your watch to start counting' : '<b>' + fmt(10000 - a.steps) + '</b>&nbsp;steps to goal') + '</span></div></section>';
+
+    h += '<section class="surface card reveal d3" aria-label="Heart rate"><div class="card-head"><span class="card-title">' + ic('favorite', 'sm fill c-heart') + 'Heart rate</span>' + asOf + '</div>';
+    if (empty){
+      h += '<div class="hr-top"><div><p class="metric">--<span class="unit">bpm</span></p></div></div>' +
+           '<div class="chart-wrap">' + hrDayChart(0, true) + '<p class="chart-empty">Wear your watch for a few minutes to see your first readings.</p></div>';
+    } else {
+      h += '<div class="hr-top"><div><p class="metric">' + a.hr + '<span class="unit">bpm</span></p><p class="hr-now">' + (away || error ? 'At 08:10' : 'At 16:15') + '</p></div>' +
+           '<dl class="hr-stats"><div><dt>Resting</dt><dd>61<small>bpm</small></dd></div><div><dt>Range</dt><dd>' + (away || error ? '54-96' : '54-138') + '</dd></div></dl></div>' +
+           '<div class="chart-wrap" data-scrub="' + a.upto + '" tabindex="0" aria-label="Heart rate chart. Use left and right arrow keys to read values.">' + hrDayChart(a.upto) + '<div class="tip" hidden></div></div>';
+    }
+    h += '</section>';
+
+    h += '<div class="split reveal d4">';
+    h += '<section class="surface card" aria-label="Sleep"><span class="card-title">' + ic('bedtime', 'sm fill c-sleep') + 'Sleep</span>';
+    if (empty){
+      h += '<p class="mini-val">--</p><p class="mini-cap">Shows up after your first night with the watch on.</p>';
+    } else {
+      h += '<p class="mini-val">7<span class="unit">h</span> 12<span class="unit">m</span></p><p class="score">Score <b>84</b></p>' +
+           hypnoSvg(150, 44) + '<div class="hypno-axis"><span>23:05</span><span>06:17</span></div>';
+    }
+    h += '</section><div class="stack">';
+    h += '<section class="surface card" aria-label="Blood oxygen"><span class="card-title">' + ic('spo2', 'sm c-cyan') + 'SpO2</span>' +
+         (empty ? '<p class="mini-val">--</p><p class="mini-cap">Measured overnight</p>' : '<p class="mini-val">97<span class="unit">%</span></p><p class="mini-cap">Lowest 94% overnight</p>') + '</section>';
+    h += '<section class="surface card" aria-label="Blood pressure"><span class="card-title">' + ic('blood_pressure', 'sm c-sky') + 'Blood pressure</span>' +
+         (empty ? '<p class="mini-val">--</p><p class="mini-cap">Measured through the day</p>' : '<p class="mini-val">118/77</p><p class="mini-cap">mmHg at 08:02</p>') + '</section>';
+    h += '</div></div>';
+
+    if (!empty){
+      h += '<button class="surface row-link press press-soft reveal d5"><span class="ib activity">' + ic('directions_walk') + '</span>' +
+           '<span class="row-text"><span class="row-title" style="display:block">Outdoor walk</span><span class="row-desc" style="display:block">Today at 12:20, 32 min, 2.9 km</span></span>' +
+           '<span class="row-value">Avg 104 bpm</span>' + ic('chevron_right', 'chev') + '</button>';
+    }
+    return h;
+  }
+
+  function healthTiles(n){
+    var d = RANGES[n], last = d[d.length - 1];
+    var atGoal = d.filter(function(x){ return x.steps >= 10000; }).length;
+    var h = '';
+    h += '<button class="surface tile press press-soft"><div class="tile-head"><span class="card-title">' + ic('favorite', 'sm fill c-heart') + 'Heart rate</span>' + ic('chevron_right', 'chev') + '</div>' +
+         '<div class="tile-kpis"><div><p class="kpi">' + Math.round(avg(d, function(x){ return x.rest; })) + '<span class="unit">bpm</span></p><p class="kpi-cap">Average resting</p></div>' +
+         '<div><p class="kpi-2">' + Math.min.apply(null, d.map(function(x){ return x.min; })) + '-' + Math.max.apply(null, d.map(function(x){ return x.max; })) + '<span class="unit">bpm</span></p><p class="kpi-cap">Range</p></div></div>' +
+         hrRangeChart(d) + '</button>';
+
+    h += '<button class="surface tile press press-soft"><div class="tile-head"><span class="card-title">' + ic('bedtime', 'sm fill c-sleep') + 'Sleep</span>' + ic('chevron_right', 'chev') + '</div>' +
+         '<div class="tile-kpis"><div><p class="kpi">' + hm(avg(d, function(x){ return x.sleep.total; })).replace(' h ', '<span class="unit">h</span> ').replace(' m', '<span class="unit">m</span>') + '</p><p class="kpi-cap">Average per night</p></div>' +
+         '<div><p class="kpi-2">' + Math.round(avg(d, function(x){ return x.sleep.deep; })) + '<span class="unit">min</span></p><p class="kpi-cap">Deep sleep</p></div></div>' +
+         sleepChart(d) +
+         '<div class="legend-inline"><span><i style="background:var(--sleep-deep)"></i>Deep</span><span><i style="background:var(--sleep-rem)"></i>REM</span><span><i style="background:var(--sleep-light)"></i>Light</span><span><i style="background:var(--sleep-awake)"></i>Awake</span></div></button>';
+
+    h += '<button class="surface tile press press-soft"><div class="tile-head"><span class="card-title">' + ic('directions_walk', 'sm c-activity') + 'Activity</span>' + ic('chevron_right', 'chev') + '</div>' +
+         '<div class="tile-kpis"><div><p class="kpi">' + fmt(Math.round(avg(d, function(x){ return x.steps; }))) + '</p><p class="kpi-cap">Average daily steps</p></div>' +
+         '<div><p class="kpi-2">' + atGoal + ' of ' + n + '</p><p class="kpi-cap">Days at goal</p></div></div>' +
+         stepsChart(d) + '</button>';
+
+    h += '<div class="pair">' +
+         '<button class="surface tile press press-soft"><div class="tile-head"><span class="card-title">' + ic('spo2', 'sm c-cyan') + 'SpO2</span>' + ic('chevron_right', 'chev') + '</div>' +
+         '<div class="tile-kpis"><div><p class="kpi">' + Math.round(avg(d, function(x){ return x.spo2; })) + '<span class="unit">%</span></p><p class="kpi-cap">Average, low ' + Math.min.apply(null, d.map(function(x){ return x.spo2Low; })) + '%</p></div></div>' + spo2Chart(d) + '</button>' +
+         '<button class="surface tile press press-soft"><div class="tile-head"><span class="card-title">' + ic('blood_pressure', 'sm c-sky') + 'BP</span>' + ic('chevron_right', 'chev') + '</div>' +
+         '<div class="tile-kpis"><div><p class="kpi">' + last.sys + '/' + last.dia + '</p><p class="kpi-cap">Latest, mmHg</p></div></div>' + bpChart(d) + '</button>' +
+         '</div>';
+
+    var wk = n === 7 ? [
+      ['directions_walk', 'Outdoor walk', 'Today 12:20, 32 min, 2.9 km', 104, 138],
+      ['directions_bike', 'Indoor cycling', 'Tue 18:40, 45 min, 386 kcal', 131, 162],
+      ['directions_run', 'Outdoor run', 'Sun 08:05, 28 min, 4.6 km', 148, 171]
+    ] : [
+      ['directions_walk', 'Outdoor walk', 'Today 12:20, 32 min, 2.9 km', 104, 138],
+      ['directions_bike', 'Indoor cycling', 'Tue 18:40, 45 min, 386 kcal', 131, 162],
+      ['directions_run', 'Outdoor run', 'Sun 08:05, 28 min, 4.6 km', 148, 171],
+      ['directions_run', 'Outdoor run', 'Thu 2 Oct, 31 min, 5.0 km', 151, 176]
+    ];
+    h += '<button class="surface tile press press-soft"><div class="tile-head"><span class="card-title">' + ic('exercise', 'sm c-cal') + 'Workouts</span>' + ic('chevron_right', 'chev') + '</div>' +
+         '<div class="tile-kpis"><div><p class="kpi">' + (n === 7 ? 3 : 11) + '</p><p class="kpi-cap">Workouts</p></div><div><p class="kpi-2">' + (n === 7 ? '1 h 45 m' : '6 h 52 m') + '</p><p class="kpi-cap">Total time</p></div></div>' +
+         '<div class="wk-list">' + wk.map(function(w){
+           return '<div class="wk"><span class="ib">' + ic(w[0]) + '</span><div><p class="wk-name">' + w[1] + '</p><p class="wk-meta">' + w[2] + '</p></div><p class="wk-hr">' + w[3] + ' bpm<small>avg</small></p></div>';
+         }).join('') + '</div></button>';
+    return h;
+  }
+
+  function healthScreen(n){
+    return '<header class="reveal" style="padding-top:6px"><h1 class="headline">Health</h1><p class="screen-sub">Trends from your watch, all stored on this phone.</p></header>' +
+      '<div class="seg reveal d1" data-seg data-index="' + (n === 7 ? 0 : 1) + '" role="group" aria-label="Time range"><span class="thumb"></span>' +
+      '<button class="press" data-range="7" aria-pressed="' + (n === 7) + '">7 days</button><button class="press" data-range="30" aria-pressed="' + (n === 30) + '">30 days</button></div>' +
+      '<div class="tiles swap reveal d2" data-tiles>' + healthTiles(n) + '</div>' +
+      '<p class="footnote reveal d3">' + ic('info') + '<span>Stress and skin temperature aren’t measured by this watch, so they’re left out.</span></p>';
+  }
+
+  function settingRow(icon, title, value, opts){
+    opts = opts || {};
+    if (opts.toggle !== undefined){
+      return '<div class="row' + (opts.disabled ? ' is-disabled' : '') + '"><span class="ib">' + ic(icon) + '</span><span class="row-text"><span class="row-title" style="display:block">' + title + '</span>' +
+             (opts.desc ? '<span class="row-desc" style="display:block">' + opts.desc + '</span>' : '') + '</span>' +
+             '<button class="switch" role="switch" aria-checked="' + opts.toggle + '" aria-label="' + title + '"' + (opts.disabled ? ' disabled' : '') + '></button></div>';
+    }
+    return '<button class="row' + (opts.disabled ? ' is-disabled' : '') + '"' + (opts.disabled ? ' aria-disabled="true"' : '') + '><span class="ib">' + ic(icon) + '</span><span class="row-text"><span class="row-title" style="display:block">' + title + '</span>' +
+           (opts.desc ? '<span class="row-desc" style="display:block">' + opts.desc + '</span>' : '') + '</span>' +
+           (value ? '<span class="row-value">' + value + '</span>' : '') + ic('chevron_right', 'chev') + '</button>';
+  }
+
+  function watchScreen(mode){
+    var away = mode === 'away', dis = away;
+    var h = '<header class="reveal" style="padding-top:6px"><h1 class="headline">Watch</h1></header>';
+    h += '<section class="surface w-hero reveal d1" data-whero>' +
+         '<div class="w-render"><span class="wave"></span><span class="wave"></span><span class="wave"></span>' +
+         '<span class="w-strap top"></span><span class="w-strap bottom"></span><span class="w-btn b1"></span><span class="w-btn b2"></span>' +
+         '<div class="w-bezel"><div class="w-face"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="none" stroke="var(--activity)" stroke-opacity=".18" stroke-width="3"/>' +
+         '<circle cx="48" cy="48" r="40" fill="none" stroke="var(--activity)" stroke-width="3" stroke-linecap="round" pathLength="100" stroke-dasharray="84 100" transform="rotate(-90 48 48)"/></svg>' +
+         '<span class="w-time">16:24</span><span class="w-date">SAT 10</span></div></div></div>' +
+         '<div><p class="w-name">Your watch</p><p class="w-id">Firmware 1.05, ID ends A4F2</p>' +
+         statusChip(away ? 'away' : 'ready') +
+         '<div class="batt"><div class="batt-row"><span>Battery</span><b>72%</b></div><div class="progress-track"><div class="progress-fill" style="--lvl:.72"></div></div></div></div></section>';
+
+    if (away){
+      h += '<div class="w-note reveal d2">' + ic('info') + '<span>Last seen at 08:12. NexWatch reconnects by itself once the watch is in range, so there’s nothing to tap. Changes below unlock when it’s back.</span></div>';
+    } else {
+      h += '<div class="w-actions reveal d2"><button class="btn btn-primary press" data-action="find">' + ic('vibration') + '<span>Find watch</span></button>' +
+           '<button class="btn btn-secondary press" data-action="sync-watch">' + ic('sync') + '<span>Sync now</span></button></div>';
+    }
+
+    h += '<p class="group-label reveal d3">On your wrist</p><div class="surface rows reveal d3">' +
+         settingRow('notifications', 'Notifications and calls', 'On, 9 apps', { disabled: false }) +
+         settingRow('monitor_heart', 'Health monitoring', 'Every 10 min', { disabled: dis }) +
+         settingRow('do_not_disturb_on', 'Reminders and DND', 'Quiet from 22:00', { disabled: dis }) +
+         settingRow('alarm', 'Alarms', '2 of 5', { disabled: dis }) +
+         settingRow('watch_screentime', 'Wrist raise', null, { toggle: true, disabled: dis, desc: 'Wakes the screen when you look' }) +
+         '</div>';
+    h += '<p class="group-label reveal d4">From your phone</p><div class="surface rows reveal d4">' +
+         settingRow('contacts', 'Contacts', '4 of 10', { disabled: dis }) +
+         settingRow('partly_cloudy_day', 'Weather', 'Sent 15:00', { disabled: dis }) +
+         settingRow('straighten', 'Units and time', 'Metric, 24 h', { disabled: dis }) +
+         '</div>';
+    h += '<p class="group-label reveal d5">Staying connected</p><div class="surface rows reveal d5">' +
+         settingRow('bluetooth_searching', 'Wake when watch is nearby', null, { toggle: true, desc: 'Lets Android start NexWatch when the watch comes into range' }) +
+         settingRow('troubleshoot', 'Diagnostics', null, { desc: 'Connection timeline and logs' }) +
+         '</div>';
+    return h;
+  }
+
+  var STORE = [
+    ['Heart rate', 31904, '--heart'], ['Activity', 11872, '--activity'], ['SpO2', 2410, '--cyan'],
+    ['Sleep', 1166, '--sleep'], ['Blood pressure', 694, '--sky-blue'], ['Workouts', 167, '--calories']
+  ];
+  var EXPORT_LINES = [['Heart rate', 31904], ['Activity', 11872], ['SpO2', 2410], ['Sleep', 1166], ['Blood pressure', 694], ['Workouts', 167]];
+
+  function dataScreen(mode){
+    var total = 48213;
+    var h = '<header class="reveal" style="padding-top:6px"><h1 class="headline">Data</h1><p class="screen-sub">Everything stays on this phone until you export it.</p></header>';
+    h += '<section class="surface card reveal d1" aria-label="Storage"><p class="metric" style="font-size:38px">' + fmt(total) + '<span class="unit">records</span></p>' +
+         '<p class="screen-sub" style="margin-top:8px">21.6 MB, collected since 1 June 2026</p>' +
+         '<div class="stack-bar" aria-hidden="true">' + STORE.map(function(s){ return '<i style="flex:' + s[1] + ';background:var(' + s[2] + ')"></i>'; }).join('') + '</div>' +
+         '<ul class="legend">' + STORE.map(function(s){ return '<li><i style="background:var(' + s[2] + ')"></i>' + s[0] + '<b>' + fmt(s[1]) + '</b></li>'; }).join('') + '</ul></section>';
+
+    var exp = mode === 'exported' ? 'done' : 'idle';
+    h += '<p class="group-label reveal d2">Backup</p>';
+    h += '<section class="surface exp reveal d2" data-exp="' + exp + '"><p class="card-title">Full backup</p>' +
+         '<p class="row-desc" style="margin-top:4px">One ZIP with every record, readable as JSON lines. Re-importing it skips duplicates automatically.</p>' +
+         '<div class="exp-actions"><button class="btn btn-primary press" data-action="export">' + ic('download') + '<span data-exp-label>Export everything</span></button>' +
+         '<button class="btn btn-secondary press">' + ic('upload_file') + 'Restore</button></div>' +
+         '<div class="exp-lines">' + EXPORT_LINES.map(function(l, i){
+           return '<div class="exp-line"><span>' + l[0] + '</span><div class="progress-track"><div class="progress-fill" data-exp-fill="' + i + '"></div></div><b data-exp-count="' + i + '">0</b></div>';
+         }).join('') + '</div>' +
+         '<div class="exp-done"><span class="ib">' + ic('check_circle', 'fill') + '</span><div style="flex:1;min-width:0"><p class="exp-file">nexwatch-export-2026-10-10.zip</p><p class="row-desc">14.2 MB, ' + fmt(total) + ' records</p></div>' +
+         '<button class="icon-btn tonal press" aria-label="Share">' + ic('share') + '</button></div>' +
+         '<p class="privacy">' + ic('lock') + '<span>Exports contain your health data. Keep them somewhere private.</span></p></section>';
+
+    h += '<div class="surface rows reveal d3">' +
+         settingRow('backup', 'Auto-backup', null, { toggle: true, desc: 'Weekly, only while charging' }) +
+         '<div class="kv-wrap"><div class="kv"><span>Folder</span><b>Documents/NexWatch</b></div><div class="kv"><span>Keeps</span><b>Last 5 backups</b></div><div class="kv"><span>Last run</span><b>Sun 5 Oct, 02:14</b></div></div></div>';
+
+    h += '<p class="group-label reveal d4">Connected services</p>';
+    var hcStatus, hcExtra = '';
+    if (mode === 'backfill'){
+      hcStatus = '<span class="chip info">' + ic('cloud_upload') + 'Sending history</span>';
+      hcExtra = '<p style="margin-top:10px">' + fmt(12400) + ' of ' + fmt(total) + ' records sent</p><div class="progress-track"><div class="progress-fill" style="transform:scaleX(.257);transition:none"></div></div>';
+    } else if (mode === 'revoked'){
+      hcStatus = '<span class="chip error">' + ic('error') + 'Permission revoked</span>';
+      hcExtra = '<p style="margin-top:10px">Health Connect stopped accepting data on 9 Oct. Nothing is lost: NexWatch keeps everything and catches up once you reconnect.</p>';
+    } else {
+      hcStatus = '<span class="chip success" data-hc-chip>' + ic('check_circle') + 'Up to date, 2 min ago</span>';
+    }
+    h += '<section class="surface rows reveal d4" data-hc>' +
+         '<div class="row" style="border-top:none"><span class="hc-badge">' + ic('health_and_safety', 'fill') + '</span><span class="row-text"><span class="row-title" style="display:block">Health Connect</span></span>' +
+         '<button class="switch" role="switch" aria-checked="' + (mode !== 'revoked') + '" aria-label="Share with Health Connect" data-hc-toggle></button></div>' +
+         '<div class="hc-body"><div data-hc-status>' + hcStatus + '</div>' + hcExtra +
+         '<p style="margin-top:10px" data-hc-desc>Shares steps, distance, calories, heart rate, SpO2, blood pressure, sleep and workouts. Turning this off keeps what was already sent.</p>' +
+         '<div class="hc-actions">' + (mode === 'revoked' ? '<button class="btn btn-text press">Reconnect</button>' : '<button class="btn btn-text press" data-hc-sync>Sync now</button>') + '</div></div></section>';
+    h += '<div class="add-svc reveal d5">' + ic('add_circle') + 'More services can plug in here later</div>';
+    return h;
+  }
+
+  /* ------------------------------------------------------------
+     Phone assembly
+     ------------------------------------------------------------ */
+  var TABS = [['today', 'Today', 'today'], ['health', 'Health', 'monitor_heart'], ['watch', 'Watch', 'watch'], ['data', 'Data', 'database']];
+  function chrome(active){
+    return '<div class="status-bar"><span>16:24</span><span class="sys">' + ic('signal_cellular_alt') + ic('wifi') + ic('battery_full') + '</span></div>' +
+      '<nav class="bnav" role="tablist" aria-label="Main">' + TABS.map(function(t){
+        return '<button role="tab" data-tab="' + t[0] + '" aria-selected="' + (t[0] === active) + '"><span class="pill">' + ic(t[2]) + '</span>' + t[1] + '</button>';
+      }).join('') + '</nav><span class="home-indicator"></span>';
+  }
+  function panel(id, html, active){ return '<div class="tab-panel' + (active ? ' active' : '') + '" data-panel="' + id + '" role="tabpanel">' + html + '</div>'; }
+
+  var proto = document.getElementById('proto');
+  proto.innerHTML = chrome('today') +
+    panel('today', todayScreen('ready'), true) +
+    panel('health', healthScreen(7)) +
+    panel('watch', watchScreen('ready')) +
+    panel('data', dataScreen('idle'));
+
+  var STATES = [
+    ['Today', 'Syncing', 'today', todayScreen('syncing')],
+    ['Today', 'Watch not nearby', 'today', todayScreen('away')],
+    ['Today', 'Signed in elsewhere', 'today', todayScreen('error')],
+    ['Today', 'First day', 'today', todayScreen('empty')],
+    ['Health', '30 days', 'health', healthScreen(30)],
+    ['Watch', 'Not nearby', 'watch', watchScreen('away')],
+    ['Data', 'Export finished', 'data', dataScreen('exported')],
+    ['Data', 'Health Connect catching up', 'data', dataScreen('backfill')],
+    ['Data', 'Health Connect permission revoked', 'data', dataScreen('revoked')]
+  ];
+  document.getElementById('gallery').innerHTML = STATES.map(function(s){
+    return '<div class="frame" data-observe><p class="frame-label"><b>' + s[0] + '</b> / ' + s[1] + '</p>' +
+      '<div class="phone-shell"><div class="phone-screen">' + chrome(s[2]) + panel(s[2], s[3], true) + '</div></div></div>';
+  }).join('');
+
+  /* ------------------------------------------------------------
+     Notes panel
+     ------------------------------------------------------------ */
+  var NOTES = {
+    today: {
+      title: 'Today',
+      job: 'Answers two questions in one glance, without scrolling: how is my day going, and is the watch OK?',
+      points: [
+        'Watch status comes first and stays one line. It only grows when something needs attention: a sync in progress, the watch out of range, or a login error.',
+        'Rings carry the goals; the numbers beside them carry the detail. Every color sits next to an icon and a label, so color is never the only signal.',
+        'The heart chart shows the whole day as a 15-minute range band with resting HR dashed. The empty right side is honest: it’s 16:24, the day isn’t over.',
+        'The connected dot is the screen’s only looping animation. Heart rate doesn’t pulse, because the watch samples it every 10 minutes and it isn’t live.',
+        'Sleep, SpO2 and blood pressure form one asymmetric row, so the screen doesn’t read as a grid of identical cards.'
+      ],
+      tryIt: '<b>Tap the sync button</b> and watch the strip report progress, then the steps update. <b>Drag across the heart chart</b> (or focus it and use the arrow keys) to read any 15 minutes.'
+    },
+    health: {
+      title: 'Health',
+      job: 'Spot trends over a week or a month, then open one metric for detail.',
+      points: [
+        'One range control drives every tile, so all charts share a time axis and can be compared down the page.',
+        'Each tile leads with the number that matters for that range (average resting HR, average sleep, days at goal), then the chart that explains it.',
+        'Heart rate draws each day’s min to max as a capsule with a resting dot. Blood pressure uses the same capsule shape, systolic to diastolic.',
+        'Sleep stages are four tints of the sleep color, deepest for Deep, always with a legend. The four --sleep-* tints are new tokens for :core:designsystem.',
+        'Only metrics this watch records get a tile. Stress and temperature get a single plain sentence instead of empty tiles.'
+      ],
+      tryIt: '<b>Switch between 7 and 30 days.</b> The thumb slides and the charts cross-fade through a short blur, so it reads as one view changing.'
+    },
+    watch: {
+      title: 'Watch',
+      job: 'Check on the watch and change how it behaves, with settings grouped by where they take effect.',
+      points: [
+        'Each row shows its current value, so most visits end without opening anything.',
+        'Groups follow what a setting affects: the watch on your wrist, what the phone sends to it, and how the app stays connected.',
+        'Simple on/off settings switch in place. Anything with a schedule or a list opens its own screen.',
+        'There is no Reconnect button anywhere. FcConnector owns reconnection, so the not-nearby state explains that instead of offering a button that would fight it.',
+        'Watchfaces, firmware update and unpair are left out on purpose: §12 postpones or descopes them for now.'
+      ],
+      tryIt: '<b>Tap Find watch</b> to see the ringing state (it stops by itself after 8 seconds, or tap again). <b>Flip Wrist raise.</b>'
+    },
+    data: {
+      title: 'Data',
+      job: 'Show what’s stored, make clear it belongs to you, and make it easy to take out.',
+      points: [
+        'The storage card answers “how much, and since when” before offering any actions.',
+        'Export is the primary action and restore the secondary one. Nothing destructive sits near either.',
+        'Auto-backup shows its whole contract in one card: where it saves, how often, how many it keeps, and when it last ran.',
+        'Health Connect says in plain words what it shares, and that turning it off doesn’t delete what was already sent. Problems show as a status chip with a reason, never color alone.'
+      ],
+      tryIt: '<b>Tap Export everything</b> to watch each data type stream out and land as a file. In the app, this opens the system save dialog first. <b>Toggle Health Connect.</b>'
+    }
+  };
+  var notesTabs = document.getElementById('notes-tabs'), notesBody = document.getElementById('notes-body');
+  notesTabs.innerHTML = TABS.map(function(t){ return '<button data-note="' + t[0] + '" aria-pressed="' + (t[0] === 'today') + '">' + t[1] + '</button>'; }).join('');
+  function renderNotes(id){
+    var n = NOTES[id];
+    return '<h2>' + n.title + '</h2><p class="notes-job">' + n.job + '</p><ul>' + n.points.map(function(p){ return '<li>' + p + '</li>'; }).join('') + '</ul>' +
+      '<p class="notes-try">' + ic('touch_app') + '<span>' + n.tryIt + '</span></p>';
+  }
+  notesBody.innerHTML = renderNotes('today');
+
+  function crossfade(el, fn){
+    el.classList.add('mid-change');
+    setTimeout(function(){ fn(); el.classList.remove('mid-change'); }, 140);
+  }
+
+  function selectTab(id){
+    proto.querySelectorAll('.bnav button').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.tab === id); });
+    proto.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.toggle('active', p.dataset.panel === id); });
+    notesTabs.querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.note === id); });
+    crossfade(notesBody, function(){ notesBody.innerHTML = renderNotes(id); });
+  }
+  proto.querySelector('.bnav').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-tab]'); if (b) selectTab(b.dataset.tab);
+  });
+  notesTabs.addEventListener('click', function(e){
+    var b = e.target.closest('button[data-note]'); if (b) selectTab(b.dataset.note);
+  });
+
+  /* ------------------------------------------------------------
+     Entrance: once per frame, when it's actually visible
+     ------------------------------------------------------------ */
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){ if (en.isIntersecting){ en.target.classList.add('in-view'); io.unobserve(en.target); } });
+  }, { threshold: 0.25 });
+  document.querySelectorAll('[data-observe]').forEach(function(el){ io.observe(el); });
+
+  /* ------------------------------------------------------------
+     Prototype interactions
+     ------------------------------------------------------------ */
+  function swapText(el, html){ if (!el) return; crossfade(el, function(){ el.innerHTML = html; }); }
+
+  // Sync: the strip expands to report each phase, then the numbers it changed update in place.
+  var syncing = false;
+  function runSync(){
+    if (syncing) return; syncing = true;
+    var strip = proto.querySelector('[data-strip]'), fill = strip.querySelector('[data-sync-fill]');
+    var phase = strip.querySelector('[data-sync-phase]'), pctEl = strip.querySelector('[data-sync-pct]');
+    var watchBtn = proto.querySelector('[data-action="sync-watch"]');
+    if (watchBtn){ watchBtn.disabled = true; watchBtn.querySelector('span:last-child').textContent = 'Syncing…'; }
+    strip.querySelector('[data-chip]').innerHTML = statusChip('syncing');
+    fill.style.transform = 'scaleX(0)';
+    strip.classList.add('is-syncing');
+    var steps = [['Reading steps', .22], ['Reading heart rate', .55], ['Reading sleep', .8], ['Reading SpO2 and blood pressure', 1]];
+    steps.forEach(function(s, i){
+      setTimeout(function(){ phase.textContent = s[0]; pctEl.textContent = Math.round(s[1] * 100) + '%'; fill.style.transform = 'scaleX(' + s[1] + ')'; }, 120 + i * 620);
+    });
+    setTimeout(function(){
+      strip.classList.remove('is-syncing');
+      strip.querySelector('[data-chip]').innerHTML = statusChip('ready');
+      swapText(strip.querySelector('[data-sync-label]'), 'Synced just now');
+      swapText(proto.querySelector('[data-steps]'), '8,517');
+      swapText(proto.querySelector('[data-kcal]'), '416');
+      swapText(proto.querySelector('[data-goal-left]'), '<b>1,483</b>&nbsp;steps to goal');
+      var ring = proto.querySelector('[data-ring="0"]'); if (ring) ring.style.setProperty('--off', 15);
+      if (watchBtn){ watchBtn.disabled = false; watchBtn.querySelector('span:last-child').textContent = 'Sync now'; }
+      syncing = false;
+    }, 120 + steps.length * 620 + 200);
+  }
+
+  // Find watch: a real ongoing state, so it's allowed to loop until it stops.
+  var ringTimer = null;
+  function toggleFind(btn){
+    var hero = proto.querySelector('[data-whero]');
+    var on = !hero.classList.contains('ringing');
+    hero.classList.toggle('ringing', on);
+    btn.className = 'btn press ' + (on ? 'btn-secondary' : 'btn-primary');
+    btn.innerHTML = on ? ic('stop_circle') + '<span>Stop ringing</span>' : ic('vibration') + '<span>Find watch</span>';
+    clearTimeout(ringTimer);
+    if (on) ringTimer = setTimeout(function(){ toggleFind(btn); }, 8000);
+  }
+
+  // Export: per-type progress lines, then the file.
+  function runExport(card){
+    if (card.dataset.exp === 'running') return;
+    var btn = card.querySelector('[data-action="export"]');
+    if (card.dataset.exp === 'done'){
+      crossfade(card, function(){ card.dataset.exp = 'idle'; btn.disabled = false; btn.querySelector('[data-exp-label]').textContent = 'Export everything'; });
+      return;
+    }
+    card.dataset.exp = 'running';
+    btn.disabled = true; btn.querySelector('[data-exp-label]').textContent = 'Exporting…';
+    card.querySelectorAll('[data-exp-fill]').forEach(function(f){ f.style.transition = 'none'; f.style.transform = 'scaleX(0)'; });
+    card.querySelectorAll('[data-exp-count]').forEach(function(c){ c.textContent = '0'; });
+    void card.offsetWidth;
+    EXPORT_LINES.forEach(function(l, i){
+      setTimeout(function(){
+        var f = card.querySelector('[data-exp-fill="' + i + '"]');
+        f.style.transition = ''; f.style.transform = 'scaleX(1)';
+        card.querySelector('[data-exp-count="' + i + '"]').textContent = fmt(l[1]);
+      }, 160 + i * 320);
+    });
+    setTimeout(function(){
+      crossfade(card, function(){ card.dataset.exp = 'done'; btn.disabled = false; btn.querySelector('[data-exp-label]').textContent = 'Export again'; });
+    }, 160 + EXPORT_LINES.length * 320 + 380);
+  }
+
+  proto.addEventListener('click', function(e){
+    var t;
+    if ((t = e.target.closest('[data-action="sync"], [data-action="sync-watch"]'))) return runSync();
+    if ((t = e.target.closest('[data-action="find"]'))) return toggleFind(t);
+    if ((t = e.target.closest('[data-action="export"]'))) return runExport(t.closest('[data-exp]'));
+    if ((t = e.target.closest('[data-range]'))){
+      var seg = t.closest('[data-seg]'), n = +t.dataset.range;
+      if (t.getAttribute('aria-pressed') === 'true') return;
+      seg.dataset.index = n === 7 ? 0 : 1;
+      seg.querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-pressed', b === t); });
+      var tiles = proto.querySelector('[data-tiles]');
+      return crossfade(tiles, function(){ tiles.innerHTML = healthTiles(n); });
+    }
+    if ((t = e.target.closest('[data-hc-sync]'))){
+      return swapText(proto.querySelector('[data-hc-status]'), '<span class="chip success">' + ic('check_circle') + 'Up to date, just now</span>');
+    }
+    if ((t = e.target.closest('.switch'))){
+      var on = t.getAttribute('aria-checked') !== 'true';
+      t.setAttribute('aria-checked', on);
+      if (t.hasAttribute('data-hc-toggle')){
+        swapText(proto.querySelector('[data-hc-status]'), on ? '<span class="chip success">' + ic('check_circle') + 'Up to date, just now</span>' : '<span class="chip neutral">' + ic('pause_circle') + 'Off</span>');
+        var s = proto.querySelector('[data-hc-sync]'); if (s) s.hidden = !on;
+      }
+    }
+  });
+
+  /* ------------------------------------------------------------
+     Heart chart scrubbing (prototype and every gallery frame).
+     The cursor tracks the pointer directly: no easing on a value
+     the user is steering.
+     ------------------------------------------------------------ */
+  function scrubTo(wrap, idx){
+    var upto = +wrap.dataset.scrub;
+    idx = Math.max(0, Math.min(upto - 1, idx));
+    wrap.dataset.idx = idx;
+    var svg = wrap.querySelector('svg'), cur = svg.querySelector('.cursor'), tip = wrap.querySelector('.tip');
+    var b = HR_DAY[idx], x = hrX(idx), y = hrY(b.avg);
+    cur.setAttribute('visibility', 'visible');
+    cur.querySelector('line').setAttribute('x1', x); cur.querySelector('line').setAttribute('x2', x);
+    cur.querySelector('circle').setAttribute('cx', x); cur.querySelector('circle').setAttribute('cy', y);
+    var scale = wrap.clientWidth / HR_W;
+    var px = Math.max(58, Math.min(wrap.clientWidth - 58, x * scale));
+    var mins = idx * 15;
+    tip.innerHTML = pad(Math.floor(mins / 60)) + ':' + pad(mins % 60) + '&nbsp; ' + b.avg + ' bpm <span>(' + b.min + '-' + b.max + ')</span>';
+    tip.style.left = px + 'px';
+    tip.style.top = (y * scale - 10) + 'px';
+    tip.hidden = false;
+  }
+  function endScrub(wrap){
+    var cur = wrap.querySelector('.cursor'); if (cur) cur.setAttribute('visibility', 'hidden');
+    wrap.querySelector('.tip').hidden = true;
+  }
+  document.addEventListener('pointermove', function(e){
+    var wrap = e.target.closest && e.target.closest('[data-scrub]'); if (!wrap) return;
+    var r = wrap.getBoundingClientRect();
+    scrubTo(wrap, Math.floor((e.clientX - r.left) / r.width * 96));
+  });
+  document.addEventListener('pointerout', function(e){
+    var wrap = e.target.closest && e.target.closest('[data-scrub]');
+    if (wrap && !wrap.contains(e.relatedTarget)) endScrub(wrap);
+  });
+  document.addEventListener('keydown', function(e){
+    var wrap = e.target.closest && e.target.closest('[data-scrub]'); if (!wrap) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    var cur = wrap.dataset.idx ? +wrap.dataset.idx : +wrap.dataset.scrub - 1;
+    scrubTo(wrap, cur + (e.key === 'ArrowRight' ? 1 : -1));
+  });
+  document.addEventListener('focusout', function(e){
+    var wrap = e.target.closest && e.target.closest('[data-scrub]'); if (wrap) endScrub(wrap);
+  });
+})();
+</script>
+</body>
+</html>

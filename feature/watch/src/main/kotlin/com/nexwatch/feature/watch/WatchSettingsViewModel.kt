@@ -94,7 +94,13 @@ class WatchSettingsViewModel @Inject constructor(
         }
     }
 
-    fun findWatch() = runCommand("Watch is ringing") { watchClient.findWatch() }
+    fun findWatch() = runCommand(RINGING) { watchClient.findWatch() }
+
+    /** Flips only the on/off switch; the active-hours window stays as the watch reports it. */
+    fun setWristRaise(enabled: Boolean) {
+        val current = uiState.value.settings?.wristRaise ?: return
+        apply(WatchSettingChange.SetWristRaise(current.copy(enabled = enabled)), what = if (enabled) "Wrist raise on" else "Wrist raise off")
+    }
 
     fun pushTestWeather(condition: WeatherCondition, temperatureC: Int) = runCommand("Forecast sent") {
         watchClient.pushWeather(
@@ -131,7 +137,9 @@ class WatchSettingsViewModel @Inject constructor(
 
     private fun Exception.reason() = message ?: "The watch didn't answer"
 
-    private companion object {
-        const val TEST_FORECAST_DAYS = 3
+    companion object {
+        /** The notice text find-watch succeeds with; the overview shows its ringing state while it's up. */
+        const val RINGING = "Watch is ringing"
+        private const val TEST_FORECAST_DAYS = 3
     }
 }
