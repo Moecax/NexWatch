@@ -5,10 +5,11 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-private const val DATABASE_NAME = "nexwatch.db"
+/** Public so storage reporting can size the file without guessing its name. */
+const val NEXWATCH_DATABASE_NAME = "nexwatch.db"
 
 fun buildNexWatchDatabase(context: Context): NexWatchDatabase =
-    Room.databaseBuilder(context.applicationContext, NexWatchDatabase::class.java, DATABASE_NAME)
+    Room.databaseBuilder(context.applicationContext, NexWatchDatabase::class.java, NEXWATCH_DATABASE_NAME)
         .addCallback(object : RoomDatabase.Callback() {
             override fun onOpen(db: SupportSQLiteDatabase) {
                 super.onOpen(db)

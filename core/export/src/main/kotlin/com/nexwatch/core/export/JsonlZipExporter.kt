@@ -34,7 +34,14 @@ class JsonlZipExporter @Inject constructor(
     private var minMs = Long.MAX_VALUE
     private var maxMs = Long.MIN_VALUE
 
-    suspend fun export(out: OutputStream): ExportHistoryEntry {
+    private var onTableWritten: (table: String, count: Int) -> Unit = { _, _ -> }
+
+    /** [onTableWritten] fires once per finished table, keyed like [ExportHistoryEntry.recordCounts]. */
+    suspend fun export(
+        out: OutputStream,
+        onTableWritten: (table: String, count: Int) -> Unit = { _, _ -> },
+    ): ExportHistoryEntry {
+        this.onTableWritten = onTableWritten
         minMs = Long.MAX_VALUE
         maxMs = Long.MIN_VALUE
         val zip = ZipOutputStream(out)
@@ -145,6 +152,7 @@ class JsonlZipExporter @Inject constructor(
         zip.closeEntry()
         fileInfo[entryName] = ManifestFileInfo(count, jsonlDigest.digest().toHex())
         counts[countKey] = count
+        onTableWritten(countKey, count)
 
         val csvName = "csv/${countKey}.csv"
         val csvDigest = MessageDigest.getInstance("SHA-256")
@@ -183,6 +191,7 @@ class JsonlZipExporter @Inject constructor(
         zip.closeEntry()
         fileInfo["derived/daily_summary.jsonl"] = ManifestFileInfo(count, digest.digest().toHex())
         counts["daily_summary"] = count
+        onTableWritten("daily_summary", count)
     }
 
     private fun writeManifest(zip: ZipOutputStream, manifest: ExportManifest) {

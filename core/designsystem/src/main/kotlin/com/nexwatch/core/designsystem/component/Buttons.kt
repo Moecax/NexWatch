@@ -1,5 +1,11 @@
 package com.nexwatch.core.designsystem.component
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +27,7 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    icon: ImageVector? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Button(
@@ -34,7 +41,7 @@ fun PrimaryButton(
             .height(52.dp)
             .pressScale(interactionSource),
     ) {
-        Text(text)
+        ButtonLabel(text, icon)
     }
 }
 
@@ -44,6 +51,7 @@ fun SecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    icon: ImageVector? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     OutlinedButton(
@@ -56,6 +64,15 @@ fun SecondaryButton(
             .height(52.dp)
             .pressScale(interactionSource),
     ) {
-        Text(text)
+        ButtonLabel(text, icon)
     }
+}
+
+@Composable
+private fun ButtonLabel(text: String, icon: ImageVector?) {
+    if (icon != null) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+    }
+    Text(text, fontWeight = FontWeight.Bold)
 }

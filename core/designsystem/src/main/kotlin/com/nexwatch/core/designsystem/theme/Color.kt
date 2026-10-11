@@ -39,7 +39,22 @@ val SleepColor = Color(0xFF7655E8)
 val SleepTextColor = Color(0xFF9A82FF)
 val CaloriesColor = Color(0xFFFF8A32)
 
+// Sleep stages: four tints of SleepColor, deepest for Deep and lightest for Awake, so a
+// hypnogram reads by lightness as well as by lane position.
+val SleepDeepColor = Color(0xFF5B3FCF)
+val SleepAwakeColor = Color(0xFFCFC3FF)
+
 // Premium background gradient stops (top to bottom)
 val PremiumGradientTop = Midnight
 val PremiumGradientMid = Navy
 val PremiumGradientBottom = Color(0xFF111B38)
+
+// Watch depiction (Part A: polished steel bezel, black strap). Used only by WatchRender.
+val BezelHighlight = Color(0xFF4C5A86)
+val BezelMid = Color(0xFF3A4468)
+val BezelShadow = Color(0xFF131A30)
+val StrapTop = Color(0xFF161D33)
+val StrapBottom = Color(0xFF0C1122)
+val WatchButton = Color(0xFF2A3454)
+val FaceGlass = Color(0xFF10182E)
+val FaceDeep = Color(0xFF050914)

@@ -45,6 +45,9 @@ interface StepsDao {
             "GROUP BY bucket ORDER BY bucket",
     )
     fun observeStepBuckets(deviceId: String, fromMs: Long, toMs: Long, bucketMs: Long): Flow<List<StepBucket>>
+
+    @Query("SELECT MIN(start_time) FROM steps WHERE deleted = 0")
+    suspend fun earliestStartTime(): Long?
 }
 
 data class StepsDailyTotal(val steps: Int, val distanceM: Float, val energyKcal: Float)

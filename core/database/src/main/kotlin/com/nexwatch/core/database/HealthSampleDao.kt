@@ -92,7 +92,51 @@ interface HealthSampleDao {
             "WHERE device_id = :deviceId AND start_time >= :dayStartMs AND start_time < :dayEndMs AND deleted = 0",
     )
     suspend fun findDailyHrStats(deviceId: String, dayStartMs: Long, dayEndMs: Long): HrDailyStats?
+
+    @Query("SELECT * FROM heart_rate WHERE device_id = :deviceId AND deleted = 0 ORDER BY start_time DESC LIMIT 1")
+    fun observeLatestHeartRate(deviceId: String): Flow<HeartRateEntity?>
+
+    @Query("SELECT * FROM spo2 WHERE device_id = :deviceId AND deleted = 0 ORDER BY start_time DESC LIMIT 1")
+    fun observeLatestSpo2(deviceId: String): Flow<Spo2Entity?>
+
+    @Query("SELECT * FROM blood_pressure WHERE device_id = :deviceId AND deleted = 0 ORDER BY start_time DESC LIMIT 1")
+    fun observeLatestBloodPressure(deviceId: String): Flow<BloodPressureEntity?>
+
+    @Query(
+        "SELECT MIN(percent) FROM spo2 WHERE device_id = :deviceId AND start_time BETWEEN :fromMs AND :toMs " +
+            "AND deleted = 0",
+    )
+    fun observeSpo2Low(deviceId: String, fromMs: Long, toMs: Long): Flow<Int?>
+
+    // Daily buckets shift by the zone offset first, so `day` is a local calendar day
+    // (epoch-day number) rather than a UTC one.
+    @Query(
+        "SELECT (start_time + :offsetMs) / 86400000 AS day, AVG(bpm) AS avgValue, MIN(bpm) AS minValue, " +
+            "MAX(bpm) AS maxValue FROM heart_rate WHERE device_id = :deviceId AND start_time BETWEEN :fromMs AND :toMs " +
+            "AND deleted = 0 GROUP BY day ORDER BY day",
+    )
+    fun observeHeartRateDaily(deviceId: String, fromMs: Long, toMs: Long, offsetMs: Long): Flow<List<DailyAggregate>>
+
+    @Query(
+        "SELECT (start_time + :offsetMs) / 86400000 AS day, AVG(percent) AS avgValue, MIN(percent) AS minValue, " +
+            "MAX(percent) AS maxValue FROM spo2 WHERE device_id = :deviceId AND start_time BETWEEN :fromMs AND :toMs " +
+            "AND deleted = 0 GROUP BY day ORDER BY day",
+    )
+    fun observeSpo2Daily(deviceId: String, fromMs: Long, toMs: Long, offsetMs: Long): Flow<List<DailyAggregate>>
+
+    @Query(
+        "SELECT (start_time + :offsetMs) / 86400000 AS day, AVG(systolic) AS systolic, AVG(diastolic) AS diastolic " +
+            "FROM blood_pressure WHERE device_id = :deviceId AND start_time BETWEEN :fromMs AND :toMs " +
+            "AND deleted = 0 GROUP BY day ORDER BY day",
+    )
+    fun observeBloodPressureDaily(deviceId: String, fromMs: Long, toMs: Long, offsetMs: Long): Flow<List<DailyBloodPressureAggregate>>
+
+    @Query("SELECT MIN(start_time) FROM heart_rate WHERE deleted = 0")
+    suspend fun earliestHeartRateTime(): Long?
 }
+
+data class DailyAggregate(val day: Long, val avgValue: Double, val minValue: Int, val maxValue: Int)
+data class DailyBloodPressureAggregate(val day: Long, val systolic: Double, val diastolic: Double)
 
 data class HeartRateBucket(val bucket: Long, val avgBpm: Double, val minBpm: Int, val maxBpm: Int)
 data class HrDailyStats(val avgBpm: Double?, val minBpm: Int?, val maxBpm: Int?)

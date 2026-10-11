@@ -24,12 +24,12 @@ private const val RESTING_SCALE = 1f
  * shares the exact same feel instead of each screen reinventing it slightly differently.
  */
 @Composable
-fun Modifier.pressScale(interactionSource: InteractionSource): Modifier {
+fun Modifier.pressScale(interactionSource: InteractionSource, pressedScale: Float = PRESSED_SCALE): Modifier {
     if (LocalInspectionMode.current) return this // keep static previews readable
     var pressed by remember { mutableStateOf(false) }
     LaunchedEffectPressState(interactionSource) { pressed = it }
     val scale by animateFloatAsState(
-        targetValue = if (pressed) PRESSED_SCALE else RESTING_SCALE,
+        targetValue = if (pressed) pressedScale else RESTING_SCALE,
         animationSpec = tween(WatchMotion.PRESS_DURATION_MS, easing = WatchMotion.easeOutStrong),
         label = "pressScale",
     )

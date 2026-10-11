@@ -1,10 +1,14 @@
 package com.nexwatch.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material.icons.outlined.MonitorHeart
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.Today
+import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.Serializable
 
@@ -49,10 +53,10 @@ val NexWatchDestination.label: String
         NexWatchDestination.Data -> "Data"
     }
 
-val NexWatchDestination.icon: ImageVector
-    get() = when (this) {
-        NexWatchDestination.Today -> Icons.Filled.Dashboard
-        NexWatchDestination.Health -> Icons.Filled.Favorite
-        NexWatchDestination.Watch -> Icons.Filled.Watch
-        NexWatchDestination.Data -> Icons.Filled.Storage
-    }
+/** Part A: outlined icons, with the filled variant only for the selected tab. */
+fun NexWatchDestination.icon(selected: Boolean): ImageVector = when (this) {
+    NexWatchDestination.Today -> if (selected) Icons.Filled.Today else Icons.Outlined.Today
+    NexWatchDestination.Health -> if (selected) Icons.Filled.MonitorHeart else Icons.Outlined.MonitorHeart
+    NexWatchDestination.Watch -> if (selected) Icons.Filled.Watch else Icons.Outlined.Watch
+    NexWatchDestination.Data -> if (selected) Icons.Filled.Storage else Icons.Outlined.Storage
+}

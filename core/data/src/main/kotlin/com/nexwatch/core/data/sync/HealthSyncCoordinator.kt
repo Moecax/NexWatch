@@ -8,6 +8,7 @@ import com.nexwatch.core.data.syncengine.SyncScheduler
 import com.nexwatch.core.database.DeviceDao
 import com.nexwatch.core.database.RawIngestDao
 import com.nexwatch.core.watchapi.WatchClient
+import com.nexwatch.core.watchapi.SyncProgress
 import com.nexwatch.core.watchapi.WatchState
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -30,7 +31,7 @@ class HealthSyncCoordinator @Inject constructor(
     private val identityStore: WatchIdentityStore,
     private val deviceRecorder: DeviceRecorder,
 ) {
-    suspend fun syncAndNormalize(): Result<Set<String>> = runCatching {
+    suspend fun syncAndNormalize(onProgress: (SyncProgress) -> Unit = {}): Result<Set<String>> = runCatching {
         if (watchClient.state.first() !is WatchState.Ready) return@runCatching emptySet()
         identityStore.identity.first().boundAddress?.let { address ->
             deviceRecorder.record(address, watchClient.capabilities.value?.firmwareVersion)
@@ -38,6 +39,7 @@ class HealthSyncCoordinator @Inject constructor(
 
         watchClient.syncHealthData().collect { progress ->
             progress.batch?.let { journalRepository.append(it) }
+            onProgress(progress)
         }
         val affectedDates = normalizer.processUnprocessed()
         val device = deviceDao.observeMostRecentlyBound().first()
