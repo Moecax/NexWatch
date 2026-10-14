@@ -1,38 +1,40 @@
 package com.nexwatch.feature.onboarding.ui
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nexwatch.core.designsystem.component.EntranceItem
+import com.nexwatch.core.designsystem.component.IconBadge
+import com.nexwatch.core.designsystem.component.NexCard
 import com.nexwatch.core.designsystem.component.PremiumBackground
 import com.nexwatch.core.designsystem.component.PrimaryButton
 import com.nexwatch.core.designsystem.component.SecondaryButton
 import com.nexwatch.core.designsystem.component.StatusChip
 import com.nexwatch.core.designsystem.component.StatusTone
-import com.nexwatch.core.designsystem.theme.WatchMotion
-import com.nexwatch.core.designsystem.theme.WatchShapes
+import com.nexwatch.core.designsystem.component.StepProgressBar
 import com.nexwatch.core.designsystem.theme.WatchTheme
 import com.nexwatch.feature.onboarding.BackgroundTest
 
@@ -46,133 +48,162 @@ fun KeepRunningScreen(
     onTestBackgroundConnection: () -> Unit,
     onDone: () -> Unit,
 ) {
+    // The rows scroll and Done stays pinned below them, so a small screen or a large font can
+    // never push the only way out of onboarding off the bottom.
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        EntranceItem(index = 0) {
-            Text("Keep it running", style = MaterialTheme.typography.headlineSmall)
+        Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            EntranceItem(index = 0) {
+                StepProgressBar(total = ONBOARDING_STEPS, current = 7, modifier = Modifier.padding(bottom = 16.dp))
+            }
+            EntranceItem(index = 1) {
+                Text("Keep it running", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            }
+            EntranceItem(index = 2) {
+                Text(
+                    "Android may stop the app in the background. These settings keep the connection alive.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                )
+            }
+            EntranceItem(index = 3) {
+                NexCard(contentPadding = PaddingValues(0.dp)) {
+                    KeepRunningRow(
+                        icon = Icons.Filled.Bolt,
+                        iconTint = WatchTheme.colors.success,
+                        iconBackground = WatchTheme.colors.success.copy(alpha = 0.14f),
+                        title = "Unrestricted battery use",
+                        description = "Stops Android from pausing the connection.",
+                        trailing = {
+                            if (batteryUnrestricted) {
+                                StatusChip("Allowed", StatusTone.SUCCESS)
+                            } else {
+                                SecondaryButton(
+                                    text = "Allow",
+                                    onClick = onBatteryOptimization,
+                                    modifier = Modifier.compactButton(),
+                                )
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    KeepRunningRow(
+                        icon = Icons.Filled.RestartAlt,
+                        title = "Autostart",
+                        description = "Lets NexWatch start again after a restart.",
+                        hint = "Tecno, Infinix, Xiaomi: Settings > Apps > NexWatch > Autostart > On.",
+                        trailing = {
+                            SecondaryButton(
+                                text = "Enable",
+                                onClick = onAutostartHint,
+                                modifier = Modifier.compactButton(),
+                            )
+                        },
+                    )
+                    HorizontalDivider()
+                    KeepRunningRow(
+                        icon = Icons.Filled.NotificationsActive,
+                        iconTint = WatchTheme.colors.success,
+                        iconBackground = WatchTheme.colors.success.copy(alpha = 0.14f),
+                        title = "Background connection",
+                        description = "Runs a quick check with the app out of view.",
+                        // Pulses only while a test is actually in flight; idle, it would claim a
+                        // live state that doesn't exist.
+                        leading = if (backgroundTest == BackgroundTest.Running) {
+                            { LivePulseDot(color = WatchTheme.colors.success) }
+                        } else {
+                            null
+                        },
+                        trailing = {
+                            if (backgroundTest == BackgroundTest.Running) {
+                                StatusChip("Testing…", StatusTone.INFO)
+                            } else {
+                                SecondaryButton(
+                                    text = if (backgroundTest == BackgroundTest.Idle) "Test" else "Test again",
+                                    onClick = onTestBackgroundConnection,
+                                    modifier = Modifier.compactButton(),
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+            when (backgroundTest) {
+                BackgroundTest.Passed -> EntranceItem(index = 4, modifier = Modifier.padding(top = 12.dp)) {
+                    StatusChip("Sent. Your watch should buzz now.", StatusTone.SUCCESS)
+                }
+                is BackgroundTest.Failed -> EntranceItem(index = 4, modifier = Modifier.padding(top = 12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatusChip("Test failed", StatusTone.WARNING)
+                        Text(
+                            backgroundTest.reason,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                BackgroundTest.Idle, BackgroundTest.Running -> Unit
+            }
         }
-        EntranceItem(index = 1) {
-            Text(
-                "Android may stop the app in the background. These steps keep your watch connected.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-            )
-        }
-        EntranceItem(index = 2) {
-            KeepRunningCard(
-                title = "Allow unrestricted battery use",
-                description = "Prevents Android from pausing the connection.",
-                actionLabel = "Allow",
-                onAction = onBatteryOptimization,
-                done = if (batteryUnrestricted) "Allowed" else null,
-            )
-        }
-        EntranceItem(index = 3) {
-            KeepRunningCard(
-                title = "Enable autostart",
-                description = "Some phones need this turned on manually after a restart.",
-                actionLabel = "Enable",
-                onAction = onAutostartHint,
-                hint = "Tecno / Infinix / Xiaomi: Settings → Apps → NexWatch → Autostart → On.",
-            )
-        }
-        EntranceItem(index = 4) {
-            KeepRunningCard(
-                title = "Test background connection",
-                description = "Sends a test notification to your watch.",
-                actionLabel = if (backgroundTest == BackgroundTest.Running) "Testing…" else "Test",
-                onAction = onTestBackgroundConnection,
-                leading = { LivePulseIndicator() },
-                result = backgroundTest,
-            )
-        }
-        EntranceItem(index = 5, modifier = Modifier.padding(top = 24.dp)) {
+        EntranceItem(index = 5, modifier = Modifier.padding(top = 16.dp)) {
             PrimaryButton(text = "Done", onClick = onDone)
         }
     }
 }
 
 @Composable
-private fun KeepRunningCard(
+private fun KeepRunningRow(
+    icon: ImageVector,
     title: String,
     description: String,
-    actionLabel: String,
-    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    iconBackground: Color = MaterialTheme.colorScheme.surfaceVariant,
     hint: String? = null,
     leading: (@Composable () -> Unit)? = null,
-    done: String? = null,
-    result: BackgroundTest = BackgroundTest.Idle,
+    trailing: @Composable () -> Unit,
 ) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .background(MaterialTheme.colorScheme.surface, WatchShapes.card)
-            .padding(16.dp),
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Column(Modifier.fillMaxWidth()) {
+        IconBadge(icon = icon, tint = iconTint, background = iconBackground)
+        Column(modifier = Modifier.weight(1f)) {
             if (leading != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(bottom = 4.dp),
+                ) {
                     leading()
-                    Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 8.dp))
+                    Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
                 }
             } else {
-                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
             }
-            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-        }
-        if (hint != null) {
-            Box(
-                Modifier
-                    .padding(top = 8.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, WatchShapes.card)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-            ) {
-                Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        when (result) {
-            BackgroundTest.Passed -> StatusChip("Sent. Your watch should buzz now.", StatusTone.SUCCESS, Modifier.padding(top = 12.dp))
-            is BackgroundTest.Failed -> StatusChip(result.reason, StatusTone.WARNING, Modifier.padding(top = 12.dp))
-            BackgroundTest.Idle, BackgroundTest.Running -> Unit
-        }
-        if (done != null) {
-            StatusChip(done, StatusTone.SUCCESS, Modifier.padding(top = 12.dp))
-        } else {
-            SecondaryButton(
-                text = actionLabel,
-                onClick = onAction,
-                enabled = result != BackgroundTest.Running,
-                modifier = Modifier.padding(top = 12.dp),
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (hint != null) {
+                Text(
+                    hint,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            RoundedCornerShape(8.dp),
+                        )
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun LivePulseIndicator() {
-    val transition = rememberInfiniteTransition(label = "livePulse")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200, easing = WatchMotion.easeOutStrong),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "livePulseProgress",
-    )
-    Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .size(8.dp)
-                .scale(0.4f + progress * 1.2f)
-                .alpha((0.9f * (1f - progress)).coerceIn(0f, 1f))
-                .background(WatchTheme.colors.success, CircleShape),
-        )
-        Box(
-            Modifier
-                .size(8.dp)
-                .background(WatchTheme.colors.success, CircleShape),
-        )
+        trailing()
     }
 }
 

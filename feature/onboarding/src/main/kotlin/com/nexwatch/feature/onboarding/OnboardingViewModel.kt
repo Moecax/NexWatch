@@ -3,9 +3,10 @@ package com.nexwatch.feature.onboarding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexwatch.core.data.identity.WatchIdentityStore
+import com.nexwatch.core.data.notification.WatchReachResult
+import com.nexwatch.core.data.notification.WatchReachTest
+import com.nexwatch.feature.onboarding.permissions.PermissionCatalog
 import com.nexwatch.core.watchapi.DiscoveredWatch
-import com.nexwatch.core.watchapi.OutgoingNotification
-import com.nexwatch.core.watchapi.SendResult
 import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +31,8 @@ class OnboardingViewModel @Inject constructor(
 
     private var scanJob: Job? = null
 
+    private val reachTest = WatchReachTest(watchClient)
+
     private val _uiState = MutableStateFlow(OnboardingUiState())
     val uiState: StateFlow<OnboardingUiState> = _uiState.asStateFlow()
 
@@ -48,7 +51,14 @@ class OnboardingViewModel @Inject constructor(
                 if (event.granted) PermissionStatus.GRANTED else PermissionStatus.NOT_GRANTED,
             )
             is OnboardingEvent.PermissionSkipped -> setPermission(event.item, PermissionStatus.SKIPPED)
-            OnboardingEvent.PermissionsContinue -> goTo(OnboardingStep.FindWatch)
+            // Same gate the screen renders: every required item (Nearby devices) is granted.
+            // confirmPair() gates the same way — the ViewModel never trusts the UI alone.
+            OnboardingEvent.PermissionsContinue -> {
+                val ready = PermissionItem.entries
+                    .filterNot { PermissionCatalog.isOptional(it) }
+                    .all { _uiState.value.permissions[it] == PermissionStatus.GRANTED }
+                if (ready) goTo(OnboardingStep.FindWatch)
+            }
 
             OnboardingEvent.StartScan -> startScan()
             is OnboardingEvent.DeviceSelected -> {
@@ -70,23 +80,13 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Sends a real notification through the same path forwarding uses, so a pass means the
-     * service's connection can reach the wrist. It can't prove the app survives being closed;
-     * the battery and autostart cards above are what make that likely.
-     */
     private fun testBackgroundConnection() {
         if (_uiState.value.backgroundTest == BackgroundTest.Running) return
         _uiState.update { it.copy(backgroundTest = BackgroundTest.Running) }
         viewModelScope.launch {
-            val result = if (watchClient.state.value !is WatchState.Ready) {
-                BackgroundTest.Failed("The watch isn't connected. Keep it close and try again.")
-            } else {
-                when (val sent = watchClient.sendNotification(TEST_NOTIFICATION)) {
-                    SendResult.Sent -> BackgroundTest.Passed
-                    is SendResult.Dropped -> BackgroundTest.Failed("The watch is busy syncing. Try again in a moment.")
-                    is SendResult.Failed -> BackgroundTest.Failed("The watch didn't take it: ${sent.reason}")
-                }
+            val result = when (val reach = reachTest.run()) {
+                WatchReachResult.Passed -> BackgroundTest.Passed
+                is WatchReachResult.Failed -> BackgroundTest.Failed(reach.reason)
             }
             _uiState.update { it.copy(backgroundTest = result) }
         }
@@ -207,12 +207,5 @@ class OnboardingViewModel @Inject constructor(
         const val STRONG_RSSI = -60
         const val FAIR_RSSI = -75
         const val PHASE_STEP_DELAY_MS = 300L
-
-        val TEST_NOTIFICATION = OutgoingNotification(
-            sourcePackage = "com.nexwatch",
-            type = OutgoingNotification.NotificationType.OTHERS_APP,
-            title = "NexWatch",
-            content = "Connected. Notifications will reach this watch.",
-        )
     }
 }

@@ -54,5 +54,7 @@ class PermissionCatalogTest {
     fun `only location is optional`() {
         assertTrue(PermissionCatalog.isOptional(PermissionItem.LOCATION))
         assertFalse(PermissionCatalog.isOptional(PermissionItem.BLUETOOTH))
+        assertTrue(PermissionCatalog.isOptional(PermissionItem.PHONE_AND_CONTACTS))
+        assertTrue(PermissionCatalog.isOptional(PermissionItem.NOTIFICATION_ACCESS))
     }
 }
