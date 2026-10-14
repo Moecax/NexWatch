@@ -1,5 +1,6 @@
 package com.nexwatch.core.watchfitcloud
 
+import com.nexwatch.core.watchapi.BloodPressureReference
 import com.nexwatch.core.watchapi.DoNotDisturb
 import com.nexwatch.core.watchapi.DrinkWaterReminder
 import com.nexwatch.core.watchapi.HealthMonitoring
@@ -8,6 +9,7 @@ import com.nexwatch.core.watchapi.MinuteWindow
 import com.nexwatch.core.watchapi.SedentaryReminder
 import com.nexwatch.core.watchapi.WatchAlarm
 import com.nexwatch.core.watchapi.WristRaise
+import com.topstep.fitcloud.sdk.v2.model.config.FcBloodPressureConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDNDConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDrinkWaterConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcHealthMonitorConfig
@@ -71,6 +73,13 @@ class FitCloudSettingsMappersTest {
 
         assertEquals(HeartRateAlert(enabled = true, highBpm = 150, lowBpm = null), withoutLow.toDomain(lowSupported = false))
         assertEquals(wanted, withLow.toDomain(lowSupported = true))
+    }
+
+    @Test
+    fun `blood pressure reference round-trips`() {
+        val wanted = BloodPressureReference(enabled = true, systolic = 128, diastolic = 82)
+
+        assertEquals(wanted, wanted.applyTo(FcBloodPressureConfig.Builder().create()).toDomain())
     }
 
     @Test

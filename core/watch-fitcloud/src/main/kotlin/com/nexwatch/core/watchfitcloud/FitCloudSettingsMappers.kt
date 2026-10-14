@@ -1,5 +1,6 @@
 package com.nexwatch.core.watchfitcloud
 
+import com.nexwatch.core.watchapi.BloodPressureReference
 import com.nexwatch.core.watchapi.DisplayUnits
 import com.nexwatch.core.watchapi.DoNotDisturb
 import com.nexwatch.core.watchapi.DrinkWaterReminder
@@ -10,6 +11,7 @@ import com.nexwatch.core.watchapi.SedentaryReminder
 import com.nexwatch.core.watchapi.WatchAlarm
 import com.nexwatch.core.watchapi.WatchContact
 import com.nexwatch.core.watchapi.WristRaise
+import com.topstep.fitcloud.sdk.v2.model.config.FcBloodPressureConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDNDConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDrinkWaterConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcFunctionConfig
@@ -100,6 +102,19 @@ internal fun HeartRateAlert.applyTo(
     if (lowSupported && low != null) builder.setStaticLowValue(low)
     return builder.create()
 }
+
+internal fun FcBloodPressureConfig.toDomain() = BloodPressureReference(
+    enabled = isEnabled(),
+    systolic = getSbp(),
+    diastolic = getDbp(),
+)
+
+internal fun BloodPressureReference.applyTo(current: FcBloodPressureConfig): FcBloodPressureConfig =
+    FcBloodPressureConfig.Builder(current.copyBytes())
+        .setEnabled(enabled)
+        .setSbp(systolic)
+        .setDbp(diastolic)
+        .create()
 
 internal fun FcTurnWristLightingConfig.toDomain() = WristRaise(
     enabled = isEnabled(),

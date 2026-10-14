@@ -391,6 +391,8 @@ class FitCloudWatchClient @Inject constructor(
                 is WatchSettingChange.SetHeartRateAlert -> config.setHeartRateAlarmConfig(
                     change.value.applyTo(config.getHeartRateAlarmConfig(), config.supports(FcDeviceInfo.Feature.LOW_HEART_RATE_ALARM)),
                 ).await()
+                is WatchSettingChange.SetBloodPressureReference ->
+                    config.setBloodPressureConfig(change.value.applyTo(config.getBloodPressureConfig())).await()
                 is WatchSettingChange.SetWristRaise ->
                     config.setTurnWristLightingConfig(change.value.applyTo(config.getTurnWristLightingConfig())).await()
                 is WatchSettingChange.SetDisplayUnits -> config.setFunctionConfig(
@@ -426,6 +428,9 @@ class FitCloudWatchClient @Inject constructor(
             heartRateAlert = config.getHeartRateAlarmConfig()
                 .takeIf { config.supports(FcDeviceInfo.Feature.HEART_RATE_ALARM) }
                 ?.toDomain(config.supports(FcDeviceInfo.Feature.LOW_HEART_RATE_ALARM)),
+            bloodPressureReference = config.getBloodPressureConfig()
+                .takeIf { config.supports(FcDeviceInfo.Feature.BLOOD_PRESSURE) }
+                ?.toDomain(),
             wristRaise = config.getTurnWristLightingConfig().toDomain(),
             displayUnits = config.getFunctionConfig().toDisplayUnits(),
             contacts = FitCloudSdk.require().contactsAbility.requestContacts().await().map { it.toDomain() }

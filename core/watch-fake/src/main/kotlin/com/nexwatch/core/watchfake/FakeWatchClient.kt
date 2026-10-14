@@ -1,5 +1,6 @@
 package com.nexwatch.core.watchfake
 
+import com.nexwatch.core.watchapi.BloodPressureReference
 import com.nexwatch.core.watchapi.DiscoveredWatch
 import com.nexwatch.core.watchapi.DisplayUnits
 import com.nexwatch.core.watchapi.DoNotDisturb
@@ -181,6 +182,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
             is WatchSettingChange.SetDrinkWaterReminder -> storedSettings.copy(drinkWaterReminder = change.value)
             is WatchSettingChange.SetHealthMonitoring -> storedSettings.copy(healthMonitoring = change.value)
             is WatchSettingChange.SetHeartRateAlert -> storedSettings.copy(heartRateAlert = change.value)
+            is WatchSettingChange.SetBloodPressureReference -> storedSettings.copy(bloodPressureReference = change.value)
             is WatchSettingChange.SetWristRaise -> storedSettings.copy(wristRaise = change.value)
             is WatchSettingChange.SetDisplayUnits -> storedSettings.copy(displayUnits = change.value)
             is WatchSettingChange.SetContacts -> {
@@ -265,6 +267,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
             intervalMinutes = 10,
         ),
         heartRateAlert = HeartRateAlert(enabled = false, highBpm = 160, lowBpm = 40),
+        bloodPressureReference = BloodPressureReference(enabled = false, systolic = 120, diastolic = 80),
         wristRaise = WristRaise(enabled = true, window = MinuteWindow(0, 23 * 60 + 59)),
         displayUnits = DisplayUnits(use24HourClock = true, imperialLength = false, fahrenheit = false),
         contacts = emptyList(),

@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 internal enum class WatchSection {
     REMINDERS,
     HEALTH_MONITORING,
+    BLOOD_PRESSURE_REFERENCE,
     ALARMS,
     WRIST_RAISE,
     UNITS,
@@ -94,6 +95,7 @@ fun WatchRoute(
         )
         WatchSection.REMINDERS -> RemindersScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.HEALTH_MONITORING -> HealthMonitoringScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
+        WatchSection.BLOOD_PRESSURE_REFERENCE -> BloodPressureReferenceScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.ALARMS -> AlarmsScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.WRIST_RAISE -> WristRaiseScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.UNITS -> UnitsScreen(state, back) { viewModel.apply(*it.toTypedArray()) }

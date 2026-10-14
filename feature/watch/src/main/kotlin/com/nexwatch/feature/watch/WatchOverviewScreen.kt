@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Message
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.Bloodtype
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.BluetoothSearching
 import androidx.compose.material.icons.rounded.Cloud
@@ -149,6 +150,17 @@ internal fun WatchOverviewScreen(
                     // Only what this watch reports as supported gets a row (§4.5).
                     if (capabilities == null || capabilities.heartRate) {
                         add { ListRow(Icons.Rounded.MonitorHeart, "Health monitoring", value = monitoringSummary(settings), enabled = !disabled, onClick = { onOpen(WatchSection.HEALTH_MONITORING) }) }
+                    }
+                    // Gated on capabilities like its siblings, so the row is in place (disabled)
+                    // before the settings read lands instead of appearing after it (§4.5).
+                    if (capabilities == null || capabilities.bloodPressure) {
+                        add {
+                            ListRow(
+                                Icons.Rounded.Bloodtype, "Blood pressure reference",
+                                value = bloodPressureSummary(settings),
+                                enabled = !disabled, onClick = { onOpen(WatchSection.BLOOD_PRESSURE_REFERENCE) },
+                            )
+                        }
                     }
                     add { ListRow(Icons.Rounded.DoNotDisturbOn, "Reminders and DND", value = remindersSummary(settings), enabled = !disabled, onClick = { onOpen(WatchSection.REMINDERS) }) }
                     if (capabilities?.alarmLimit != null) {
@@ -356,6 +368,9 @@ private fun remindersSummary(settings: WatchSettings?): String? {
 
 private fun monitoringSummary(settings: WatchSettings?): String? =
     settings?.healthMonitoring?.let { if (it.enabled) "Every ${it.intervalMinutes} min" else "Off" }
+
+private fun bloodPressureSummary(settings: WatchSettings?): String? =
+    settings?.bloodPressureReference?.let { if (it.enabled) "${it.systolic}/${it.diastolic} mmHg" else "Off" }
 
 private fun unitsSummary(settings: WatchSettings?): String? = settings?.displayUnits?.let {
     "${if (it.imperialLength) "Imperial" else "Metric"}, ${if (it.use24HourClock) "24 h" else "12 h"}"
