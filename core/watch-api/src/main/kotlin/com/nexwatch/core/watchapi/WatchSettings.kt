@@ -63,6 +63,16 @@ data class HeartRateAlert(
     val lowBpm: Int?,
 )
 
+/**
+ * The cuff reading the watch scales its own blood pressure estimate against — a calibration
+ * input, not a measurement, so nothing here is ever written to the health tables.
+ */
+data class BloodPressureReference(
+    val enabled: Boolean,
+    val systolic: Int,
+    val diastolic: Int,
+)
+
 data class WristRaise(
     val enabled: Boolean,
     val window: MinuteWindow,
@@ -88,6 +98,7 @@ data class WatchSettings(
     val drinkWaterReminder: DrinkWaterReminder? = null,
     val healthMonitoring: HealthMonitoring? = null,
     val heartRateAlert: HeartRateAlert? = null,
+    val bloodPressureReference: BloodPressureReference? = null,
     val wristRaise: WristRaise? = null,
     val displayUnits: DisplayUnits? = null,
     val contacts: List<WatchContact>? = null,
@@ -105,6 +116,7 @@ sealed interface WatchSettingChange {
     data class SetDrinkWaterReminder(val value: DrinkWaterReminder) : WatchSettingChange
     data class SetHealthMonitoring(val value: HealthMonitoring) : WatchSettingChange
     data class SetHeartRateAlert(val value: HeartRateAlert) : WatchSettingChange
+    data class SetBloodPressureReference(val value: BloodPressureReference) : WatchSettingChange
     data class SetWristRaise(val value: WristRaise) : WatchSettingChange
     data class SetDisplayUnits(val value: DisplayUnits) : WatchSettingChange
     data class SetContacts(val value: List<WatchContact>) : WatchSettingChange

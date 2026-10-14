@@ -546,6 +546,7 @@ Each phase is one branch, cut from `main` after the previous phase has merged, a
 | 9 | Sync framework & Health Connect (M6) | `phase-9-sync` | Done |
 | 10 | Extras and hardening (M7) | `phase-10-hardening` | In progress (soak only) |
 | 11 | Main tabs redesign | `phase-11-main-tabs` | In progress |
+| 12 | Watchfaces | `phase-12-watchfaces` | Not started (needs `sync-fixes` merged; decisions recorded below) |
 
 Status values: `Not started` → `In progress` → `Blocked (reason)` → `Done`. A phase is `Done` only when every row of its exit criteria is checked, not when the code merely compiles.
 
@@ -1121,7 +1122,44 @@ does.
 - No Settings screen and no metric detail screens yet, so the design's settings icon and tile chevrons are left
   out.
 - No sport-type name mapping, so every workout is labelled "Workout".
-- Manrope isn't bundled. The tabs use the system sans with tabular figures.
+- ~~Manrope isn't bundled.~~ Done on `sync-fixes`: Manrope (Regular to ExtraBold) is bundled in `:core:designsystem` and set on every typography style; licence in `third_party/manrope/OFL.txt`.
+
+### Phase 12 — Watchfaces
+
+Push a custom watchface to the GTR 3 Pro and browse and install the vendor's store faces. Detailed plan:
+`docs/superpowers/plans/2026-10-14-sync-bp-watchfaces.md` Part C, including the SDK API table and the vendor
+server's endpoints. **Starts only after `sync-fixes` has merged to `main`**, so the sync hardening in Part A is
+already on the watch and its "sync waits behind a push" reasoning is settled.
+
+**Decisions (answered by the user, 2026-10-14).**
+
+| # | Decision | Answer |
+|---|---|---|
+| D1 | Network access to the vendor server | **Yes, scoped.** `INTERNET` is added and used only from the watchface screen, only on user action, over HTTPS to `fitcloud.hetangsmart.com`. Each download is cached to `filesDir/watchfaces/<sha-of-url>` so the network is used once per file. §10.1 and §10.2 are updated to say so. |
+| D2 | Vendor `ext-realtek-dfu` | **Yes.** Taken from the vendor repo at `7409d0f` — the same commit as the vendored 3.0.2.4 SDK, so no compatibility check and no SDK upgrade is needed. Hand-made POM, SHA-256 in `gradle/verification-metadata.xml`, provenance row in `third_party/maven/README.md`, `com.realsil.sdk.**` keep rules on `:core:watch-fitcloud` only. |
+| D3 | A push replaces the current face | **Yes, with a restore.** The push flow says so up front, and the original dial number (currently store dial 114003) is persisted the first time the slots are read, so "Restore original face" always re-pushes what was there before. |
+| D4 | Scope | **Both.** (a) custom backgrounds from a phone photo, with a chosen clock style and position, **and** (b) browsing and installing the vendor's store catalogue. Store faces are cached and installed the same way as a custom one; replace-and-restore applies to both. |
+| D5 | Design for the watchface screens | **Minimal functional first.** Built from the existing `:core:designsystem` components and the theme, with no new tokens and no new design file. A polished HTML reference under `docs/design/` is a follow-up; when it lands, the screens are restyled to it without changing the flow. |
+
+**Known constraint to carry into the work.** Of the watch's four dial slots only one accepts a push, and it holds
+the face currently on screen. A push therefore always replaces it, and the watch reboots its UI after DFU, so the
+post-push `setDialComponent()` waits for the SDK to rebuild `WatchState.Ready` (no reconnect logic is written —
+`FcConnector` owns that).
+
+**Exit criteria**
+- [ ] D1–D5 recorded (above). `ext-realtek-dfu` vendored with checksums and verification metadata; `assembleDebug
+      assembleRelease test lint` pass; `third_party/maven/README.md`'s "Not vendored" section and §10.1/§10.2
+      updated.
+- [ ] Re-pushing the face already on the watch (114003) succeeds on the real watch, and the watch reconnects
+      with the app doing nothing.
+- [ ] A custom face from a phone photo, with a chosen style and position, appears on the watch and survives a
+      watch reboot.
+- [ ] A store face can be browsed, previewed and installed, and appears on the watch.
+- [ ] Restore original works after a custom push and after a store install.
+- [ ] A push started under 30% battery is refused in the UI. A push interrupted by turning Bluetooth off fails
+      with a clear message, and a retry succeeds.
+- [ ] No network request is made unless the user is on the watchface screen (checked with PCAPdroid or logcat).
+- [ ] The user reviews and merges.
 
 ### Not scheduled yet
 
@@ -1135,7 +1173,23 @@ Known work that no phase owns yet. Turn items into a phase (with a branch and ex
   (§8.7, needs a weather source and a location decision), and display brightness and timeout.
 - **Notification extras from §8.5:** coalescing a burst into "3 new messages" (the throttle drops them today), and
   the optional "don't forward while I'm using my phone".
-- **Postponed by the user:** custom watchfaces (Phase 10 has the requirements). Firmware update is dropped.
+- **Sync and blood-pressure fixes (`sync-fixes`, PR open, waiting on the user to merge):** a stalled or failing
+  watch sync wedged every later sync silently, and on-watch BP measurements (`blood_pressure_measure`) were
+  journalled but never decoded. Plan: `docs/superpowers/plans/2026-10-14-sync-bp-watchfaces.md` Parts A and B.
+  What landed: the SDK sync stream has an inactivity timeout and a hard cap, and turns the SDK's busy and
+  disconnect failures into the app's own exception types. `WatchSync` wraps each run in a guard timeout, so no run
+  holds its queue mutex longer than the client allows. Every outcome is written in one DataStore edit as
+  `lastSyncAttemptAt`/`lastSyncError`, and shown on Today and the Watch tab as "Sync failed · {reason}", where the
+  reason is always a sentence, never an exception name. The journal is normalised even when the watch sync fails.
+  Syncs trigger on the Ready transition and on opening the app, not on every battery report. `blood_pressure_measure`
+  is decoded (blood pressure and the heart rate taken with it; a zero pressure drops the whole sample), and the
+  readings already thrown away are recovered once per install by returning their journal rows to the queue. B4
+  adds a reference-BP setting under Watch. The debug screen can make the fake watch's next sync hang or fail.
+  **Still open, because it needs the real watch:** A0's diagnosis of what a sync actually does on hardware (no
+  phone was available, so the root cause is unconfirmed; the guards hold either way), the overnight catch-up, and a
+  manual on-watch reading reaching Today and Health Connect.
+- **Watchfaces** are now Phase 12, planned in the same file (Part C). That work starts only after `sync-fixes`
+  merges. Firmware update is still dropped.
 - **Checks that need more real data:** the Phase 6 decoder mappings, the calorie scale and resting heart rate,
   a sleep-session replay test, the Phase 7 round trip with real data, a workout sport-type mapping for Health
   Connect, and §14 Q1, Q2 and Q5. Health monitoring was off on the watch until now, which is why there was no

@@ -10,6 +10,7 @@ import com.nexwatch.core.database.RawIngestDao
 import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.SyncProgress
 import com.nexwatch.core.watchapi.WatchState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -30,6 +31,7 @@ class HealthSyncCoordinator @Inject constructor(
     private val syncScheduler: SyncScheduler,
     private val identityStore: WatchIdentityStore,
     private val deviceRecorder: DeviceRecorder,
+    private val bpMeasureReprocess: BpMeasureReprocess,
 ) {
     suspend fun syncAndNormalize(onProgress: (SyncProgress) -> Unit = {}): Result<Set<String>> = runCatching {
         if (watchClient.state.first() !is WatchState.Ready) return@runCatching emptySet()
@@ -37,10 +39,21 @@ class HealthSyncCoordinator @Inject constructor(
             deviceRecorder.record(address, watchClient.capabilities.value?.firmwareVersion)
         }
 
-        watchClient.syncHealthData().collect { progress ->
-            progress.batch?.let { journalRepository.append(it) }
-            onProgress(progress)
+        // I2: what reached the journal before a failure is already safe, so it is normalised
+        // either way and the sync's own failure is reported afterwards. The one-time BP replay
+        // rides along for the same reason: it must not wait for a sync that never succeeds.
+        val syncFailure = try {
+            watchClient.syncHealthData().collect { progress ->
+                progress.batch?.let { journalRepository.append(it) }
+                onProgress(progress)
+            }
+            null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e
         }
+        bpMeasureReprocess.runOnce()
         val affectedDates = normalizer.processUnprocessed()
         val device = deviceDao.observeMostRecentlyBound().first()
         if (device != null && affectedDates.isNotEmpty()) {
@@ -48,6 +61,7 @@ class HealthSyncCoordinator @Inject constructor(
         }
         if (affectedDates.isNotEmpty()) syncScheduler.enqueueEnabled()
         rawIngestDao.pruneProcessedBefore(System.currentTimeMillis() - JOURNAL_RETENTION_MS)
+        syncFailure?.let { throw it }
         affectedDates
     }
 }

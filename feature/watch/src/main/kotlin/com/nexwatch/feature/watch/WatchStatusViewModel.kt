@@ -19,6 +19,8 @@ data class WatchStatusUiState(
     val syncing: Boolean = false,
     val lastSyncMs: Long? = null,
     val lastConnectedMs: Long? = null,
+    /** Why the most recent sync attempt failed, and only while nothing has resolved it since. */
+    val lastSyncError: String? = null,
 )
 
 /** The phone-side facts in the Watch tab's header, kept apart from the watch's own settings. */
@@ -35,6 +37,7 @@ class WatchStatusViewModel @Inject constructor(
             syncing = sync is WatchSyncStatus.Running,
             lastSyncMs = diag.lastSyncAt,
             lastConnectedMs = diag.lastConnectedAt,
+            lastSyncError = diag.unresolvedSyncError,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WatchStatusUiState())
 

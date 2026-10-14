@@ -74,6 +74,12 @@ fun WatchDebugScreen(
                 }
             }
         }
+        // The fake is the only client that reads these hooks; against the real watch they're inert.
+        Row(modifier = Modifier.padding(top = 16.dp)) {
+            Button(onClick = viewModel::armNextSyncToHang) { Text("Next sync hangs") }
+            Spacer(Modifier.padding(horizontal = 4.dp))
+            Button(onClick = viewModel::armNextSyncToFail) { Text("Next sync fails") }
+        }
         Text(
             text = "Diagnostics",
             style = MaterialTheme.typography.titleMedium,
@@ -81,6 +87,8 @@ fun WatchDebugScreen(
         )
         Text("Last connected: ${diagnostics.lastConnectedAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Never"}")
         Text("Last sync: ${diagnostics.lastSyncAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Never"}")
+        Text("Last sync attempt: ${diagnostics.lastSyncAttemptAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Never"}")
+        Text("Last sync error: ${diagnostics.lastSyncError ?: "None"}")
         Text("Last notification forwarded: ${diagnostics.lastNotificationForwardedAt?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "Never"}")
     }
 }

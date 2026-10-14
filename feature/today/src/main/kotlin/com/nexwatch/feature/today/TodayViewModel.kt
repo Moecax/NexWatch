@@ -36,7 +36,7 @@ class TodayViewModel @Inject constructor(
     summaries: DailySummaryRepository,
     health: HealthRepository,
     private val watchClient: WatchClient,
-    diagnostics: DiagnosticsStore,
+    private val diagnostics: DiagnosticsStore,
     private val watchSync: WatchSync,
     forwardingPrefs: NotificationForwardingPrefs,
     private val identityStore: WatchIdentityStore,
@@ -49,6 +49,15 @@ class TodayViewModel @Inject constructor(
 
     fun onResume() {
         today.value = LocalDate.now(zone)
+        // A resume is an event, not a poll (invariant 5): the user is looking at the numbers
+        // right now, so a link that is up but stale is worth refreshing on the spot.
+        viewModelScope.launch {
+            if (watchClient.state.first() !is WatchState.Ready) return@launch
+            val lastSyncAt = diagnostics.snapshot.first().lastSyncAt
+            if (lastSyncAt == null || System.currentTimeMillis() - lastSyncAt > FIFTEEN_MIN_MS) {
+                watchSync.requestSync()
+            }
+        }
     }
 
     private val link = combine(watchClient.state, diagnostics.snapshot, identityStore.identity) { state, diag, identity ->
@@ -63,7 +72,12 @@ class TodayViewModel @Inject constructor(
     }
 
     private val status = combine(link, watchSync.status, diagnostics.snapshot) { link, sync, diag ->
-        Triple(link, (sync as? WatchSyncStatus.Running)?.let { SyncState(it.fraction, it.dataType) }, diag.lastSyncAt)
+        PhoneStatus(
+            link = link,
+            sync = (sync as? WatchSyncStatus.Running)?.let { SyncState(it.fraction, it.dataType) },
+            lastSyncMs = diag.lastSyncAt,
+            syncError = diag.unresolvedSyncError,
+        )
     }
 
     private val dayData = today.flatMapLatest { day ->
@@ -102,12 +116,13 @@ class TodayViewModel @Inject constructor(
         ) { spo2, low, bp, workout, caps -> Vitals(spo2, low, bp, workout, caps?.spo2 != false, caps?.bloodPressure != false) }
     }
 
-    val uiState: StateFlow<TodayUiState> = combine(status, dayData, vitals) { (link, sync, lastSync), day, v ->
+    val uiState: StateFlow<TodayUiState> = combine(status, dayData, vitals) { phone, day, v ->
         TodayUiState(
             loading = false,
-            link = link,
-            sync = sync,
-            lastSyncMs = lastSync,
+            link = phone.link,
+            sync = phone.sync,
+            lastSyncMs = phone.lastSyncMs,
+            lastSyncError = phone.syncError,
             dayStartMs = day.startMs,
             activity = day.activity,
             heart = day.heart,
@@ -146,6 +161,13 @@ class TodayViewModel @Inject constructor(
             }
         }
     }
+
+    private data class PhoneStatus(
+        val link: WatchLink,
+        val sync: SyncState?,
+        val lastSyncMs: Long?,
+        val syncError: String?,
+    )
 
     private data class DayData(
         val startMs: Long,

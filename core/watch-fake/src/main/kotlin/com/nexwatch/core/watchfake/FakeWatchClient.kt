@@ -1,5 +1,6 @@
 package com.nexwatch.core.watchfake
 
+import com.nexwatch.core.watchapi.BloodPressureReference
 import com.nexwatch.core.watchapi.DiscoveredWatch
 import com.nexwatch.core.watchapi.DisplayUnits
 import com.nexwatch.core.watchapi.DoNotDisturb
@@ -26,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -114,6 +116,14 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         mutex.withLock {
             val ready = _state.value
             if (ready !is WatchState.Ready) throw WatchNotReadyException(ready)
+            nextSyncError?.let { error ->
+                nextSyncError = null
+                throw error
+            }
+            if (nextSyncHangs) {
+                nextSyncHangs = false
+                awaitCancellation()
+            }
             val total = SIMULATED_DATA_TYPES.size
             SIMULATED_DATA_TYPES.forEachIndexed { index, dataType ->
                 delay(SYNC_ITEM_DELAY_MS)
@@ -172,6 +182,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
             is WatchSettingChange.SetDrinkWaterReminder -> storedSettings.copy(drinkWaterReminder = change.value)
             is WatchSettingChange.SetHealthMonitoring -> storedSettings.copy(healthMonitoring = change.value)
             is WatchSettingChange.SetHeartRateAlert -> storedSettings.copy(heartRateAlert = change.value)
+            is WatchSettingChange.SetBloodPressureReference -> storedSettings.copy(bloodPressureReference = change.value)
             is WatchSettingChange.SetWristRaise -> storedSettings.copy(wristRaise = change.value)
             is WatchSettingChange.SetDisplayUnits -> storedSettings.copy(displayUnits = change.value)
             is WatchSettingChange.SetContacts -> {
@@ -206,6 +217,10 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         val current = _state.value
         if (current is WatchState.Ready) _state.value = WatchState.Ready(battery = fakeBattery)
     }
+
+    override var nextSyncHangs: Boolean = false
+
+    override var nextSyncError: Throwable? = null
 
     private fun requireReady() {
         val current = _state.value
@@ -252,6 +267,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
             intervalMinutes = 10,
         ),
         heartRateAlert = HeartRateAlert(enabled = false, highBpm = 160, lowBpm = 40),
+        bloodPressureReference = BloodPressureReference(enabled = false, systolic = 120, diastolic = 80),
         wristRaise = WristRaise(enabled = true, window = MinuteWindow(0, 23 * 60 + 59)),
         displayUnits = DisplayUnits(use24HourClock = true, imperialLength = false, fahrenheit = false),
         contacts = emptyList(),

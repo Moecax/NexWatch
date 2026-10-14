@@ -39,6 +39,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nexwatch.core.designsystem.theme.Manrope
 import com.nexwatch.core.designsystem.theme.Midnight
 import com.nexwatch.core.designsystem.theme.WatchShapes
 import com.nexwatch.core.designsystem.theme.WatchTheme
@@ -137,6 +138,7 @@ fun MetricText(
 }
 
 fun metricStyle(size: TextUnit): TextStyle = TextStyle(
+    fontFamily = Manrope,
     fontSize = size,
     fontWeight = FontWeight.Bold,
     letterSpacing = (-0.02 * size.value).sp,

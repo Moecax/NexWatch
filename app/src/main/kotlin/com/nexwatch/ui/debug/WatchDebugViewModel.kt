@@ -62,6 +62,15 @@ class WatchDebugViewModel @Inject constructor(
 
     fun forceState(state: WatchState) = debugController.forceState(state)
 
+    /** One-shot on the fake client: only the next sync hangs, so the guard can be watched. */
+    fun armNextSyncToHang() {
+        debugController.nextSyncHangs = true
+    }
+
+    fun armNextSyncToFail() {
+        debugController.nextSyncError = IllegalStateException("simulated sync failure")
+    }
+
     val diagnostics: StateFlow<DiagnosticsSnapshot> = diagnosticsStore.snapshot.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

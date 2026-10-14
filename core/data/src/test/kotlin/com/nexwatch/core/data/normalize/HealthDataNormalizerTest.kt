@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -95,6 +96,25 @@ class HealthDataNormalizerTest {
         val remaining = db.rawIngestDao().findUnprocessedDataTypes()
         assertEquals(listOf("step"), remaining)
 
+        db.close()
+    }
+
+    @Test
+    fun `normalizing with no bound watch throws instead of silently doing nothing`() = runTest(dispatcher) {
+        val db = inMemoryTestDatabase()
+        db.rawIngestDao().insert(
+            RawIngestEntity(receivedAt = 0, sdkVersion = "3.0.2.4", dataType = "step", payloadJson = "[]"),
+        )
+        val normalizer = HealthDataNormalizer(db, FakeDecoder(emptyList()), dispatchers)
+
+        try {
+            normalizer.processUnprocessed()
+            fail("expected NoBoundWatchException")
+        } catch (_: NoBoundWatchException) {
+            // The row stays unprocessed, so the next run with a bound watch still picks it up.
+        }
+
+        assertEquals(listOf("step"), db.rawIngestDao().findUnprocessedDataTypes())
         db.close()
     }
 }

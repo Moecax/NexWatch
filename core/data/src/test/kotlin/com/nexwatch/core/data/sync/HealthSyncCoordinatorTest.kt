@@ -3,6 +3,8 @@ package com.nexwatch.core.data.sync
 import com.nexwatch.core.data.journal.JournalRepository
 import com.nexwatch.core.data.normalize.DailySummaryAggregator
 import com.nexwatch.core.data.normalize.HealthDataNormalizer
+import com.nexwatch.core.database.RawIngestDao
+import com.nexwatch.core.database.RawIngestEntity
 import com.nexwatch.core.database.inMemoryTestDatabase
 import com.nexwatch.core.watchapi.HealthDataDecoder
 import com.nexwatch.core.watchfake.FakeWatchClient
@@ -34,6 +36,7 @@ class HealthSyncCoordinatorTest {
             NoopSyncScheduler,
             identityStore(this),
             DeviceRecorder(db.deviceDao(), testDispatchers(this)),
+            BpMeasureReprocess(InMemoryPreferences(), db.rawIngestDao(), testDispatchers(this)),
         )
 
         val result = coordinator.syncAndNormalize()
@@ -58,6 +61,7 @@ class HealthSyncCoordinatorTest {
             NoopSyncScheduler,
             identity,
             DeviceRecorder(db.deviceDao(), testDispatchers(this)),
+            BpMeasureReprocess(InMemoryPreferences(), db.rawIngestDao(), testDispatchers(this)),
         )
 
         assertTrue(coordinator.syncAndNormalize().isSuccess)
@@ -68,6 +72,98 @@ class HealthSyncCoordinatorTest {
         // With a device row present the journal is processed, not left waiting for one.
         assertTrue(db.rawIngestDao().findUnprocessedDataTypes().isEmpty())
         db.close()
+    }
+
+    @Test
+    fun `replays the blood pressure measurements the old decoder dropped, once per install`() = runTest {
+        val db = inMemoryTestDatabase()
+        val rawDao = CountingRawIngestDao(db.rawIngestDao())
+        val fakeClient = FakeWatchClient().apply { forceState(WatchState.Ready(battery = 80)) }
+        val coordinator = HealthSyncCoordinator(
+            fakeClient,
+            JournalRepository(db.rawIngestDao(), testDispatchers(this)),
+            HealthDataNormalizer(db, noopDecoder(), testDispatchers(this)),
+            DailySummaryAggregator(db, testDispatchers(this)),
+            db.deviceDao(),
+            rawDao,
+            NoopSyncScheduler,
+            identityStore(this).apply { markBound("AA:BB:CC:DD:EE:FF") },
+            DeviceRecorder(db.deviceDao(), testDispatchers(this)),
+            BpMeasureReprocess(InMemoryPreferences(), rawDao, testDispatchers(this)),
+        )
+        // The state every measurement the watch has ever taken was left in: a row the decoder
+        // read as nothing and then marked as handled.
+        rawDao.insert(
+            RawIngestEntity(
+                receivedAt = 1_000L,
+                sdkVersion = "0",
+                dataType = "blood_pressure_measure",
+                payloadJson = "[]",
+                processedAt = 2_000L,
+            ),
+        )
+
+        assertTrue(coordinator.syncAndNormalize().isSuccess)
+
+        assertEquals(1, rawDao.markUnprocessedCalls)
+        // Back in the queue means the same run picked it up again and marked it handled.
+        assertTrue(rawDao.findUnprocessedDataTypes().isEmpty())
+
+        assertTrue(coordinator.syncAndNormalize().isSuccess)
+
+        assertEquals(1, rawDao.markUnprocessedCalls)
+        assertTrue(rawDao.findUnprocessedDataTypes().isEmpty())
+        db.close()
+    }
+
+    @Test
+    fun `a sync that fails still normalises what the journal already holds, then reports the failure`() = runTest {
+        val db = inMemoryTestDatabase()
+        val fakeClient = FakeWatchClient().apply {
+            forceState(WatchState.Ready(battery = 80))
+            nextSyncError = IllegalStateException("sync refused")
+        }
+        val coordinator = HealthSyncCoordinator(
+            fakeClient,
+            JournalRepository(db.rawIngestDao(), testDispatchers(this)),
+            HealthDataNormalizer(db, noopDecoder(), testDispatchers(this)),
+            DailySummaryAggregator(db, testDispatchers(this)),
+            db.deviceDao(),
+            db.rawIngestDao(),
+            NoopSyncScheduler,
+            identityStore(this).apply { markBound("AA:BB:CC:DD:EE:FF") },
+            DeviceRecorder(db.deviceDao(), testDispatchers(this)),
+            BpMeasureReprocess(InMemoryPreferences(), db.rawIngestDao(), testDispatchers(this)),
+        )
+        // Journalled by an earlier sync that died before it could normalise.
+        db.rawIngestDao().insert(RawIngestEntity(receivedAt = 1_000L, sdkVersion = "0", dataType = "heart_rate", payloadJson = "[]"))
+
+        val result = coordinator.syncAndNormalize()
+
+        assertTrue(result.isFailure)
+        assertEquals("sync refused", result.exceptionOrNull()?.message)
+        assertTrue(db.rawIngestDao().findUnprocessedDataTypes().isEmpty())
+        db.close()
+    }
+}
+
+/** Counts the one call this test is about and forwards everything else untouched. */
+private class CountingRawIngestDao(private val delegate: RawIngestDao) : RawIngestDao {
+    var markUnprocessedCalls = 0
+
+    override suspend fun insert(row: RawIngestEntity): Long = delegate.insert(row)
+
+    override suspend fun findUnprocessed(dataType: String): List<RawIngestEntity> = delegate.findUnprocessed(dataType)
+
+    override suspend fun findUnprocessedDataTypes(): List<String> = delegate.findUnprocessedDataTypes()
+
+    override suspend fun update(row: RawIngestEntity) = delegate.update(row)
+
+    override suspend fun pruneProcessedBefore(beforeMs: Long): Int = delegate.pruneProcessedBefore(beforeMs)
+
+    override suspend fun markUnprocessed(dataType: String): Int {
+        markUnprocessedCalls++
+        return delegate.markUnprocessed(dataType)
     }
 }
 

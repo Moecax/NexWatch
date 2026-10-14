@@ -7,6 +7,7 @@ import com.nexwatch.core.model.WorkoutHrPoint
 import com.nexwatch.core.model.WorkoutRoutePoint
 import com.nexwatch.core.watchapi.HealthDataDecoder
 import com.topstep.fitcloud.sdk.v2.model.data.FcBloodPressureData
+import com.topstep.fitcloud.sdk.v2.model.data.FcBloodPressureMeasureData
 import com.topstep.fitcloud.sdk.v2.model.data.FcGpsData
 import com.topstep.fitcloud.sdk.v2.model.data.FcHeartRateData
 import com.topstep.fitcloud.sdk.v2.model.data.FcOxygenData
@@ -59,7 +60,8 @@ internal fun dispatchDecode(dataType: String, syncData: FcSyncData): List<Decode
     "oxygen", "oxygen_measure" ->
         (if (dataType == "oxygen") syncData.toOxygen() else syncData.toOxygenMeasure())
             .orEmpty().map { it.toDecodedSpo2() }
-    "blood_pressure" -> syncData.toBloodPressure().orEmpty().map { it.toDecodedBloodPressure() }
+    "blood_pressure" -> syncData.toBloodPressure().orEmpty().flatMap { it.toDecodedRecords() }
+    "blood_pressure_measure" -> syncData.toBloodPressureMeasure().orEmpty().flatMap { it.toDecodedRecords() }
     "temperature", "temperature_measure" ->
         (if (dataType == "temperature") syncData.toTemperature() else syncData.toTemperatureMeasure())
             .orEmpty().map { it.toDecodedTemperature() }
@@ -105,8 +107,29 @@ internal fun FcHeartRateData.toDecodedHeartRate() = DecodedHealthRecord.HeartRat
 
 internal fun FcOxygenData.toDecodedSpo2() = DecodedHealthRecord.Spo2(atMs = timestamp, percent = oxygen)
 
-internal fun FcBloodPressureData.toDecodedBloodPressure() =
-    DecodedHealthRecord.BloodPressure(atMs = timestamp, systolic = sbp, diastolic = dbp)
+/**
+ * A zero in either field is a failed measurement rather than a value, so it records nothing
+ * instead of storing a 0/0 reading the chart would read as real.
+ */
+internal fun FcBloodPressureData.toDecodedRecords(): List<DecodedHealthRecord> =
+    if (sbp == 0 || dbp == 0) {
+        emptyList()
+    } else {
+        listOf(DecodedHealthRecord.BloodPressure(atMs = timestamp, systolic = sbp, diastolic = dbp))
+    }
+
+/**
+ * An on-watch BP measurement also samples heart rate, so one measurement becomes two records,
+ * each under its own table. The heart rate is dropped with the reading it was taken alongside
+ * when the pressure is zero — a failed measurement takes its whole sample with it.
+ */
+internal fun FcBloodPressureMeasureData.toDecodedRecords(): List<DecodedHealthRecord> {
+    if (sbp == 0 || dbp == 0) return emptyList()
+    return listOfNotNull(
+        DecodedHealthRecord.BloodPressure(atMs = timestamp, systolic = sbp, diastolic = dbp),
+        heartRate.takeIf { it > 0 }?.let { DecodedHealthRecord.HeartRate(atMs = timestamp, bpm = it) },
+    )
+}
 
 /** Not supported on the GTR 3 Pro (docs/recon.md §1) — mapping unverified against real hardware. */
 internal fun FcTemperatureData.toDecodedTemperature() = DecodedHealthRecord.Temperature(

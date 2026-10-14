@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Message
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.Bloodtype
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.BluetoothSearching
 import androidx.compose.material.icons.rounded.Cloud
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Troubleshoot
 import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material3.Icon
@@ -149,6 +151,17 @@ internal fun WatchOverviewScreen(
                     if (capabilities == null || capabilities.heartRate) {
                         add { ListRow(Icons.Rounded.MonitorHeart, "Health monitoring", value = monitoringSummary(settings), enabled = !disabled, onClick = { onOpen(WatchSection.HEALTH_MONITORING) }) }
                     }
+                    // Gated on capabilities like its siblings, so the row is in place (disabled)
+                    // before the settings read lands instead of appearing after it (§4.5).
+                    if (capabilities == null || capabilities.bloodPressure) {
+                        add {
+                            ListRow(
+                                Icons.Rounded.Bloodtype, "Blood pressure reference",
+                                value = bloodPressureSummary(settings),
+                                enabled = !disabled, onClick = { onOpen(WatchSection.BLOOD_PRESSURE_REFERENCE) },
+                            )
+                        }
+                    }
                     add { ListRow(Icons.Rounded.DoNotDisturbOn, "Reminders and DND", value = remindersSummary(settings), enabled = !disabled, onClick = { onOpen(WatchSection.REMINDERS) }) }
                     if (capabilities?.alarmLimit != null) {
                         add {
@@ -230,6 +243,7 @@ private fun Hero(state: WatchSettingsUiState, status: WatchStatusUiState, ringin
                 }
                 ConnectionChip(state.watchState, Modifier.padding(top = 10.dp))
                 (state.watchState as? WatchState.Ready)?.battery?.let { BatteryBar(it) }
+                SyncFailureLine(status, Modifier.padding(top = 12.dp))
             }
         }
     }
@@ -244,6 +258,27 @@ private fun ConnectionChip(watchState: WatchState, modifier: Modifier = Modifier
         WatchState.BluetoothOff -> StatusChip("Bluetooth is off", StatusTone.WARNING, modifier, icon = Icons.Rounded.BluetoothDisabled)
         is WatchState.AuthFailed -> StatusChip("Signed in elsewhere", StatusTone.ERROR, modifier)
         WatchState.Unbound -> StatusChip("Not paired", StatusTone.NEUTRAL, modifier)
+    }
+}
+
+/**
+ * The Watch tab's version of the Today strip's sync line. The warning tone never carries the
+ * meaning on its own (§7): the icon and the word "failed" do too, and the Sync now button
+ * below stays enabled so the sentence has an answer.
+ */
+@Composable
+private fun SyncFailureLine(status: WatchStatusUiState, modifier: Modifier = Modifier) {
+    val error = status.lastSyncError
+    if (error == null || status.syncing) return
+    val warning = WatchTheme.colors.warning
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Rounded.Warning, contentDescription = null, tint = warning, modifier = Modifier.size(16.dp))
+        Text(
+            "Sync failed · $error",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            color = warning,
+            modifier = Modifier.padding(start = 6.dp),
+        )
     }
 }
 
@@ -333,6 +368,9 @@ private fun remindersSummary(settings: WatchSettings?): String? {
 
 private fun monitoringSummary(settings: WatchSettings?): String? =
     settings?.healthMonitoring?.let { if (it.enabled) "Every ${it.intervalMinutes} min" else "Off" }
+
+private fun bloodPressureSummary(settings: WatchSettings?): String? =
+    settings?.bloodPressureReference?.let { if (it.enabled) "${it.systolic}/${it.diastolic} mmHg" else "Off" }
 
 private fun unitsSummary(settings: WatchSettings?): String? = settings?.displayUnits?.let {
     "${if (it.imperialLength) "Imperial" else "Metric"}, ${if (it.use24HourClock) "24 h" else "12 h"}"

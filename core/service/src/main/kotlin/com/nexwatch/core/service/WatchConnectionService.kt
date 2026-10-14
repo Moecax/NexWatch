@@ -25,6 +25,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -127,16 +128,20 @@ class WatchConnectionService : Service() {
     private fun observeSyncTriggers() {
         scope.launch {
             watchClient.state
+                // The transition to Ready, not every Ready emission: the state is a StateFlow
+                // that re-emits on each battery report, and queueing a sync per report would
+                // keep the bus busy enough that the user's own "Sync now" waits behind it.
+                .map { it is WatchState.Ready }
+                .distinctUntilChanged()
                 .debounce(5_000)
+                .filter { it }
                 // Plain collect, not collectLatest: syncAndNormalize() marks raw_ingest rows
                 // processed before it aggregates them, so cancelling it mid-run (as collectLatest
                 // would on a later state change) can leave daily_summary silently stale for a
                 // date whose rows are already marked processed. A running sync must finish.
-                .collect { state ->
-                    if (state is WatchState.Ready) {
-                        watchSync.run()
-                        WatchSyncWorker.enqueueCatchUp(applicationContext)
-                    }
+                .collect {
+                    watchSync.run()
+                    WatchSyncWorker.enqueueCatchUp(applicationContext)
                 }
         }
     }

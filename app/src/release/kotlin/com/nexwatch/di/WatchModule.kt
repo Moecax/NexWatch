@@ -34,6 +34,8 @@ abstract class WatchModule {
         fun provideWatchDebugController(): WatchDebugController = object : WatchDebugController {
             override fun forceState(state: WatchState) = Unit
             override fun forceBattery(percent: Int) = Unit
+            override var nextSyncHangs: Boolean = false
+            override var nextSyncError: Throwable? = null
         }
     }
 }

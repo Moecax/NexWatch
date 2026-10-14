@@ -33,3 +33,6 @@ class WatchNotReadyException(val state: WatchState) :
  */
 class WatchCommandTimeoutException(val operation: String) :
     RuntimeException("Watch command timed out: $operation")
+
+/** The watch is already in a sync that this client didn't start, or the SDK refused a second one. */
+class WatchSyncBusyException : RuntimeException("watch is already syncing")

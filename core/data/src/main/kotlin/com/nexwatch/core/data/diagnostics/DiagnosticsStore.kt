@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.data.di.DiagnosticsDataStore
 import kotlinx.coroutines.flow.Flow
@@ -19,10 +20,18 @@ data class DiagnosticsSnapshot(
     val lastConnectedAt: Long?,
     val lastSyncAt: Long?,
     val lastNotificationForwardedAt: Long?,
+    /** When the last sync attempt ended, whether or not it succeeded. */
+    val lastSyncAttemptAt: Long? = null,
+    /** Why that attempt failed. Cleared by the next successful sync. */
+    val lastSyncError: String? = null,
     /** The local day [forwardedOnDayCount] belongs to. Only one day is kept. */
     val forwardedDay: LocalDate? = null,
     val forwardedOnDayCount: Int = 0,
 ) {
+    /** The last failure, while no later successful sync has superseded it. */
+    val unresolvedSyncError: String?
+        get() = lastSyncError?.takeIf { (lastSyncAttemptAt ?: 0L) > (lastSyncAt ?: 0L) }
+
     fun forwardedOn(day: LocalDate): Int = if (day == forwardedDay) forwardedOnDayCount else 0
 }
 
@@ -36,6 +45,8 @@ class DiagnosticsStore @Inject constructor(
             lastConnectedAt = prefs[LAST_CONNECTED_KEY],
             lastSyncAt = prefs[LAST_SYNC_KEY],
             lastNotificationForwardedAt = prefs[LAST_NOTIFICATION_KEY],
+            lastSyncAttemptAt = prefs[LAST_SYNC_ATTEMPT_KEY],
+            lastSyncError = prefs[LAST_SYNC_ERROR_KEY],
             forwardedDay = prefs[FORWARDED_DAY_KEY]?.let(LocalDate::ofEpochDay),
             forwardedOnDayCount = prefs[FORWARDED_COUNT_KEY] ?: 0,
         )
@@ -46,8 +57,22 @@ class DiagnosticsStore @Inject constructor(
         Unit
     }
 
-    suspend fun recordSync(atMs: Long): Unit = withContext(dispatchers.io) {
-        dataStore.edit { it[LAST_SYNC_KEY] = atMs }
+    /** One edit, so no reader ever sees the new sync time beside the old failure. */
+    suspend fun recordSyncSucceeded(atMs: Long): Unit = withContext(dispatchers.io) {
+        dataStore.edit { prefs ->
+            prefs[LAST_SYNC_KEY] = atMs
+            prefs[LAST_SYNC_ATTEMPT_KEY] = atMs
+            prefs.remove(LAST_SYNC_ERROR_KEY)
+        }
+        Unit
+    }
+
+    /** [reason] is a short sentence for the user, never payload data (§9.5). */
+    suspend fun recordSyncFailed(atMs: Long, reason: String): Unit = withContext(dispatchers.io) {
+        dataStore.edit { prefs ->
+            prefs[LAST_SYNC_ATTEMPT_KEY] = atMs
+            prefs[LAST_SYNC_ERROR_KEY] = reason
+        }
         Unit
     }
 
@@ -64,6 +89,8 @@ class DiagnosticsStore @Inject constructor(
     private companion object {
         val LAST_CONNECTED_KEY = longPreferencesKey("last_connected_at")
         val LAST_SYNC_KEY = longPreferencesKey("last_sync_at")
+        val LAST_SYNC_ATTEMPT_KEY = longPreferencesKey("last_sync_attempt_at")
+        val LAST_SYNC_ERROR_KEY = stringPreferencesKey("last_sync_error")
         val LAST_NOTIFICATION_KEY = longPreferencesKey("last_notification_forwarded_at")
         val FORWARDED_DAY_KEY = longPreferencesKey("forwarded_day")
         val FORWARDED_COUNT_KEY = intPreferencesKey("forwarded_count")

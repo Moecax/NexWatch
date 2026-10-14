@@ -36,6 +36,8 @@ data class TodayUiState(
     val link: WatchLink = WatchLink.Connecting,
     val sync: SyncState? = null,
     val lastSyncMs: Long? = null,
+    /** Why the most recent sync attempt failed, and only while nothing has resolved it since. */
+    val lastSyncError: String? = null,
     val dayStartMs: Long = 0,
     val activity: TodayActivity? = null,
     val heart: TodayHeart? = null,
