@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -286,28 +287,28 @@ class FitCloudWatchClient @Inject constructor(
                 }.getOrDefault(0)
                 var synced = 0
                 withOperationTimeout("sync", SYNC_TOTAL_TIMEOUT) {
-                    // The idle timeout is the one that catches a stall; converting it here,
-                    // before withOperationTimeout can see it, keeps the operation name honest
-                    // (see the note on withOperationTimeout for why TCE must not escape).
-                    try {
-                        connector.dataFeature().syncData().asFlow()
-                            .timeout(SYNC_IDLE_TIMEOUT)
-                            .collect { data ->
-                                synced++
-                                // I2, journal first: the only work per item is handing the bytes on
-                                // untouched. Nothing here parses, validates or normalises them.
-                                emit(
-                                    SyncProgress(
-                                        batch = data.toRawBatch(),
-                                        itemsSynced = synced,
-                                        totalItems = total,
-                                        completed = false,
-                                    ),
-                                )
-                            }
-                    } catch (e: TimeoutCancellationException) {
-                        throw WatchCommandTimeoutException("sync")
-                    }
+                    connector.dataFeature().syncData().asFlow()
+                        .timeout(SYNC_IDLE_TIMEOUT)
+                        // The catch operator sees only what comes from upstream, so the idle
+                        // timeout becomes a command failure (see withOperationTimeout for why
+                        // a TCE must not escape) while a cancellation coming from downstream,
+                        // such as WatchSync's guard, passes through as the cancellation it is.
+                        .catch { e ->
+                            throw if (e is TimeoutCancellationException) WatchCommandTimeoutException("sync") else e
+                        }
+                        .collect { data ->
+                            synced++
+                            // I2, journal first: the only work per item is handing the bytes on
+                            // untouched. Nothing here parses, validates or normalises them.
+                            emit(
+                                SyncProgress(
+                                    batch = data.toRawBatch(),
+                                    itemsSynced = synced,
+                                    totalItems = total,
+                                    completed = false,
+                                ),
+                            )
+                        }
                 }
                 emit(SyncProgress(batch = null, itemsSynced = synced, totalItems = total, completed = true))
             }
