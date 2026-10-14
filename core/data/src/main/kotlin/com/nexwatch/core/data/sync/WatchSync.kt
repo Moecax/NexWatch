@@ -2,17 +2,32 @@ package com.nexwatch.core.data.sync
 
 import com.nexwatch.core.common.CoroutineDispatchers
 import com.nexwatch.core.data.diagnostics.DiagnosticsStore
+import com.nexwatch.core.data.normalize.NoBoundWatchException
 import com.nexwatch.core.watchapi.SyncProgress
+import com.nexwatch.core.watchapi.WatchCommandTimeoutException
+import com.nexwatch.core.watchapi.WatchNotReadyException
+import com.nexwatch.core.watchapi.WatchSyncBusyException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.minutes
+
+/**
+ * Long enough that the client's own 10-minute sync cap always fires first, short enough that
+ * this mutex cannot be held for the rest of the day. The guard exists so that the lock is
+ * released no matter what the SDK does — it is the reason a wedged sync can't block the next.
+ */
+internal val SYNC_GUARD_TIMEOUT = 12.minutes
 
 sealed interface WatchSyncStatus {
     data object Idle : WatchSyncStatus
@@ -40,19 +55,55 @@ class WatchSync @Inject constructor(
     /** Waits behind a sync that is already running instead of starting a second one beside it. */
     suspend fun run(): Result<Set<String>> = mutex.withLock {
         _status.value = WatchSyncStatus.Running(fraction = null, dataType = null)
-        var completed = false
         try {
-            val result = coordinator.syncAndNormalize { progress ->
-                if (progress.completed) completed = true
-                _status.value = WatchSyncStatus.Running(progress.fraction(), progress.batch?.dataType)
+            var completed = false
+            val attempt = try {
+                withTimeout(SYNC_GUARD_TIMEOUT) {
+                    coordinator.syncAndNormalize { progress ->
+                        if (progress.completed) completed = true
+                        _status.value = WatchSyncStatus.Running(progress.fraction(), progress.batch?.dataType)
+                    }
+                }
+            } catch (e: TimeoutCancellationException) {
+                // Only this one: another CancellationException belongs to a caller that is
+                // already unwinding, and swallowing it would strand this coroutine mid-stop.
+                Result.failure(WatchCommandTimeoutException("sync"))
             }
+            // The guard's timeout can also come back wrapped by the coordinator's runCatching
+            // rather than thrown; either way it is the stall the guard exists for.
+            val result = if (attempt.exceptionOrNull() is TimeoutCancellationException) {
+                Result.failure(WatchCommandTimeoutException("sync"))
+            } else {
+                attempt
+            }
+            val now = System.currentTimeMillis()
             // The coordinator also succeeds, doing nothing, when the watch isn't connected;
-            // only a sync the watch actually finished counts as "synced".
-            if (result.isSuccess && completed) diagnostics.recordSync(System.currentTimeMillis())
+            // only a sync the watch actually finished counts as "synced", so that case records
+            // neither a time nor an attempt.
+            val failure = result.exceptionOrNull()
+            when {
+                // The coordinator's runCatching also catches the caller's own cancellation;
+                // that is the caller stopping, not the sync failing, so it isn't recorded.
+                failure is CancellationException -> throw failure
+                failure != null -> diagnostics.recordSyncFailed(now, failureReason(failure))
+                completed -> diagnostics.recordSyncSucceeded(now)
+            }
             result
         } finally {
             _status.value = WatchSyncStatus.Idle
         }
+    }
+
+    /**
+     * Shown to the user after "Sync failed ·", so every branch is a sentence and none is a
+     * class name. Built from the exception type alone: §9.5 keeps payload data out of every sink.
+     */
+    private fun failureReason(e: Throwable): String = when (e) {
+        is WatchSyncBusyException -> "The watch was busy with another sync"
+        is WatchNotReadyException -> "The watch disconnected during the sync"
+        is WatchCommandTimeoutException -> "The watch stopped responding"
+        is NoBoundWatchException -> "No paired watch to save the data to"
+        else -> "Something went wrong. Try again"
     }
 
     /**
