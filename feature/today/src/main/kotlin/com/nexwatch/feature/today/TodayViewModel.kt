@@ -36,7 +36,7 @@ class TodayViewModel @Inject constructor(
     summaries: DailySummaryRepository,
     health: HealthRepository,
     private val watchClient: WatchClient,
-    diagnostics: DiagnosticsStore,
+    private val diagnostics: DiagnosticsStore,
     private val watchSync: WatchSync,
     forwardingPrefs: NotificationForwardingPrefs,
     private val identityStore: WatchIdentityStore,
@@ -49,6 +49,15 @@ class TodayViewModel @Inject constructor(
 
     fun onResume() {
         today.value = LocalDate.now(zone)
+        // A resume is an event, not a poll (invariant 5): the user is looking at the numbers
+        // right now, so a link that is up but stale is worth refreshing on the spot.
+        viewModelScope.launch {
+            if (watchClient.state.first() !is WatchState.Ready) return@launch
+            val lastSyncAt = diagnostics.snapshot.first().lastSyncAt
+            if (lastSyncAt == null || System.currentTimeMillis() - lastSyncAt > FIFTEEN_MIN_MS) {
+                watchSync.requestSync()
+            }
+        }
     }
 
     private val link = combine(watchClient.state, diagnostics.snapshot, identityStore.identity) { state, diag, identity ->
