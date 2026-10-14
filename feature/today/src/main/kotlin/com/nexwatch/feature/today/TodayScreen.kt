@@ -45,6 +45,7 @@ import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material3.Icon
@@ -68,6 +69,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -267,19 +269,22 @@ private fun WatchStrip(state: TodayUiState, nowMs: Long, zone: ZoneId, onSync: (
                     else -> StatusChip("Connecting", StatusTone.NEUTRAL, icon = Icons.Rounded.WifiTethering)
                 }
                 val synced = state.lastSyncMs?.let { "Synced ${relativeTime(nowMs, it, zone)}" } ?: "Not synced yet"
+                // The chip above already says "Syncing" while one runs, so a failure line here
+                // would contradict it; the reason also disappears the moment a retry lands.
+                val failed = if (state.sync == null) state.lastSyncError else null
                 when (link) {
                     is WatchLink.Connected -> Row(verticalAlignment = Alignment.CenterVertically) {
                         link.battery?.let {
                             Icon(Icons.Rounded.Battery5Bar, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                             StripText("$it%  ·  ")
                         }
-                        StripText(synced)
+                        SyncStatusLine(failed, synced)
                     }
                     is WatchLink.NotNearby -> StripText(
                         (link.lastSeenMs?.let { "Last seen ${relativeTime(nowMs, it, zone)}. " } ?: "") + "Reconnects on its own when in range.",
                     )
                     WatchLink.BluetoothOff -> StripText("Turn Bluetooth on to reconnect.")
-                    else -> StripText(synced)
+                    else -> SyncStatusLine(failed, synced)
                 }
             }
             when (link) {
@@ -308,6 +313,33 @@ private fun WatchStrip(state: TodayUiState, nowMs: Long, zone: ZoneId, onSync: (
 @Composable
 private fun StripText(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/**
+ * The sync line doubles as the failure line. The warning tone never carries the meaning on
+ * its own (§7): the icon and the word "failed" do too, so it still reads on a grayscale
+ * screen or to a colour-blind reader.
+ */
+@Composable
+private fun SyncStatusLine(failure: String?, synced: String) {
+    if (failure == null) {
+        StripText(synced)
+        return
+    }
+    val warning = WatchTheme.colors.warning
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Rounded.Warning, contentDescription = null, tint = warning, modifier = Modifier.size(16.dp))
+        Text(
+            "Sync failed · $failure",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            color = warning,
+            // It shares a line with the battery level; one line with an ellipsis keeps the
+            // strip's height stable instead of wrapping under the battery icon.
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+    }
 }
 
 @Composable
@@ -566,11 +598,12 @@ private val previewZone = ZoneId.of("Africa/Nairobi")
 private val previewDay = LocalDate.of(2026, 10, 10).atStartOfDay(previewZone).toInstant().toEpochMilli()
 private val previewNow = previewDay + (16 * 60 + 24) * 60_000L
 
-private fun previewState(link: WatchLink = WatchLink.Connected(72), sync: SyncState? = null) = TodayUiState(
+private fun previewState(link: WatchLink = WatchLink.Connected(72), sync: SyncState? = null, lastSyncError: String? = null) = TodayUiState(
     loading = false,
     link = link,
     sync = sync,
     lastSyncMs = previewNow - 4 * 60_000,
+    lastSyncError = lastSyncError,
     dayStartMs = previewDay,
     activity = TodayActivity(steps = 8_432, energyKcal = 412, distanceM = 6_100),
     heart = TodayHeart(
@@ -611,6 +644,16 @@ private fun TodayConnectedPreview() {
 @Composable
 private fun TodaySyncingPreview() {
     WatchTheme { PremiumBackground { TodayScreen(previewState(sync = SyncState(0.6f, "heart_rate")), previewNow, zone = previewZone) } }
+}
+
+@Preview(showBackground = true, heightDp = 900)
+@Composable
+private fun TodaySyncFailedPreview() {
+    WatchTheme {
+        PremiumBackground {
+            TodayScreen(previewState(lastSyncError = "Watch stopped responding"), previewNow, zone = previewZone)
+        }
+    }
 }
 
 @Preview(showBackground = true, heightDp = 900)

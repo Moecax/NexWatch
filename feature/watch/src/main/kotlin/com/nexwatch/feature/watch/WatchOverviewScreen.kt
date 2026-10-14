@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Troubleshoot
 import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material.icons.rounded.WifiTethering
 import androidx.compose.material3.Icon
@@ -230,6 +231,7 @@ private fun Hero(state: WatchSettingsUiState, status: WatchStatusUiState, ringin
                 }
                 ConnectionChip(state.watchState, Modifier.padding(top = 10.dp))
                 (state.watchState as? WatchState.Ready)?.battery?.let { BatteryBar(it) }
+                SyncFailureLine(status, Modifier.padding(top = 12.dp))
             }
         }
     }
@@ -244,6 +246,27 @@ private fun ConnectionChip(watchState: WatchState, modifier: Modifier = Modifier
         WatchState.BluetoothOff -> StatusChip("Bluetooth is off", StatusTone.WARNING, modifier, icon = Icons.Rounded.BluetoothDisabled)
         is WatchState.AuthFailed -> StatusChip("Signed in elsewhere", StatusTone.ERROR, modifier)
         WatchState.Unbound -> StatusChip("Not paired", StatusTone.NEUTRAL, modifier)
+    }
+}
+
+/**
+ * The Watch tab's version of the Today strip's sync line. The warning tone never carries the
+ * meaning on its own (§7): the icon and the word "failed" do too, and the Sync now button
+ * below stays enabled so the sentence has an answer.
+ */
+@Composable
+private fun SyncFailureLine(status: WatchStatusUiState, modifier: Modifier = Modifier) {
+    val error = status.lastSyncError
+    if (error == null || status.syncing) return
+    val warning = WatchTheme.colors.warning
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Rounded.Warning, contentDescription = null, tint = warning, modifier = Modifier.size(16.dp))
+        Text(
+            "Sync failed · $error",
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            color = warning,
+            modifier = Modifier.padding(start = 6.dp),
+        )
     }
 }
 
