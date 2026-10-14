@@ -27,7 +27,7 @@ import com.nexwatch.feature.health.HealthRoute
 import com.nexwatch.feature.today.TodayRoute
 import com.nexwatch.feature.watch.WatchRoute
 import com.nexwatch.ui.data.DataRoute
-import com.nexwatch.ui.debug.WatchDebugScreen
+import com.nexwatch.ui.diagnostics.DiagnosticsScreen
 
 @Composable
 fun NexWatchNavHost() {
@@ -86,7 +86,7 @@ fun NexWatchNavHost() {
             composable<NexWatchDestination.Watch> {
                 WatchRoute(onOpenDiagnostics = { navController.navigate(WatchDiagnostics) })
             }
-            composable<WatchDiagnostics> { WatchDebugScreen() }
+            composable<WatchDiagnostics> { DiagnosticsScreen(onBack = { navController.navigateUp() }) }
             composable<NexWatchDestination.Data> { DataRoute() }
         }
     }
