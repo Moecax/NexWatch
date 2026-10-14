@@ -115,6 +115,36 @@ class HealthSyncCoordinatorTest {
         assertTrue(rawDao.findUnprocessedDataTypes().isEmpty())
         db.close()
     }
+
+    @Test
+    fun `a sync that fails still normalises what the journal already holds, then reports the failure`() = runTest {
+        val db = inMemoryTestDatabase()
+        val fakeClient = FakeWatchClient().apply {
+            forceState(WatchState.Ready(battery = 80))
+            nextSyncError = IllegalStateException("sync refused")
+        }
+        val coordinator = HealthSyncCoordinator(
+            fakeClient,
+            JournalRepository(db.rawIngestDao(), testDispatchers(this)),
+            HealthDataNormalizer(db, noopDecoder(), testDispatchers(this)),
+            DailySummaryAggregator(db, testDispatchers(this)),
+            db.deviceDao(),
+            db.rawIngestDao(),
+            NoopSyncScheduler,
+            identityStore(this).apply { markBound("AA:BB:CC:DD:EE:FF") },
+            DeviceRecorder(db.deviceDao(), testDispatchers(this)),
+            BpMeasureReprocess(InMemoryPreferences(), db.rawIngestDao(), testDispatchers(this)),
+        )
+        // Journalled by an earlier sync that died before it could normalise.
+        db.rawIngestDao().insert(RawIngestEntity(receivedAt = 1_000L, sdkVersion = "0", dataType = "heart_rate", payloadJson = "[]"))
+
+        val result = coordinator.syncAndNormalize()
+
+        assertTrue(result.isFailure)
+        assertEquals("sync refused", result.exceptionOrNull()?.message)
+        assertTrue(db.rawIngestDao().findUnprocessedDataTypes().isEmpty())
+        db.close()
+    }
 }
 
 /** Counts the one call this test is about and forwards everything else untouched. */
