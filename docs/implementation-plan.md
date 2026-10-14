@@ -1173,16 +1173,21 @@ Known work that no phase owns yet. Turn items into a phase (with a branch and ex
   (§8.7, needs a weather source and a location decision), and display brightness and timeout.
 - **Notification extras from §8.5:** coalescing a burst into "3 new messages" (the throttle drops them today), and
   the optional "don't forward while I'm using my phone".
-- **Sync and blood-pressure fixes (`sync-fixes`):** a stalled or failing watch sync wedges every later sync
-  silently, and on-watch BP measurements (`blood_pressure_measure`) are journalled but never decoded. Plan:
-  `docs/superpowers/plans/2026-10-14-sync-bp-watchfaces.md` Parts A and B. **No phone was available for Part A's
-  diagnosis step, so the root cause on the real watch is still unconfirmed** — the guards below hold either way.
-  What landed: the SDK sync stream gets both an inactivity timeout and a hard cap, `WatchSync` gets a guard
-  timeout so it can never hold its mutex for longer than the client allows, and every outcome is persisted as
-  `lastSyncAttemptAt`/`lastSyncError` and surfaced on Today and the Watch tab. Syncs trigger on the Ready
-  transition and on opening the app rather than on every battery-percent change. `blood_pressure_measure` is
-  decoded (blood pressure *and* the heart rate that comes with it), and the readings already thrown away are
-  recovered once by replaying the journal. A4 adds the watch's reference-BP setting.
+- **Sync and blood-pressure fixes (`sync-fixes`, PR open, waiting on the user to merge):** a stalled or failing
+  watch sync wedged every later sync silently, and on-watch BP measurements (`blood_pressure_measure`) were
+  journalled but never decoded. Plan: `docs/superpowers/plans/2026-10-14-sync-bp-watchfaces.md` Parts A and B.
+  What landed: the SDK sync stream has an inactivity timeout and a hard cap, and turns the SDK's busy and
+  disconnect failures into the app's own exception types. `WatchSync` wraps each run in a guard timeout, so no run
+  holds its queue mutex longer than the client allows. Every outcome is written in one DataStore edit as
+  `lastSyncAttemptAt`/`lastSyncError`, and shown on Today and the Watch tab as "Sync failed · {reason}", where the
+  reason is always a sentence, never an exception name. The journal is normalised even when the watch sync fails.
+  Syncs trigger on the Ready transition and on opening the app, not on every battery report. `blood_pressure_measure`
+  is decoded (blood pressure and the heart rate taken with it; a zero pressure drops the whole sample), and the
+  readings already thrown away are recovered once per install by returning their journal rows to the queue. B4
+  adds a reference-BP setting under Watch. The debug screen can make the fake watch's next sync hang or fail.
+  **Still open, because it needs the real watch:** A0's diagnosis of what a sync actually does on hardware (no
+  phone was available, so the root cause is unconfirmed; the guards hold either way), the overnight catch-up, and a
+  manual on-watch reading reaching Today and Health Connect.
 - **Watchfaces** are now Phase 12, planned in the same file (Part C). That work starts only after `sync-fixes`
   merges. Firmware update is still dropped.
 - **Checks that need more real data:** the Phase 6 decoder mappings, the calorie scale and resting heart rate,
