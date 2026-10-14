@@ -32,6 +32,14 @@ import javax.inject.Inject
 private val DAY_DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE
 
 /**
+ * Thrown when normalisation is asked to run with no bound watch to attribute records to. The
+ * normaliser can't guess a device id, and returning quietly instead would leave every journal
+ * row unprocessed forever with no record of why, which is how a healthy-looking sync hides it.
+ */
+class NoBoundWatchException :
+    IllegalStateException("no bound watch to attribute journal rows to")
+
+/**
  * §5.2. One transaction per type per batch; a decode/insert failure for one row leaves that
  * row unprocessed (retried next run) without blocking the rest of the same type's batch.
  */
@@ -41,7 +49,7 @@ class HealthDataNormalizer @Inject constructor(
     private val dispatchers: CoroutineDispatchers,
 ) {
     suspend fun processUnprocessed(): Set<String> = withContext(dispatchers.default) {
-        val device = db.deviceDao().observeMostRecentlyBound().first() ?: return@withContext emptySet()
+        val device = db.deviceDao().observeMostRecentlyBound().first() ?: throw NoBoundWatchException()
         val zone = ZoneId.systemDefault()
         val affectedDates = mutableSetOf<String>()
 

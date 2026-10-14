@@ -64,7 +64,7 @@ class WatchSyncTest {
     }
 }
 
-private fun watchSync(scope: TestScope, db: NexWatchDatabase, client: FakeWatchClient, diagnostics: DiagnosticsStore): WatchSync {
+private suspend fun watchSync(scope: TestScope, db: NexWatchDatabase, client: FakeWatchClient, diagnostics: DiagnosticsStore): WatchSync {
     val dispatchers = testDispatchers(scope)
     val decoder = object : HealthDataDecoder {
         override fun decode(dataType: String, payloadJson: String) = emptyList<DecodedHealthRecord>()
@@ -85,7 +85,7 @@ private fun watchSync(scope: TestScope, db: NexWatchDatabase, client: FakeWatchC
         db.deviceDao(),
         db.rawIngestDao(),
         scheduler,
-        WatchIdentityStore(MemoryPreferences(), dispatchers),
+        WatchIdentityStore(MemoryPreferences(), dispatchers).apply { markBound("AA:BB:CC:DD:EE:FF") },
         DeviceRecorder(db.deviceDao(), dispatchers),
     )
     return WatchSync(coordinator, diagnostics, dispatchers)
