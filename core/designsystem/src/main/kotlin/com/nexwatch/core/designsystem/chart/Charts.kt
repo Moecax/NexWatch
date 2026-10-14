@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nexwatch.core.designsystem.theme.Manrope
 import com.nexwatch.core.designsystem.theme.TextMuted
 import com.nexwatch.core.designsystem.theme.WatchMotion
 import com.nexwatch.core.designsystem.theme.WatchShapes
@@ -60,7 +61,7 @@ private const val RING_STAGGER_MS = 90
 private const val GRID_ALPHA = 0.45f
 private val AXIS_LABEL_SPACE = 20.dp
 
-private val axisStyle = TextStyle(fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
+private val axisStyle = TextStyle(fontFamily = Manrope, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = TextMuted)
 
 data class RingSpec(val progress: Float, val color: Color)
 

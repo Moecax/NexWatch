@@ -1121,7 +1121,7 @@ does.
 - No Settings screen and no metric detail screens yet, so the design's settings icon and tile chevrons are left
   out.
 - No sport-type name mapping, so every workout is labelled "Workout".
-- Manrope isn't bundled. The tabs use the system sans with tabular figures.
+- ~~Manrope isn't bundled.~~ Done on `sync-fixes`: Manrope (Regular to ExtraBold) is bundled in `:core:designsystem` and set on every typography style; licence in `third_party/manrope/OFL.txt`.
 
 ### Not scheduled yet
 
