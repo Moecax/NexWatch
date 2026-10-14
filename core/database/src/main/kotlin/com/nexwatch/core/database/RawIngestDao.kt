@@ -17,6 +17,9 @@ interface RawIngestDao {
     @Query("SELECT DISTINCT data_type FROM raw_ingest WHERE processed_at IS NULL")
     suspend fun findUnprocessedDataTypes(): List<String>
 
+    @Query("UPDATE raw_ingest SET processed_at = NULL, error = NULL WHERE data_type = :dataType")
+    suspend fun markUnprocessed(dataType: String): Int
+
     @Update
     suspend fun update(row: RawIngestEntity)
 

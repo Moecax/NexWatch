@@ -30,6 +30,7 @@ class HealthSyncCoordinator @Inject constructor(
     private val syncScheduler: SyncScheduler,
     private val identityStore: WatchIdentityStore,
     private val deviceRecorder: DeviceRecorder,
+    private val bpMeasureReprocess: BpMeasureReprocess,
 ) {
     suspend fun syncAndNormalize(onProgress: (SyncProgress) -> Unit = {}): Result<Set<String>> = runCatching {
         if (watchClient.state.first() !is WatchState.Ready) return@runCatching emptySet()
@@ -41,6 +42,7 @@ class HealthSyncCoordinator @Inject constructor(
             progress.batch?.let { journalRepository.append(it) }
             onProgress(progress)
         }
+        bpMeasureReprocess.runOnce()
         val affectedDates = normalizer.processUnprocessed()
         val device = deviceDao.observeMostRecentlyBound().first()
         if (device != null && affectedDates.isNotEmpty()) {

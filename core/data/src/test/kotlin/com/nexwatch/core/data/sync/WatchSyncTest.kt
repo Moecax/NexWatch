@@ -155,6 +155,7 @@ private suspend fun watchSync(scope: TestScope, db: NexWatchDatabase, client: Fa
         scheduler,
         WatchIdentityStore(MemoryPreferences(), dispatchers).apply { markBound("AA:BB:CC:DD:EE:FF") },
         DeviceRecorder(db.deviceDao(), dispatchers),
+        BpMeasureReprocess(MemoryPreferences(), db.rawIngestDao(), dispatchers),
     )
     return WatchSync(coordinator, diagnostics, dispatchers)
 }
