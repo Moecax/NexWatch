@@ -63,7 +63,10 @@ class WatchConnectionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForegroundCompat(ServiceNotifications.build(this, "Connecting…"))
+        // Built from the live state, not a fixed "Connecting…": a re-entrant start while already
+        // connected would otherwise overwrite the text, and the distinct-text collector in
+        // observeState() wouldn't re-emit to correct it.
+        startForegroundCompat(ServiceNotifications.build(this, watchClient.state.value.toStatusText()))
         if (!observersStarted) {
             observersStarted = true
             ensureLoggedIn()
