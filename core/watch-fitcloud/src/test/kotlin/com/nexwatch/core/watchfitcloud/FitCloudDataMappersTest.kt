@@ -3,6 +3,7 @@ package com.nexwatch.core.watchfitcloud
 import com.nexwatch.core.model.DecodedHealthRecord
 import com.nexwatch.core.model.SleepStage
 import com.topstep.fitcloud.sdk.v2.model.data.FcBloodPressureData
+import com.topstep.fitcloud.sdk.v2.model.data.FcBloodPressureMeasureData
 import com.topstep.fitcloud.sdk.v2.model.data.FcGpsData
 import com.topstep.fitcloud.sdk.v2.model.data.FcGpsItem
 import com.topstep.fitcloud.sdk.v2.model.data.FcHeartRateData
@@ -62,11 +63,44 @@ class FitCloudDataMappersTest {
     }
 
     @Test
-    fun `blood pressure mapping`() {
+    fun `blood pressure mapping records the reading and skips a failed one`() {
         val real = FcBloodPressureData(1_789_472_400_000L, 118, 76)
-        val decoded = real.toDecodedBloodPressure()
-        assertEquals(118, decoded.systolic)
-        assertEquals(76, decoded.diastolic)
+        val decoded = real.toDecodedRecords()
+
+        assertEquals(1, decoded.size)
+        val reading = decoded.single() as DecodedHealthRecord.BloodPressure
+        assertEquals(118, reading.systolic)
+        assertEquals(76, reading.diastolic)
+
+        assertEquals(emptyList<DecodedHealthRecord>(), FcBloodPressureData(1_789_472_400_000L, 0, 76).toDecodedRecords())
+    }
+
+    @Test
+    fun `blood pressure measure mapping keeps the pressure and the heart rate it sampled`() {
+        val real = FcBloodPressureMeasureData(1_789_472_400_000L, 128, 82, 71)
+
+        val decoded = real.toDecodedRecords()
+
+        assertEquals(2, decoded.size)
+        val bp = decoded[0] as DecodedHealthRecord.BloodPressure
+        assertEquals(128, bp.systolic)
+        assertEquals(82, bp.diastolic)
+        val hr = decoded[1] as DecodedHealthRecord.HeartRate
+        assertEquals(1_789_472_400_000L, hr.atMs)
+        assertEquals(71, hr.bpm)
+    }
+
+    @Test
+    fun `blood pressure measure mapping keeps the pressure alone when no heart rate was taken`() {
+        val decoded = FcBloodPressureMeasureData(1_789_472_400_000L, 128, 82, 0).toDecodedRecords()
+
+        assertEquals(1, decoded.size)
+        assertEquals(DecodedHealthRecord.BloodPressure(1_789_472_400_000L, 128, 82), decoded.single())
+    }
+
+    @Test
+    fun `blood pressure measure mapping drops a failed measurement entirely`() {
+        assertEquals(emptyList<DecodedHealthRecord>(), FcBloodPressureMeasureData(1_789_472_400_000L, 0, 82, 71).toDecodedRecords())
     }
 
     @Test
