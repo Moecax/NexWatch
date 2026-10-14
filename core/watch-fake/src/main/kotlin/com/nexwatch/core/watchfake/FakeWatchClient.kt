@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -114,6 +115,14 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         mutex.withLock {
             val ready = _state.value
             if (ready !is WatchState.Ready) throw WatchNotReadyException(ready)
+            nextSyncError?.let { error ->
+                nextSyncError = null
+                throw error
+            }
+            if (nextSyncHangs) {
+                nextSyncHangs = false
+                awaitCancellation()
+            }
             val total = SIMULATED_DATA_TYPES.size
             SIMULATED_DATA_TYPES.forEachIndexed { index, dataType ->
                 delay(SYNC_ITEM_DELAY_MS)
@@ -206,6 +215,10 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         val current = _state.value
         if (current is WatchState.Ready) _state.value = WatchState.Ready(battery = fakeBattery)
     }
+
+    override var nextSyncHangs: Boolean = false
+
+    override var nextSyncError: Throwable? = null
 
     private fun requireReady() {
         val current = _state.value

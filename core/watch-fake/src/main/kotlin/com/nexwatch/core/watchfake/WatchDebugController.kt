@@ -10,4 +10,10 @@ import com.nexwatch.core.watchapi.WatchState
 interface WatchDebugController {
     fun forceState(state: WatchState)
     fun forceBattery(percent: Int)
+
+    /** Consumed by the next sync, which never finishes: reproduces a stalled SDK stream. */
+    var nextSyncHangs: Boolean
+
+    /** Thrown by the next sync and then cleared. */
+    var nextSyncError: Throwable?
 }

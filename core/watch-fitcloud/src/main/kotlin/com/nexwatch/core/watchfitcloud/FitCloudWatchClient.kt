@@ -16,9 +16,12 @@ import com.nexwatch.core.watchapi.WatchNotReadyException
 import com.nexwatch.core.watchapi.WatchSettingChange
 import com.nexwatch.core.watchapi.WatchSettings
 import com.nexwatch.core.watchapi.WatchState
+import com.nexwatch.core.watchapi.WatchSyncBusyException
 import com.nexwatch.core.watchapi.WatchUserIdProvider
 import com.nexwatch.core.watchapi.WeatherForecast
+import com.polidea.rxandroidble3.exceptions.BleDisconnectedException
 import com.topstep.fitcloud.sdk.exception.FcAuthException
+import com.topstep.fitcloud.sdk.exception.FcSyncBusyException
 import com.topstep.fitcloud.sdk.v2.FcConnector
 import com.topstep.fitcloud.sdk.v2.features.FcConfigFeature
 import com.topstep.fitcloud.sdk.v2.model.config.FcDeviceInfo
@@ -27,6 +30,7 @@ import com.topstep.wearkit.base.connector.ConnectorState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +52,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.timeout
 import kotlinx.coroutines.rx3.asFlow
 import kotlinx.coroutines.rx3.await
 import kotlinx.coroutines.sync.Mutex
@@ -59,6 +64,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /** §4.3: settings-shaped commands get 10s... */
@@ -69,6 +75,16 @@ private val NOTIFICATION_TIMEOUT = 5.seconds
 
 /** A contacts write pushes every entry over BLE, so it gets more room than a flag flip. */
 private val CONTACTS_TIMEOUT = 30.seconds
+
+/**
+ * A week of minute-level history is well under this, so it is a backstop rather than a
+ * target: it bounds how long a sync can hold the bus even if [SYNC_IDLE_TIMEOUT] never
+ * fires because the watch keeps sending *something*.
+ */
+private val SYNC_TOTAL_TIMEOUT = 10.minutes
+
+/** No item from the watch for this long means the stream has stalled, not that it's quiet. */
+private val SYNC_IDLE_TIMEOUT = 60.seconds
 
 /**
  * Long enough for a watch that is asleep on the wrist to answer an advertisement, short
@@ -256,27 +272,49 @@ class FitCloudWatchClient @Inject constructor(
         connector.close()
     }
 
+    @OptIn(FlowPreview::class)
     override fun syncHealthData(): Flow<SyncProgress> = flow {
-        // Held for the whole sync (§4.3) — a sync is one long command, not many short ones.
-        mutex.withLock {
-            requireReady()
-            val total = runCatching { connector.dataFeature().getSyncTypes().await().size }
-                .getOrDefault(0)
-            var synced = 0
-            connector.dataFeature().syncData().asFlow().collect { data ->
-                synced++
-                // I2, journal first: the only work per item is handing the bytes on
-                // untouched. Nothing here parses, validates or normalises them.
-                emit(
-                    SyncProgress(
-                        batch = data.toRawBatch(),
-                        itemsSynced = synced,
-                        totalItems = total,
-                        completed = false,
-                    ),
-                )
+        try {
+            // Held for the whole sync (§4.3) — a sync is one long command, not many short ones.
+            mutex.withLock {
+                requireReady()
+                if (connector.dataFeature().isSyncing()) throw WatchSyncBusyException()
+                val total = runCatching {
+                    withOperationTimeout("syncTypes", COMMAND_TIMEOUT) {
+                        connector.dataFeature().getSyncTypes().await().size
+                    }
+                }.getOrDefault(0)
+                var synced = 0
+                withOperationTimeout("sync", SYNC_TOTAL_TIMEOUT) {
+                    // The idle timeout is the one that catches a stall; converting it here,
+                    // before withOperationTimeout can see it, keeps the operation name honest
+                    // (see the note on withOperationTimeout for why TCE must not escape).
+                    try {
+                        connector.dataFeature().syncData().asFlow()
+                            .timeout(SYNC_IDLE_TIMEOUT)
+                            .collect { data ->
+                                synced++
+                                // I2, journal first: the only work per item is handing the bytes on
+                                // untouched. Nothing here parses, validates or normalises them.
+                                emit(
+                                    SyncProgress(
+                                        batch = data.toRawBatch(),
+                                        itemsSynced = synced,
+                                        totalItems = total,
+                                        completed = false,
+                                    ),
+                                )
+                            }
+                    } catch (e: TimeoutCancellationException) {
+                        throw WatchCommandTimeoutException("sync")
+                    }
+                }
+                emit(SyncProgress(batch = null, itemsSynced = synced, totalItems = total, completed = true))
             }
-            emit(SyncProgress(batch = null, itemsSynced = synced, totalItems = total, completed = true))
+        } catch (e: FcSyncBusyException) {
+            throw WatchSyncBusyException()
+        } catch (e: BleDisconnectedException) {
+            throw WatchNotReadyException(state.value)
         }
     }
 
