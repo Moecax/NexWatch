@@ -161,12 +161,34 @@ class OnboardingViewModelTest {
         val (viewModel, _) = viewModel()
         viewModel.onEvent(OnboardingEvent.GetStarted)
         viewModel.onEvent(OnboardingEvent.ProfileContinue)
+        grantRequiredPermissions(viewModel)
         viewModel.onEvent(OnboardingEvent.PermissionsContinue)
         assertEquals(OnboardingStep.FindWatch, viewModel.uiState.value.step)
         viewModel.onEvent(OnboardingEvent.StartScan)
         advanceUntilIdle() // resolve the simulated scan delay on the shared test scheduler
         val state = viewModel.uiState.value
         assertTrue(state.discoveredDevices.isNotEmpty())
+    }
+
+    @Test
+    fun `permissions continue needs Nearby devices and nothing else`() = runTest(mainDispatcher) {
+        val (viewModel, _) = viewModel()
+        viewModel.onEvent(OnboardingEvent.GetStarted)
+        viewModel.onEvent(OnboardingEvent.ProfileContinue)
+        viewModel.onEvent(OnboardingEvent.PermissionsContinue)
+        assertEquals(OnboardingStep.Permissions, viewModel.uiState.value.step) // no Bluetooth: no advance
+
+        // Someone who says no to calls, contacts and forwarding can still pair the watch.
+        viewModel.onEvent(OnboardingEvent.PermissionResult(PermissionItem.PHONE_AND_CONTACTS, granted = false))
+        viewModel.onEvent(OnboardingEvent.PermissionSkipped(PermissionItem.NOTIFICATION_ACCESS))
+        grantRequiredPermissions(viewModel)
+        viewModel.onEvent(OnboardingEvent.PermissionsContinue)
+        assertEquals(OnboardingStep.FindWatch, viewModel.uiState.value.step)
+    }
+
+    /** The one item PermissionCatalog marks required. */
+    private fun grantRequiredPermissions(viewModel: OnboardingViewModel) {
+        viewModel.onEvent(OnboardingEvent.PermissionResult(PermissionItem.BLUETOOTH, granted = true))
     }
 
     @Test

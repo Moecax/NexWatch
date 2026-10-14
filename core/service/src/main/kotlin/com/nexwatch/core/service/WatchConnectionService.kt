@@ -25,6 +25,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -70,6 +71,7 @@ class WatchConnectionService : Service() {
             observeState()
             observeEvents()
             observeSyncTriggers()
+            observeConnectionSessions()
         }
         return START_STICKY
     }
@@ -122,6 +124,35 @@ class WatchConnectionService : Service() {
                 }
             }
         }
+    }
+
+    /**
+     * The Diagnostics timeline, from transitions only. A plain collect, not collectLatest: the
+     * previous state is remembered before anything suspends, so a fast change can't cancel the
+     * block between the write and the bookkeeping and lose a disconnect.
+     */
+    private fun observeConnectionSessions() {
+        scope.launch {
+            var wasReady = false
+            watchClient.state.distinctUntilChangedBy { it is WatchState.Ready }.collect { state ->
+                val ready = state is WatchState.Ready
+                val leaving = wasReady && !ready
+                wasReady = ready
+                val now = System.currentTimeMillis()
+                when {
+                    ready -> runCatching { diagnosticsStore.recordSessionStarted(now) }
+                    leaving -> runCatching { diagnosticsStore.recordDisconnected(now, state.offlineDetail()) }
+                }
+            }
+        }
+    }
+
+    /** Why the connection dropped, in the words the Diagnostics timeline uses. */
+    private fun WatchState.offlineDetail(): String = when (this) {
+        is WatchState.BluetoothOff -> "Bluetooth is off"
+        is WatchState.AuthFailed -> "authentication failed"
+        WatchState.Unbound -> "watch unpaired"
+        else -> "out of range"
     }
 
     @OptIn(kotlinx.coroutines.FlowPreview::class)

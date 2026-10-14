@@ -85,6 +85,8 @@ fun OnboardingNavHost(onOnboardingComplete: () -> Unit) {
                 battery = state.pairedBattery,
                 firmwareVersion = state.pairedFirmwareVersion,
                 error = state.pairingError,
+                address = state.selectedDevice?.address,
+                deviceName = state.selectedDevice?.displayName,
                 onRetry = { viewModel.onEvent(OnboardingEvent.RetryPairing) },
                 onContinue = { viewModel.onEvent(OnboardingEvent.PairingContinue) },
             )

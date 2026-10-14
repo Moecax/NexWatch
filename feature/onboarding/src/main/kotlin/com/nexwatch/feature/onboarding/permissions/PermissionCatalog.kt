@@ -41,6 +41,10 @@ object PermissionCatalog {
     /** Notification access has no runtime dialog; it's granted through a Settings deep link. */
     fun isSpecialAccess(item: PermissionItem): Boolean = item == PermissionItem.NOTIFICATION_ACCESS
 
-    /** Every checklist item is required except location, which the Permissions screen lets you skip. */
-    fun isOptional(item: PermissionItem): Boolean = item == PermissionItem.LOCATION
+    /**
+     * Only Nearby devices is required: without it there is no pairing at all. Everything else
+     * adds a feature (forwarding, caller ID, weather) the watch works without, so it can be
+     * skipped here and allowed later instead of blocking onboarding for someone who says no.
+     */
+    fun isOptional(item: PermissionItem): Boolean = item != PermissionItem.BLUETOOTH
 }

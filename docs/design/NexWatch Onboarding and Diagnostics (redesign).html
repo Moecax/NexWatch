@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NexWatch: Onboarding + Diagnostics redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=arrow_back,battery_full,bluetooth,bluetooth_disabled,bluetooth_searching,bolt,call,check_circle,chevron_right,database,done,done_all,download,error,history,info,location_on,monitor_heart,nearby_devices,notifications,notifications_active,person,play_arrow,refresh,restart_alt,schedule,search,signal_cellular_alt,stop_circle,sync,timer,troubleshoot,update,warning,watch,wifi&display=swap" rel="stylesheet">
+<style>
+  /* Tokens mirror :core:designsystem and docs/design-prompt.md Part A. */
+  :root{
+    --electric-blue:#168CFF;
+    --deep-blue:#1554D1;
+    --sky-blue:#28B8FF;
+    --cyan:#16D9E3;
+    --aqua:#43F2C5;
+    --mint:#38E8A5;
+    --midnight:#050816;
+    --deep-navy:#080D20;
+    --navy:#0D1428;
+    --blue-navy:#121B35;
+    --border:#243252;
+    --slate:#5C6E96;
+    --text-primary:#F7FAFF;
+    --text-secondary:#A8B4CC;
+    --text-muted:#687590;
+    --success:#20D889;
+    --warning:#FFB52E;
+    --error:#FF4969;
+    --on-primary:#050816;
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --ease-out: cubic-bezier(.23,1,.32,1);
+    --ease-in-out: cubic-bezier(.77,0,.175,1);
+    --ease-drawer: cubic-bezier(.32,.72,0,1);
+    --radius-card:22px;
+    --radius-control:14px;
+    --radius-pill:999px;
+    --hairline:rgba(36,50,82,.5);
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  ::selection{ background:var(--electric-blue); color:var(--on-primary); }
+  html{ color-scheme:dark; }
+  body{
+    background:var(--midnight);
+    font-family:'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color:var(--text-primary);
+    -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:var(--deep-navy); }
+  ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:var(--radius-pill); border:2px solid var(--deep-navy); }
+  *{ scrollbar-color:var(--border) var(--deep-navy); scrollbar-width:thin; }
+  :focus-visible{ outline:2px solid var(--sky-blue); outline-offset:3px; border-radius:6px; }
+  button{ font:inherit; color:inherit; background:none; border:none; cursor:pointer; -webkit-tap-highlight-color:transparent; text-align:inherit; }
+  button:disabled{ cursor:default; }
+
+  .ms{
+    font-family:'Material Symbols Rounded';
+    font-weight:normal; font-style:normal;
+    font-size:22px; line-height:1;
+    display:inline-block; white-space:nowrap; direction:ltr;
+    letter-spacing:normal; text-transform:none;
+    font-feature-settings:'liga';
+    font-variation-settings:'FILL' 0,'wght' 450,'GRAD' 0,'opsz' 24;
+    user-select:none; flex:none;
+  }
+  .ms.fill{ font-variation-settings:'FILL' 1,'wght' 450,'GRAD' 0,'opsz' 24; }
+  .ms.sm{ font-size:18px; font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 20; }
+
+  /* Document chrome (annotation around the artifact, not app UI) */
+  .doc-page{
+    background:
+      radial-gradient(1200px 480px at 15% -10%, rgba(22,140,255,.09), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(118,85,232,.06), transparent 55%),
+      var(--midnight);
+    min-height:100vh;
+  }
+  .doc-header{ max-width:1320px; margin:0 auto; padding:56px 32px 8px; }
+  .doc-header h1{ font-size:28px; font-weight:700; letter-spacing:-0.02em; }
+  .doc-header p{ margin-top:10px; max-width:70ch; font-size:15px; line-height:1.6; color:var(--text-secondary); }
+  .doc-header code{ font-family:var(--mono); font-size:.88em; color:var(--text-primary); }
+  .whats-new{ margin-top:18px; display:grid; gap:10px; max-width:78ch; }
+  .whats-new li{ position:relative; padding-left:18px; font-size:14px; line-height:1.55; color:var(--text-secondary); }
+  .whats-new li::before{ content:''; position:absolute; left:2px; top:.66em; width:7px; height:1.5px; background:var(--sky-blue); }
+  .whats-new b{ color:var(--text-primary); font-weight:600; }
+  .gallery{ max-width:1320px; margin:0 auto; padding:36px 32px 120px; display:flex; flex-wrap:wrap; gap:56px 40px; align-items:flex-start; }
+  .gallery > h2{ flex:1 0 100%; font-size:22px; font-weight:700; letter-spacing:-0.02em; padding-top:24px; }
+  .gallery > h2:first-child{ padding-top:0; }
+  .gallery > .group-sub{ flex:1 0 100%; margin-top:-40px; font-size:15px; line-height:1.6; color:var(--text-secondary); max-width:70ch; }
+  .frame{ display:flex; flex-direction:column; gap:14px; }
+  .frame-label{ font-size:13px; font-weight:600; color:var(--text-secondary); padding-left:6px; }
+  .frame-label b{ color:var(--text-primary); font-weight:700; }
+
+  /* Phone frame */
+  .phone-shell{
+    width:412px; height:915px; border-radius:52px; padding:10px;
+    background:linear-gradient(160deg,#1a2340,#0a0f22 55%);
+    box-shadow:0 40px 80px -32px rgba(0,0,0,.65), 0 1px 0 rgba(255,255,255,.04) inset;
+    flex:none;
+  }
+  .phone-screen{
+    position:relative; width:100%; height:100%;
+    border-radius:44px; overflow:hidden;
+    background:linear-gradient(180deg,#050816 0%, #0D1428 55%, #111B38 100%);
+    display:flex; flex-direction:column;
+  }
+  .status-bar{
+    height:44px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 26px; font-size:13px; font-weight:700;
+  }
+  .status-bar .sys{ display:flex; gap:5px; align-items:center; }
+  .status-bar .sys .ms{ font-size:15px; font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20; }
+  .home-indicator{
+    position:absolute; bottom:9px; left:50%; transform:translateX(-50%);
+    width:120px; height:4px; border-radius:var(--radius-pill);
+    background:rgba(247,250,255,.32); z-index:4;
+  }
+  .screen-body{
+    flex:1 1 auto; min-height:0;
+    padding:8px 20px 28px; overflow-y:auto;
+    display:flex; flex-direction:column;
+  }
+  .screen-body::-webkit-scrollbar{ width:0; height:0; }
+  .screen-body{ scrollbar-width:none; }
+
+  /* Entrance: one authored moment per frame, played once when it scrolls into view. */
+  .reveal{ opacity:0; transform:translateY(10px); filter:blur(6px);
+    transition:opacity 560ms var(--ease-out), transform 560ms var(--ease-out), filter 560ms var(--ease-out); }
+  .in-view .reveal{ opacity:1; transform:none; filter:none; }
+  .in-view .d1{ transition-delay:60ms; } .in-view .d2{ transition-delay:120ms; }
+  .in-view .d3{ transition-delay:180ms; } .in-view .d4{ transition-delay:240ms; }
+  .in-view .d5{ transition-delay:300ms; } .in-view .d6{ transition-delay:360ms; }
+  @media (prefers-reduced-motion: reduce){
+    .reveal{ transform:none; filter:none; transition:opacity 220ms ease; }
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; }
+    .spin{ animation:none !important; }
+  }
+  /* Typography */
+  .headline{ font-size:26px; font-weight:700; letter-spacing:-0.02em; line-height:1.15; }
+  .screen-sub{ margin-top:10px; font-size:14.5px; line-height:1.55; color:var(--text-secondary); max-width:36ch; }
+  .center{ text-align:center; }
+  .center .screen-sub{ margin-left:auto; margin-right:auto; }
+  .metric{ font-size:44px; font-weight:700; letter-spacing:-0.03em; line-height:1; }
+  .metric .unit{ font-size:16px; font-weight:600; color:var(--text-secondary); letter-spacing:0; margin-left:6px; }
+  .mono{ font-family:var(--mono); }
+
+  /* Buttons */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; height:52px; padding:0 18px;
+    border-radius:var(--radius-control);
+    font-size:15px; font-weight:700; letter-spacing:-0.01em; white-space:nowrap;
+    transition:transform 150ms var(--ease-out), background-color 200ms var(--ease-out),
+      opacity 200ms var(--ease-out), box-shadow 160ms var(--ease-out), color 200ms var(--ease-out);
+  }
+  .btn .ms{ font-size:20px; }
+  .btn-primary{
+    background:linear-gradient(180deg, var(--electric-blue), var(--deep-blue));
+    color:var(--on-primary);
+    box-shadow:0 10px 20px -10px rgba(0,0,0,.55);
+  }
+  .btn-secondary{ background:var(--blue-navy); color:var(--text-primary); border:1px solid rgba(36,50,82,.9); }
+  .btn-text{ width:auto; height:44px; padding:0 12px; color:var(--sky-blue); font-weight:700; }
+  .btn-danger{ background:transparent; color:var(--error); border:1px solid rgba(255,73,105,.35); }
+  .btn[disabled]{ background:var(--blue-navy); color:var(--text-muted); border:1px solid rgba(36,50,82,.9); box-shadow:none; pointer-events:none; }
+  .press:active{ transform:scale(.97); }
+
+  /* Surfaces, rows, chips */
+  .surface{
+    background:var(--navy);
+    border:1px solid rgba(36,50,82,.55);
+    border-radius:var(--radius-card);
+    box-shadow:0 18px 40px -28px rgba(0,0,0,.6);
+  }
+  .rows{ overflow:hidden; }
+  .row{
+    display:flex; align-items:center; gap:14px; width:100%;
+    min-height:60px; padding:12px 16px;
+    border-top:1px solid var(--hairline);
+    transition:background-color 160ms var(--ease-out);
+  }
+  .rows > .row:first-child, .rows > :first-child .row{ border-top:none; }
+  button.row:active{ background:rgba(18,27,53,.9); }
+  .ib{
+    width:36px; height:36px; border-radius:11px; flex:none;
+    background:var(--blue-navy); color:var(--text-secondary);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ib .ms{ font-size:20px; }
+  .ib.t-int{ background:rgba(22,140,255,.14); color:var(--sky-blue); }
+  .ib.t-ok{ background:rgba(32,216,137,.14); color:var(--success); }
+  .ib.t-warn{ background:rgba(255,181,46,.14); color:var(--warning); }
+  .ib.t-err{ background:rgba(255,73,105,.14); color:var(--error); }
+  .row-text{ flex:1 1 auto; min-width:0; }
+  .row-title{ font-size:15px; font-weight:600; color:var(--text-primary); }
+  .row-desc{ margin-top:2px; font-size:13px; line-height:1.45; color:var(--text-secondary); }
+  .row-value{ font-size:13.5px; font-weight:600; color:var(--text-secondary); white-space:nowrap; }
+  .chev{ color:var(--text-muted); font-size:20px; margin-left:-6px; }
+  .group-label{ font-size:13px; font-weight:700; color:var(--text-secondary); padding:0 4px; }
+  .screen-body > .group-label{ margin-top:22px; }
+  .screen-body > .group-label + *{ margin-top:8px; }
+
+  .chip{
+    display:inline-flex; align-items:center; gap:6px;
+    height:26px; padding:0 10px; border-radius:var(--radius-pill);
+    font-size:12.5px; font-weight:700; white-space:nowrap;
+  }
+  .chip .ms{ font-size:15px; font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 20; }
+  .chip.success{ background:rgba(32,216,137,.14); color:var(--success); }
+  .chip.info{ background:rgba(22,140,255,.16); color:var(--sky-blue); }
+  .chip.neutral{ background:var(--blue-navy); color:var(--text-secondary); }
+  .chip.error{ background:rgba(255,73,105,.14); color:var(--error); }
+  .chip.warning{ background:rgba(255,181,46,.14); color:var(--warning); }
+
+  /* The single live animation on a screen: connection is a real, continuous state. */
+  .live-dot{ position:relative; width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; margin:0 2px; }
+  .live-dot::after{ content:''; position:absolute; inset:0; border-radius:50%; background:currentColor;
+    animation:pulse 2.2s var(--ease-out) infinite; }
+  @keyframes pulse{ 0%{ transform:scale(1); opacity:.6; } 70%,100%{ transform:scale(2.8); opacity:0; } }
+  /* Same signal, held still when the screen's one live animation belongs elsewhere. */
+  .static-dot{ width:8px; height:8px; border-radius:50%; background:currentColor; flex:none; margin:0 2px; }
+  .spin{ animation:spin .8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .progress-track{ height:6px; border-radius:var(--radius-pill); background:var(--blue-navy); overflow:hidden; }
+  .progress-fill{
+    height:100%; width:100%; border-radius:var(--radius-pill);
+    background:linear-gradient(90deg, var(--electric-blue), var(--cyan));
+    transform-origin:left center; transform:scaleX(0);
+    transition:transform 520ms var(--ease-out);
+  }
+  .swap{ transition:filter 180ms var(--ease-out), opacity 180ms var(--ease-out); }
+  .mid-change{ filter:blur(3px); opacity:.45; }
+
+  .flex-spacer{ flex:1 1 auto; min-height:16px; }
+  .stack{ display:flex; flex-direction:column; gap:14px; }
+  .stack-tight{ display:flex; flex-direction:column; gap:8px; }
+  .mt-24{ margin-top:24px; } .mt-16{ margin-top:16px; } .mt-12{ margin-top:12px; }
+  /* Flow progress: position in the seven-step setup. Carries real information,
+     so it reads as orientation, not decoration. */
+  .flow-steps{ display:flex; gap:3px; padding:6px 0 16px; }
+  .flow-steps i{ flex:1; height:3px; border-radius:2px; background:var(--blue-navy); }
+  .flow-steps i.done{ background:var(--electric-blue); }
+  .flow-steps i.now{ background:var(--sky-blue); }
+
+  /* Welcome: watch hero (Part A's generic depiction: steel bezel, strap, invented face) */
+  .hero-stage{ flex:1 1 auto; display:flex; align-items:center; justify-content:center; position:relative; }
+  .hero-glow{
+    position:absolute; width:360px; height:360px; border-radius:50%;
+    background:radial-gradient(circle, rgba(22,140,255,.22), transparent 70%);
+  }
+  .watch-render{ position:relative; width:220px; height:264px; }
+  .watch-strap{
+    position:absolute; left:50%; transform:translateX(-50%);
+    width:96px; height:64px;
+    background:linear-gradient(180deg,#161d33,#0c1122);
+    border-radius:18px;
+  }
+  .watch-strap.top{ top:0; } .watch-strap.bottom{ bottom:0; }
+  .watch-bezel{
+    position:absolute; top:32px; left:10px; width:200px; height:200px; border-radius:50%;
+    background:conic-gradient(from 200deg, #3a4468, #131a30 40%, #4c5a86 60%, #131a30 85%, #3a4468);
+    box-shadow:0 24px 48px -18px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04) inset;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .watch-face{
+    width:172px; height:172px; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, #10182e, #050914 72%);
+    box-shadow:0 0 0 1px rgba(22,140,255,.22), 0 0 22px rgba(22,140,255,.10) inset;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .watch-face svg{ width:64%; height:64%; }
+  .watch-btn{ position:absolute; right:-4px; width:5px; border-radius:3px; background:#2a3454; }
+  .watch-btn.b1{ top:72px; height:22px; } .watch-btn.b2{ top:104px; height:14px; }
+  .wordmark{ display:flex; align-items:center; gap:10px; margin-top:6px; }
+  .wordmark .mark{
+    width:30px; height:30px; border-radius:9px;
+    background:linear-gradient(160deg, var(--electric-blue), #7655E8);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .wordmark .mark .ms{ font-size:17px; color:#F7FAFF; font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 20; }
+  .wordmark span{ font-size:15px; font-weight:700; letter-spacing:-0.01em; }
+
+  /* Profile: segmented control + steppers */
+  .segmented{
+    position:relative; display:grid; grid-template-columns:repeat(2, 1fr);
+    background:var(--blue-navy); border-radius:var(--radius-control);
+    padding:4px; height:48px;
+  }
+  .segmented .thumb{
+    position:absolute; top:4px; bottom:4px; left:4px; width:calc(50% - 4px);
+    border-radius:10px; background:var(--electric-blue);
+    transition:transform 260ms var(--ease-in-out);
+  }
+  .segmented[data-index="1"] .thumb{ transform:translateX(100%); }
+  .segmented button{
+    position:relative; z-index:1; font-size:14px; font-weight:700;
+    color:var(--text-secondary); transition:color 200ms var(--ease-out);
+  }
+  .segmented button.active{ color:var(--on-primary); }
+  .stepper-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-top:1px solid var(--hairline); }
+  .stepper-row:first-child{ border-top:none; }
+  .stepper-label{ font-size:12px; font-weight:700; letter-spacing:.08em; color:var(--text-secondary); text-transform:uppercase; }
+  .stepper-control{ display:flex; align-items:center; gap:18px; }
+  .stepper-value{
+    min-width:78px; text-align:center;
+    font-size:26px; font-weight:700; letter-spacing:-0.02em;
+  }
+  .stepper-value .u{ font-size:13px; font-weight:600; color:var(--text-secondary); margin-left:2px; }
+  .stepper-btn{
+    width:36px; height:36px; border-radius:50%;
+    background:var(--blue-navy); border:1px solid rgba(36,50,82,.9); color:var(--text-primary);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:700;
+    transition:transform 140ms var(--ease-out), background 200ms var(--ease-out);
+  }
+  .stepper-btn:active{ transform:scale(.9); background:var(--navy); }
+  .field-label{ font-size:12px; font-weight:700; letter-spacing:.08em; color:var(--text-secondary); text-transform:uppercase; padding:0 4px; margin-bottom:8px; }
+
+  /* Find your watch: radar + results + tips */
+  .radar{ position:relative; width:180px; height:180px; margin:8px auto 4px; display:flex; align-items:center; justify-content:center; }
+  .radar-ring{
+    position:absolute; border-radius:50%;
+    border:1.5px solid var(--electric-blue);
+    animation:radarPulse 2.6s var(--ease-out) infinite; opacity:0;
+  }
+  .radar-ring.r1{ width:60px; height:60px; animation-delay:0s; }
+  .radar-ring.r2{ width:60px; height:60px; animation-delay:.75s; }
+  .radar-ring.r3{ width:60px; height:60px; animation-delay:1.5s; }
+  @keyframes radarPulse{ 0%{ width:60px; height:60px; opacity:.65; } 100%{ width:180px; height:180px; opacity:0; } }
+  .radar-core{
+    width:60px; height:60px; border-radius:50%;
+    background:radial-gradient(circle, rgba(22,140,255,.35), rgba(22,140,255,.08));
+    display:flex; align-items:center; justify-content:center; color:var(--electric-blue);
+  }
+  .radar-core .ms{ font-size:26px; }
+  .radar.muted{ opacity:.5; }
+  .radar.muted .radar-core{ background:var(--blue-navy); color:var(--text-secondary); }
+  .radar.muted .radar-ring{ display:none; }
+  .found-row{ display:flex; align-items:center; gap:12px; padding:14px 16px; }
+  .signal-bars{ display:flex; align-items:flex-end; gap:2px; height:16px; }
+  .signal-bars span{ width:3px; border-radius:1px; background:var(--border); }
+  .signal-bars span.on{ background:var(--electric-blue); }
+  .signal-bars span:nth-child(1){ height:5px; } .signal-bars span:nth-child(2){ height:9px; }
+  .signal-bars span:nth-child(3){ height:13px; } .signal-bars span:nth-child(4){ height:16px; }
+  .caption{ font-size:13px; color:var(--text-secondary); text-align:center; }
+  .tip-row{ display:flex; gap:10px; align-items:flex-start; padding:12px 4px; }
+  .tip-row .ms{ font-size:16px; flex:0 0 auto; margin-top:2px; color:var(--text-muted); }
+  .tip-row p{ font-size:13px; line-height:1.5; color:var(--text-secondary); }
+
+  /* Pair confirmation: warning callout + checkbox gate */
+  .banner-warning{
+    display:flex; gap:12px; padding:16px; border-radius:16px;
+    background:rgba(255,181,46,.10);
+  }
+  .banner-warning .ib{ background:rgba(255,181,46,.16); color:var(--warning); }
+  .banner-warning p{ font-size:13.5px; line-height:1.55; color:var(--text-secondary); }
+  .banner-warning strong{ color:var(--text-primary); }
+  .checkbox-row{ display:flex; align-items:center; gap:12px; padding:16px 4px; }
+  .checkbox{
+    width:22px; height:22px; flex:0 0 auto; border-radius:7px;
+    border:1.5px solid var(--slate);
+    display:flex; align-items:center; justify-content:center;
+    background:transparent;
+    transition:background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 140ms var(--ease-out);
+  }
+  .checkbox:active{ transform:scale(.9); }
+  .checkbox.checked{ background:var(--electric-blue); border-color:var(--electric-blue); }
+  .checkbox .ms{ font-size:14px; color:var(--on-primary); font-variation-settings:'FILL' 1,'wght' 700,'GRAD' 0,'opsz' 20; opacity:0; transform:scale(.5); transition:opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+  .checkbox.checked .ms{ opacity:1; transform:none; }
+  .checkbox-row label{ font-size:14px; font-weight:600; color:var(--text-primary); }
+
+  /* Pairing: ring around the watch render + step list */
+  .pair-stage{ position:relative; width:236px; height:236px; margin:6px auto 4px; display:flex; align-items:center; justify-content:center; }
+  .pair-ring{ position:absolute; inset:0; }
+  .pair-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .pair-ring circle{ fill:none; stroke-width:6; }
+  .pair-ring .track{ stroke:var(--blue-navy); }
+  .pair-ring .fill{
+    stroke:var(--electric-blue); stroke-linecap:round;
+    stroke-dasharray:692; stroke-dashoffset:692;
+    transition:stroke-dashoffset 900ms var(--ease-in-out);
+  }
+  .in-view .pair-ring .fill{ stroke-dashoffset:277; }
+  .pair-stage .watch-render{ width:160px; height:190px; }
+  .pair-stage .watch-strap{ width:70px; height:46px; }
+  .pair-stage .watch-bezel{ top:20px; left:5px; width:150px; height:150px; }
+  .pair-stage .watch-face{ width:128px; height:128px; }
+  .pair-stage .watch-btn.b1{ top:52px; height:16px; } .pair-stage .watch-btn.b2{ top:76px; height:10px; }
+  .step-row{ display:flex; align-items:center; gap:12px; padding:13px 4px; }
+  .step-dot{
+    width:22px; height:22px; border-radius:50%; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--border);
+  }
+  .step-row.done .step-dot{ background:var(--success); border-color:var(--success); }
+  .step-row.done .step-dot .ms{ font-size:13px; color:var(--midnight); font-variation-settings:'FILL' 1,'wght' 700,'GRAD' 0,'opsz' 20; }
+  .step-row.active .step-dot{ border-color:var(--electric-blue); }
+  .step-row.active .step-dot .spin{
+    width:10px; height:10px; border-radius:50%;
+    border:2px solid rgba(22,140,255,.25); border-top-color:var(--electric-blue);
+  }
+  .step-row .step-label{ font-size:14px; font-weight:600; color:var(--text-muted); }
+  .step-row.active .step-label, .step-row.done .step-label{ color:var(--text-primary); }
+  @keyframes checkPop{ 0%{ transform:scale(.55); opacity:0; } 60%{ transform:scale(1.12); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+  .success-mark{
+    width:80px; height:80px; margin:8px auto 0; border-radius:50%;
+    background:rgba(32,216,137,.14);
+    display:flex; align-items:center; justify-content:center;
+    animation:checkPop 420ms var(--ease-out);
+  }
+  .success-mark .ms{ font-size:36px; color:var(--success); font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24; }
+  .failure-mark{
+    width:80px; height:80px; margin:8px auto 0; border-radius:50%;
+    background:rgba(255,73,105,.12);
+    display:flex; align-items:center; justify-content:center;
+    animation:checkPop 420ms var(--ease-out);
+  }
+  .failure-mark .ms{ font-size:36px; color:var(--error); }
+  .detail-line{ display:flex; align-items:center; justify-content:space-between; padding:13px 16px; border-top:1px solid var(--hairline); }
+  .detail-line:first-child{ border-top:none; }
+  .detail-line .k{ font-size:13.5px; color:var(--text-secondary); }
+  .detail-line .v{ font-size:13.5px; font-weight:700; color:var(--text-primary); }
+  .cta-row{ display:flex; gap:10px; }
+  .manufacturer-hint{
+    margin-top:10px; font-size:12.5px; color:var(--text-secondary);
+    background:var(--midnight); border:1px solid rgba(36,50,82,.6);
+    border-radius:10px; padding:9px 11px; line-height:1.5;
+  }
+  .manufacturer-hint b{ color:var(--text-primary); font-weight:700; }
+  .helper-line{ display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.5; color:var(--text-secondary); padding:0 4px; }
+  .helper-line .ms{ font-size:15px; color:var(--sky-blue); margin-top:2px; }
+  /* Diagnostics: top bar, connection card, KPI strip, timeline, logs */
+  .appbar{ display:flex; align-items:center; gap:10px; margin:0 -6px; padding:4px 0 6px; }
+  .appbar h1{ font-size:22px; font-weight:700; letter-spacing:-0.02em; }
+  .icon-btn{
+    width:44px; height:44px; border-radius:50%; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-secondary);
+    transition:transform 140ms var(--ease-out), background-color 200ms var(--ease-out);
+  }
+  .icon-btn:active{ transform:scale(.92); background:rgba(18,27,53,.9); }
+  .icon-btn.tonal{ background:var(--blue-navy); border:1px solid rgba(36,50,82,.9); color:var(--text-primary); }
+
+  .mini-watch{
+    width:42px; height:42px; border-radius:50%; flex:none;
+    background:conic-gradient(from 200deg, #3a4468, #131a30 40%, #4c5a86 60%, #131a30 85%, #3a4468);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mini-watch span{
+    width:34px; height:34px; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, #10182e, #050914 72%);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mini-watch .ms{ font-size:15px; color:var(--sky-blue); font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 20; }
+  .diag-hero{ display:flex; align-items:center; gap:14px; padding:14px 16px; }
+  .diag-hero .who{ flex:1 1 auto; min-width:0; }
+  .diag-hero .who .name{ font-size:15px; font-weight:600; }
+  .diag-hero .who .sub{ margin-top:3px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .diag-hero .who .sub .meta{ font-size:12.5px; font-weight:600; color:var(--text-secondary); }
+  .diag-hero .batt{ text-align:right; flex:none; }
+  .diag-hero .batt b{ font-size:16px; font-weight:700; }
+  .diag-hero .batt .progress-track{ width:64px; margin-top:6px; }
+  .diag-hero .batt .progress-fill{ background:linear-gradient(90deg, var(--electric-blue), var(--cyan)); }
+
+  .kpi-grid{ display:grid; grid-template-columns:1fr 1fr; overflow:hidden; }
+  .kpi-cell{ padding:14px 16px; border-top:1px solid var(--hairline); }
+  .kpi-cell:nth-child(-n+2){ border-top:none; }
+  .kpi-cell:nth-child(odd){ border-right:1px solid var(--hairline); }
+  .kpi-cell .k-top{ display:flex; align-items:center; gap:8px; }
+  .kpi-cell .k-top .ms{ font-size:15px; color:var(--text-secondary); }
+  .kpi-cell .k-label{ font-size:12.5px; font-weight:600; color:var(--text-secondary); }
+  .kpi-cell .k-value{ margin-top:8px; font-size:24px; font-weight:700; letter-spacing:-0.02em; line-height:1; }
+  .kpi-cell .k-value .u{ font-size:13px; font-weight:600; color:var(--text-secondary); letter-spacing:0; margin-left:4px; }
+  .kpi-cell.dim .k-value{ color:var(--text-muted); }
+
+  .tl-row{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--hairline); }
+  .tl-row:first-child{ border-top:none; }
+  .tl-time{ font-family:var(--mono); font-size:11.5px; font-weight:500; color:var(--text-secondary); width:58px; flex:none; }
+  .tl-main{ flex:1 1 auto; min-width:0; }
+  .tl-title{ font-size:14px; font-weight:600; color:var(--text-primary); }
+  .tl-desc{ margin-top:1px; font-size:12.5px; line-height:1.4; color:var(--text-secondary); }
+  .tl-value{ font-family:var(--mono); font-size:11.5px; font-weight:500; color:var(--text-secondary); white-space:nowrap; }
+
+  .log{ font-family:var(--mono); font-size:11px; line-height:1.8; color:var(--text-secondary); padding:14px 16px; white-space:pre; overflow:hidden; }
+  .log .lvl{ color:var(--text-muted); }
+  .log .lvl.w{ color:var(--warning); }
+  .diag-actions{ display:flex; gap:10px; padding:14px 16px; border-top:1px solid var(--hairline); }
+  .diag-actions .btn{ flex:1; }
+  .diag-note{ display:flex; gap:8px; align-items:flex-start; padding:0 16px 14px; font-size:12px; line-height:1.5; color:var(--text-secondary); }
+  .diag-note .ms{ font-size:14px; color:var(--text-muted); margin-top:1px; }
+  .test-row{ display:flex; gap:12px; align-items:center; padding:14px 16px; border-top:1px solid var(--hairline); }
+  .test-row .spinner{
+    width:20px; height:20px; border-radius:50%; flex:none;
+    border:2px solid rgba(22,140,255,.25); border-top-color:var(--electric-blue);
+  }
+  .test-row .t-label{ font-size:14px; font-weight:600; }
+  .test-row .t-sub{ margin-top:2px; font-size:12.5px; color:var(--text-secondary); }
+  .file-row{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--hairline); }
+  .file-row .ib.t-int .ms{ font-size:19px; }
+  .file-row .f-name{ font-family:var(--mono); font-size:12.5px; font-weight:500; }
+  .file-row .f-meta{ margin-top:2px; font-size:12px; color:var(--text-secondary); }
+  .file-row .f-share{ margin-left:auto; }
+  [hidden]{ display:none !important; }
+  .empty{ padding:30px 22px 32px; text-align:center; }
+  .empty .ib{ width:52px; height:52px; border-radius:16px; margin:0 auto 14px; }
+  .empty .ib .ms{ font-size:24px; }
+  .empty .e-title{ font-size:15px; font-weight:600; }
+  .empty .e-sub{ margin:6px auto 0; font-size:13px; line-height:1.55; color:var(--text-secondary); max-width:30ch; }
+  .log .no-entries{ color:var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="doc-page">
+  <header class="doc-header">
+    <h1>NexWatch: Onboarding + Diagnostics redesign</h1>
+    <p>Redesign reference for the onboarding flow (<code>:feature:onboarding</code>) and the Diagnostics surface that replaces the raw text rows in <code>WatchDebugScreen</code>, redrawn in the established pattern: plain HTML/CSS against the exact <code>:core:designsystem</code> tokens, with the Part C motion system implemented live. Open it in a browser and interact with it. Translate into idiomatic Compose built on the theme, don't port the HTML structure literally.</p>
+    <ul class="whats-new">
+      <li><b>Flow progress.</b> A seven-step bar sits under the status bar on every onboarding screen, so a multi-step setup always says where you are and how much is left.</li>
+      <li><b>Permissions gate.</b> Continue stays disabled until the four required permissions are granted, with one helper line naming what's missing. Location stays optional.</li>
+      <li><b>Find your watch</b> gains a Bluetooth-off state alongside scanning and nothing-found.</li>
+      <li><b>Pairing</b> runs its progress ring around the watch render and gains a failure state with retry paths.</li>
+      <li><b>Diagnostics</b> becomes a real screen: connection state, per-day stat strip, event timeline, log preview, log export and background test. The timeline needs a new event log in <code>DiagnosticsStore</code> (today it keeps only last-* timestamps), so the events shown are illustrative sample data, not persisted values.</li>
+    </ul>
+  </header>
+  <main class="gallery">
+    <h2>Onboarding and pairing</h2>
+    <p class="group-sub">The seven-step setup as one flow. Every screen after Welcome carries the step bar. Interact with the controls: steppers, permission grants, the Bluetooth toggle, the pair-confirmation gate.</p>
+    <div class="frame">
+      <p class="frame-label"><b>Welcome</b> · Default</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body" style="padding-bottom:32px;">
+            <div class="flow-steps" aria-label="Step 1 of 7"><i class="now"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="hero-stage reveal">
+              <div class="hero-glow"></div>
+              <div class="watch-render">
+                <div class="watch-strap top"></div>
+                <div class="watch-strap bottom"></div>
+                <div class="watch-bezel">
+                  <div class="watch-face">
+                    <svg viewBox="0 0 100 100" fill="none">
+                      <circle cx="50" cy="50" r="38" stroke="#243252" stroke-width="2"/>
+                      <circle cx="50" cy="50" r="38" stroke="#168CFF" stroke-width="2" stroke-dasharray="60 179" stroke-linecap="round"/>
+                      <line x1="50" y1="50" x2="50" y2="26" stroke="#F7FAFF" stroke-width="2.5" stroke-linecap="round"/>
+                      <line x1="50" y1="50" x2="66" y2="58" stroke="#A8B4CC" stroke-width="2.5" stroke-linecap="round"/>
+                      <circle cx="50" cy="50" r="3" fill="#168CFF"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="watch-btn b1"></div>
+                <div class="watch-btn b2"></div>
+              </div>
+            </div>
+            <div class="reveal d1">
+              <div class="wordmark">
+                <div class="mark"><span class="ms">monitor_heart</span></div>
+                <span>NexWatch</span>
+              </div>
+              <p class="headline mt-16">Your watch.<br>Your data. On your phone.</p>
+              <p class="screen-sub">Everything NexWatch reads stays on this device. Export it, or share it, on your terms.</p>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary press reveal d2">Get started</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Your profile</b> · Default</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 2 of 7"><i class="done"></i><i class="now"></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="reveal">
+              <p class="headline">Your profile</p>
+              <p class="screen-sub">Used only for calorie and distance calculations on the watch.</p>
+            </div>
+            <div class="mt-24 reveal d1">
+              <p class="field-label">Sex</p>
+              <div class="segmented" data-index="0" id="segmented">
+                <div class="thumb"></div>
+                <button class="active" data-seg="0">Female</button>
+                <button data-seg="1">Male</button>
+              </div>
+            </div>
+            <div class="surface mt-16 reveal d2">
+              <div class="stepper-row">
+                <span class="stepper-label">Age</span>
+                <div class="stepper-control">
+                  <button class="stepper-btn" data-step="age" data-dir="-1" aria-label="Decrease age">&#8722;</button>
+                  <span class="stepper-value swap" id="val-age">29<span class="u">yr</span></span>
+                  <button class="stepper-btn" data-step="age" data-dir="1" aria-label="Increase age">+</button>
+                </div>
+              </div>
+              <div class="stepper-row">
+                <span class="stepper-label">Height</span>
+                <div class="stepper-control">
+                  <button class="stepper-btn" data-step="height" data-dir="-1" aria-label="Decrease height">&#8722;</button>
+                  <span class="stepper-value swap" id="val-height">168<span class="u">cm</span></span>
+                  <button class="stepper-btn" data-step="height" data-dir="1" aria-label="Increase height">+</button>
+                </div>
+              </div>
+              <div class="stepper-row">
+                <span class="stepper-label">Weight</span>
+                <div class="stepper-control">
+                  <button class="stepper-btn" data-step="weight" data-dir="-1" aria-label="Decrease weight">&#8722;</button>
+                  <span class="stepper-value swap" id="val-weight">61<span class="u">kg</span></span>
+                  <button class="stepper-btn" data-step="weight" data-dir="1" aria-label="Increase weight">+</button>
+                </div>
+              </div>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary press reveal d3">Continue</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Permissions checklist</b> · 3 of 5 granted</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 3 of 7"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i><i></i><i></i></div>
+            <div class="reveal">
+              <p class="headline">Let's get you connected</p>
+              <p class="screen-sub">NexWatch needs a few permissions to talk to your watch.</p>
+            </div>
+            <div class="mt-16 reveal d1 stack-tight">
+              <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:600; color:var(--text-secondary); padding:0 4px;">
+                <span id="perm-count">3 of 5 granted</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" id="perm-fill" style="transform:scaleX(.6);"></div></div>
+            </div>
+            <p class="helper-line mt-16 reveal d1" id="perm-helper">
+              <span class="ms">info</span>
+              <span>Grant the four required permissions to continue. Location is optional.</span>
+            </p>
+            <div class="surface rows mt-16 reveal d2" id="perm-list">
+              <div class="row">
+                <div class="ib t-int"><span class="ms">nearby_devices</span></div>
+                <div class="row-text"><p class="row-title">Nearby devices</p><p class="row-desc">Find and connect to your watch over Bluetooth.</p></div>
+                <span class="chip success"><span class="ms">check_circle</span>Granted</span>
+              </div>
+              <div class="row">
+                <div class="ib t-int"><span class="ms">notifications</span></div>
+                <div class="row-text"><p class="row-title">Notifications</p><p class="row-desc">Show sync and connection status.</p></div>
+                <span class="chip success"><span class="ms">check_circle</span>Granted</span>
+              </div>
+              <div class="row">
+                <div class="ib t-int"><span class="ms">notifications_active</span></div>
+                <div class="row-text"><p class="row-title">Notification access</p><p class="row-desc">Forward phone notifications to your wrist.</p></div>
+                <span class="chip success"><span class="ms">check_circle</span>Granted</span>
+              </div>
+              <div class="row" data-required>
+                <div class="ib t-int"><span class="ms">call</span></div>
+                <div class="row-text"><p class="row-title">Phone &amp; contacts</p><p class="row-desc">Show caller ID and let the watch reject calls.</p></div>
+                <button class="btn btn-secondary press" style="width:auto; height:36px; padding:0 16px; font-size:13px;" data-grant>Grant</button>
+              </div>
+              <div class="row">
+                <div class="ib t-int"><span class="ms">location_on</span></div>
+                <div class="row-text"><p class="row-title">Location</p><p class="row-desc">Optional. Pushes local weather to the watch.</p></div>
+                <button class="btn btn-secondary press" style="width:auto; height:36px; padding:0 16px; font-size:13px;" data-grant>Grant</button>
+              </div>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary press reveal d3" id="perm-continue" disabled>Continue</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+    <div class="frame">
+      <p class="frame-label"><b>Find your watch</b> · Scanning, 1 found</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 4 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div>
+            <div class="reveal">
+              <p class="headline">Finding your watch</p>
+              <p class="screen-sub">Keep it within 1 m and make sure it isn't already connected to another app.</p>
+            </div>
+            <div class="radar reveal d1">
+              <div class="radar-ring r1"></div>
+              <div class="radar-ring r2"></div>
+              <div class="radar-ring r3"></div>
+              <div class="radar-core"><span class="ms">bluetooth_searching</span></div>
+            </div>
+            <div class="surface rows mt-24 reveal d2">
+              <button class="row found-row">
+                <div class="ib t-ok"><span class="ms">watch</span></div>
+                <div class="row-text">
+                  <p class="row-title">GTR 3 Pro</p>
+                  <p class="row-desc">…A4F2</p>
+                </div>
+                <div class="signal-bars" aria-label="Signal 3 of 4 bars"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div>
+                <span class="ms chev">chevron_right</span>
+              </button>
+            </div>
+            <div class="flex-spacer"></div>
+            <p class="caption reveal d3">Tap a watch to pair with it.</p>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Find your watch</b> · Bluetooth off</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body" id="bt-off">
+            <div class="flow-steps" aria-label="Step 4 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div>
+            <div class="reveal">
+              <p class="headline">Bluetooth is off</p>
+              <p class="screen-sub">NexWatch needs Bluetooth to find your watch.</p>
+            </div>
+            <div class="radar muted reveal d1">
+              <div class="radar-core"><span class="ms">bluetooth_disabled</span></div>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary press reveal d2" id="bt-on">Turn on Bluetooth</button>
+            <p class="caption reveal d2" style="margin-top:12px;">Scanning starts as soon as it's on.</p>
+          </div>
+          <div class="screen-body" id="bt-scanning" hidden>
+            <div class="flow-steps" aria-label="Step 4 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div>
+            <div class="reveal">
+              <p class="headline">Finding your watch</p>
+              <p class="screen-sub">Keep it within 1 m and make sure it isn't already connected to another app.</p>
+            </div>
+            <div class="radar reveal d1">
+              <div class="radar-ring r1"></div>
+              <div class="radar-ring r2"></div>
+              <div class="radar-ring r3"></div>
+              <div class="radar-core"><span class="ms">bluetooth_searching</span></div>
+            </div>
+            <div class="surface rows mt-24 reveal d2">
+              <button class="row found-row">
+                <div class="ib t-ok"><span class="ms">watch</span></div>
+                <div class="row-text">
+                  <p class="row-title">GTR 3 Pro</p>
+                  <p class="row-desc">…A4F2</p>
+                </div>
+                <div class="signal-bars" aria-label="Signal 3 of 4 bars"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div>
+                <span class="ms chev">chevron_right</span>
+              </button>
+            </div>
+            <div class="flex-spacer"></div>
+            <p class="caption reveal d3">Tap a watch to pair with it.</p>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Find your watch</b> · Nothing found after 30&nbsp;s</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 4 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div>
+            <div class="reveal">
+              <p class="headline">Still looking</p>
+              <p class="screen-sub">Nothing found in 30 seconds.</p>
+            </div>
+            <div class="radar muted reveal d1">
+              <div class="radar-core"><span class="ms">search</span></div>
+            </div>
+            <div class="surface mt-24 reveal d2" style="padding:6px 14px;">
+              <div class="tip-row">
+                <span class="ms">info</span>
+                <p>Make sure the watch isn't connected to another app.</p>
+              </div>
+              <div class="tip-row">
+                <span class="ms">info</span>
+                <p>Keep it within 1 m of your phone.</p>
+              </div>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary press reveal d3">Scan again</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Pair confirmation</b> · Data-wipe warning</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 5 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+            <div class="reveal">
+              <p class="headline">Pair with GTR 3 Pro?</p>
+              <p class="screen-sub">This sets up the watch for this phone.</p>
+            </div>
+            <div class="banner-warning mt-24 reveal d1">
+              <div class="ib t-warn"><span class="ms">warning</span></div>
+              <p><strong>Pairing as a new user clears the data currently stored on the watch.</strong> Anything already on NexWatch stays right where it is.</p>
+            </div>
+            <div class="checkbox-row reveal d2">
+              <button class="checkbox" id="confirm-check" role="checkbox" aria-checked="false" aria-label="I understand">
+                <span class="ms">check_circle</span>
+              </button>
+              <label for="confirm-check">I understand</label>
+            </div>
+            <div class="flex-spacer"></div>
+            <div class="cta-row reveal d3">
+              <button class="btn btn-secondary press" style="width:auto; padding:0 22px;">Cancel</button>
+              <button class="btn btn-primary press" id="pair-btn" disabled>Pair watch</button>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+    <div class="frame">
+      <p class="frame-label"><b>Pairing</b> · Authenticating</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 6 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+            <div class="reveal center">
+              <p class="headline">Pairing your watch</p>
+              <p class="screen-sub" style="max-width:none;">Keep NexWatch open and the watch nearby.</p>
+            </div>
+            <div class="pair-stage reveal d1">
+              <div class="pair-ring" aria-hidden="true">
+                <svg viewBox="0 0 232 232">
+                  <circle class="track" cx="116" cy="116" r="110"/>
+                  <circle class="fill" cx="116" cy="116" r="110"/>
+                </svg>
+              </div>
+              <div class="watch-render">
+                <div class="watch-strap top"></div>
+                <div class="watch-strap bottom"></div>
+                <div class="watch-bezel">
+                  <div class="watch-face">
+                    <svg viewBox="0 0 100 100" fill="none">
+                      <circle cx="50" cy="50" r="38" stroke="#243252" stroke-width="2"/>
+                      <circle cx="50" cy="50" r="38" stroke="#168CFF" stroke-width="2" stroke-dasharray="60 179" stroke-linecap="round"/>
+                      <line x1="50" y1="50" x2="50" y2="26" stroke="#F7FAFF" stroke-width="2.5" stroke-linecap="round"/>
+                      <line x1="50" y1="50" x2="66" y2="58" stroke="#A8B4CC" stroke-width="2.5" stroke-linecap="round"/>
+                      <circle cx="50" cy="50" r="3" fill="#168CFF"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="watch-btn b1"></div>
+                <div class="watch-btn b2"></div>
+              </div>
+            </div>
+            <div class="surface rows mt-16 reveal d2" style="padding:2px 16px;">
+              <div class="step-row done"><div class="step-dot"><span class="ms">check_circle</span></div><span class="step-label">Connecting</span></div>
+              <div class="step-row active"><div class="step-dot"><div class="spin"></div></div><span class="step-label">Authenticating</span></div>
+              <div class="step-row"><div class="step-dot"></div><span class="step-label">Reading watch features</span></div>
+              <div class="step-row"><div class="step-dot"></div><span class="step-label">First sync</span></div>
+            </div>
+            <div class="flex-spacer"></div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Pairing</b> · Connected</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 6 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+            <div class="reveal center" style="margin-top:12px;">
+              <div class="success-mark"><span class="ms">check_circle</span></div>
+              <p class="headline mt-16">Connected</p>
+              <p class="screen-sub" style="max-width:none;">GTR 3 Pro is paired with this phone.</p>
+            </div>
+            <div class="surface mt-24 reveal d1">
+              <div class="detail-line"><span class="k">Battery</span><span class="v">72%</span></div>
+              <div class="detail-line"><span class="k">Firmware</span><span class="v">1.05</span></div>
+              <div class="detail-line"><span class="k">Address</span><span class="v">…A4F2</span></div>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary press reveal d2">Continue</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Pairing</b> · Failed</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 6 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+            <div class="reveal center" style="margin-top:12px;">
+              <div class="failure-mark"><span class="ms">error</span></div>
+              <p class="headline mt-16">Couldn't connect</p>
+              <p class="screen-sub" style="max-width:none;">The watch wasn't reachable. Keep it close and try again.</p>
+            </div>
+            <div class="surface mt-24 reveal d1">
+              <div class="detail-line"><span class="k">Watch</span><span class="v">GTR 3 Pro</span></div>
+              <div class="detail-line"><span class="k">Last step</span><span class="v">Authenticating</span></div>
+              <div class="detail-line"><span class="k">Address</span><span class="v">…A4F2</span></div>
+            </div>
+            <div class="flex-spacer"></div>
+            <div class="stack reveal d2">
+              <button class="btn btn-primary press">Retry pairing</button>
+              <button class="btn btn-text press" style="margin:0 auto;">Choose another watch</button>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Keep it running</b> · Default</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="flow-steps" aria-label="Step 7 of 7"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i></div>
+            <div class="reveal">
+              <p class="headline">Keep it running</p>
+              <p class="screen-sub">Android may stop the app in the background. These settings keep the connection alive.</p>
+            </div>
+            <div class="surface rows mt-24 reveal d1">
+              <div class="row">
+                <div class="ib t-ok"><span class="ms">bolt</span></div>
+                <div class="row-text"><p class="row-title">Unrestricted battery use</p><p class="row-desc">Stops Android from pausing the connection.</p></div>
+                <span class="chip success"><span class="ms">check_circle</span>Allowed</span>
+              </div>
+              <div class="row" style="align-items:flex-start;">
+                <div class="ib t-int"><span class="ms">restart_alt</span></div>
+                <div class="row-text">
+                  <p class="row-title">Autostart</p>
+                  <p class="row-desc">Lets NexWatch start again after a restart.</p>
+                  <p class="manufacturer-hint"><b>Tecno, Infinix, Xiaomi:</b> Settings &gt; Apps &gt; NexWatch &gt; Autostart &gt; On.</p>
+                </div>
+                <button class="btn btn-secondary press" style="width:auto; height:36px; padding:0 16px; font-size:13px;">Enable</button>
+              </div>
+              <div class="row">
+                <div class="ib t-ok"><span class="live-dot" style="color:var(--success);"></span></div>
+                <div class="row-text"><p class="row-title">Background connection</p><p class="row-desc">Runs a quick check with the app out of view.</p></div>
+                <button class="btn btn-secondary press" style="width:auto; height:36px; padding:0 16px; font-size:13px;">Test</button>
+              </div>
+            </div>
+            <div class="flex-spacer"></div>
+            <button class="btn btn-primary press reveal d2">Done</button>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+    <h2>Diagnostics</h2>
+    <p class="group-sub">Replaces the raw text rows on the current debug screen. Denser and more technical by design (Batch 8.5), monospace for timestamps and log lines, one live animation per screen. Sample data is illustrative: the timeline needs the event log noted above.</p>
+    <div class="frame">
+      <p class="frame-label"><b>Diagnostics</b> · Today</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="appbar reveal">
+              <button class="icon-btn" aria-label="Back"><span class="ms">arrow_back</span></button>
+              <h1>Diagnostics</h1>
+            </div>
+            <div class="surface diag-hero reveal d1">
+              <div class="mini-watch"><span><span class="ms">watch</span></span></div>
+              <div class="who">
+                <p class="name">GTR 3 Pro</p>
+                <div class="sub">
+                  <span class="chip success"><span class="live-dot"></span>Connected</span>
+                  <span class="meta">Firmware 1.05</span>
+                </div>
+              </div>
+              <div class="batt">
+                <b>72%</b>
+                <div class="progress-track"><div class="progress-fill" style="transform:scaleX(.72);"></div></div>
+              </div>
+            </div>
+            <div class="surface kpi-grid mt-12 reveal d2">
+              <div class="kpi-cell">
+                <div class="k-top"><span class="ms">schedule</span><span class="k-label">Uptime today</span></div>
+                <p class="k-value">6 h 41 m</p>
+              </div>
+              <div class="kpi-cell">
+                <div class="k-top"><span class="ms">restart_alt</span><span class="k-label">Reconnects today</span></div>
+                <p class="k-value">3</p>
+              </div>
+              <div class="kpi-cell">
+                <div class="k-top"><span class="ms">notifications</span><span class="k-label">Forwarded today</span></div>
+                <p class="k-value">47</p>
+              </div>
+              <div class="kpi-cell">
+                <div class="k-top"><span class="ms">database</span><span class="k-label">Records on phone</span></div>
+                <p class="k-value">48,213</p>
+              </div>
+            </div>
+            <p class="group-label reveal d3">Connection timeline</p>
+            <div class="surface reveal d3">
+              <div class="tl-row">
+                <span class="tl-time">14:02:31</span>
+                <div class="ib t-ok"><span class="ms">database</span></div>
+                <div class="tl-main"><p class="tl-title">Sync completed</p><p class="tl-desc">Last sync 14:02</p></div>
+                <span class="tl-value">1,204</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">13:58:12</span>
+                <div class="ib t-int"><span class="ms">bluetooth_searching</span></div>
+                <div class="tl-main"><p class="tl-title">Reconnected</p><p class="tl-desc">Watch back in range</p></div>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">13:47:40</span>
+                <div class="ib t-warn"><span class="ms">bluetooth_disabled</span></div>
+                <div class="tl-main"><p class="tl-title">Disconnected</p><p class="tl-desc">Out of range</p></div>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">11:12:08</span>
+                <div class="ib t-ok"><span class="ms">database</span></div>
+                <div class="tl-main"><p class="tl-title">Sync completed</p><p class="tl-desc">Morning sync</p></div>
+                <span class="tl-value">486</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">09:58:55</span>
+                <div class="ib t-ok"><span class="ms">bluetooth</span></div>
+                <div class="tl-main"><p class="tl-title">Connected</p><p class="tl-desc">After app start</p></div>
+              </div>
+            </div>
+            <p class="group-label reveal d4">Logs</p>
+            <div class="surface reveal d4">
+              <div class="log"><span class="lvl">09:58:55.201  I</span>  watch    ready userId=8413 device=…A4F2
+<span class="lvl">11:12:08.664  I</span>  sync     batch done records=486 ms=812
+<span class="lvl">13:47:40.118  <span class="w">W</span></span>  link     out of range, sync paused
+<span class="lvl">13:58:12.402  I</span>  link     back in range, sync resumed
+<span class="lvl">14:02:31.877  I</span>  sync     batch done records=1204 ms=2330</div>
+              <div class="file-row" id="log-file" hidden>
+                <div class="ib t-int"><span class="ms">done_all</span></div>
+                <div>
+                  <p class="f-name">nexwatch-log-2026-10-14.txt</p>
+                  <p class="f-meta">84 KB, today's entries</p>
+                </div>
+                <button class="icon-btn tonal f-share press" aria-label="Share log file"><span class="ms">download</span></button>
+              </div>
+              <div class="diag-actions">
+                <button class="btn btn-secondary press" id="bg-test">Run background test</button>
+                <button class="btn btn-primary press" id="export-logs">Export logs</button>
+              </div>
+              <p class="diag-note"><span class="ms">info</span><span>Logs stay on this phone. Exports contain device names and addresses, never message content.</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Diagnostics</b> · First day, no events</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="appbar reveal">
+              <button class="icon-btn" aria-label="Back"><span class="ms">arrow_back</span></button>
+              <h1>Diagnostics</h1>
+            </div>
+            <div class="surface diag-hero reveal d1">
+              <div class="mini-watch"><span><span class="ms">watch</span></span></div>
+              <div class="who">
+                <p class="name">GTR 3 Pro</p>
+                <div class="sub">
+                  <span class="chip success"><span class="live-dot"></span>Connected</span>
+                  <span class="meta">Firmware 1.05</span>
+                </div>
+              </div>
+              <div class="batt">
+                <b>72%</b>
+                <div class="progress-track"><div class="progress-fill" style="transform:scaleX(.72);"></div></div>
+              </div>
+            </div>
+            <div class="surface kpi-grid mt-12 reveal d2">
+              <div class="kpi-cell dim">
+                <div class="k-top"><span class="ms">schedule</span><span class="k-label">Uptime today</span></div>
+                <p class="k-value">&mdash;</p>
+              </div>
+              <div class="kpi-cell dim">
+                <div class="k-top"><span class="ms">restart_alt</span><span class="k-label">Reconnects today</span></div>
+                <p class="k-value">0</p>
+              </div>
+              <div class="kpi-cell dim">
+                <div class="k-top"><span class="ms">notifications</span><span class="k-label">Forwarded today</span></div>
+                <p class="k-value">0</p>
+              </div>
+              <div class="kpi-cell dim">
+                <div class="k-top"><span class="ms">database</span><span class="k-label">Records on phone</span></div>
+                <p class="k-value">0</p>
+              </div>
+            </div>
+            <p class="group-label reveal d3">Connection timeline</p>
+            <div class="surface reveal d3">
+              <div class="empty">
+                <div class="ib t-int"><span class="ms">history</span></div>
+                <p class="e-title">No connection events yet</p>
+                <p class="e-sub">Connection and sync events show up here once the watch has been in use. Check back after your first sync.</p>
+              </div>
+            </div>
+            <p class="group-label reveal d4">Logs</p>
+            <div class="surface reveal d4">
+              <div class="log"><span class="no-entries">No log entries yet.</span></div>
+              <div class="diag-actions">
+                <button class="btn btn-secondary press">Run background test</button>
+                <button class="btn btn-primary press">Export logs</button>
+              </div>
+              <p class="diag-note"><span class="ms">info</span><span>Logs stay on this phone. Exports contain device names and addresses, never message content.</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+
+    <div class="frame">
+      <p class="frame-label"><b>Diagnostics</b> · Background test, running</p>
+      <div class="phone-shell">
+        <div class="phone-screen" data-observe>
+          <div class="status-bar"><span>9:41</span><div class="sys"><span class="ms">signal_cellular_alt</span><span class="ms">wifi</span><span class="ms">battery_full</span></div></div>
+          <div class="screen-body">
+            <div class="appbar reveal">
+              <button class="icon-btn" aria-label="Back"><span class="ms">arrow_back</span></button>
+              <h1>Diagnostics</h1>
+            </div>
+            <div class="surface diag-hero reveal d1">
+              <div class="mini-watch"><span><span class="ms">watch</span></span></div>
+              <div class="who">
+                <p class="name">GTR 3 Pro</p>
+                <div class="sub">
+                  <span class="chip success"><span class="static-dot"></span>Connected</span>
+                  <span class="meta">Firmware 1.05</span>
+                </div>
+              </div>
+              <div class="batt">
+                <b>72%</b>
+                <div class="progress-track"><div class="progress-fill" style="transform:scaleX(.72);"></div></div>
+              </div>
+            </div>
+            <p class="group-label reveal d2">Logs</p>
+            <div class="surface reveal d2">
+              <div class="log"><span class="lvl">14:09:02.514  I</span>  bgtest   sending test notification
+<span class="lvl">14:09:04.029  I</span>  watch    send ok msgId=9f21</div>
+              <div class="test-row" id="test-running">
+                <div class="spinner"></div>
+                <div>
+                  <p class="t-label">Sending a test notification to your watch</p>
+                  <p class="t-sub">Confirms the connection works while the app is out of view.</p>
+                </div>
+              </div>
+              <div class="diag-actions">
+                <button class="btn btn-secondary" id="bg-test-again" disabled>Running…</button>
+                <button class="btn btn-primary press">Export logs</button>
+              </div>
+              <p class="diag-note"><span class="ms">info</span><span>Logs stay on this phone. Exports contain device names and addresses, never message content.</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+(function(){
+  'use strict';
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Entrance choreography: each frame plays its one authored moment once, when visible.
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.35 });
+  document.querySelectorAll('[data-observe]').forEach(function(el){ observer.observe(el); });
+
+  // Segmented control: sliding thumb, not a re-render.
+  var seg = document.getElementById('segmented');
+  if (seg) {
+    seg.addEventListener('click', function(e){
+      var btn = e.target.closest('button[data-seg]');
+      if (!btn) return;
+      seg.dataset.index = btn.dataset.seg;
+      seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b === btn); });
+    });
+  }
+
+  // Steppers: blur-masked crossfade so a value change reads as one object changing.
+  var values = { age: 29, height: 168, weight: 61 };
+  var bounds = { age: [13, 99], height: [120, 220], weight: [30, 180] };
+  document.querySelectorAll('[data-step]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var key = btn.dataset.step;
+      var dir = parseInt(btn.dataset.dir, 10);
+      var next = Math.min(bounds[key][1], Math.max(bounds[key][0], values[key] + dir));
+      if (next === values[key]) return;
+      values[key] = next;
+      var el = document.getElementById('val-' + key);
+      var unit = el.querySelector('.u').outerHTML;
+      el.classList.add('mid-change');
+      setTimeout(function(){
+        el.innerHTML = next + unit;
+        el.classList.remove('mid-change');
+      }, 90);
+    });
+  });
+
+  // Permissions: grant live, pop the check in, animate the progress bar, gate Continue.
+  var list = document.getElementById('perm-list');
+  if (list) {
+    var countEl = document.getElementById('perm-count');
+    var fillEl = document.getElementById('perm-fill');
+    var helperEl = document.getElementById('perm-helper');
+    var continueBtn = document.getElementById('perm-continue');
+    var refreshGate = function(){
+      var granted = list.querySelectorAll('.chip.success').length;
+      var total = list.querySelectorAll('.row').length;
+      countEl.textContent = granted + ' of ' + total + ' granted';
+      fillEl.style.transform = 'scaleX(' + (granted / total) + ')';
+      var requiredMissing = list.querySelectorAll('[data-required] .btn').length;
+      continueBtn.disabled = requiredMissing > 0;
+      helperEl.hidden = requiredMissing === 0;
+    };
+    list.querySelectorAll('[data-grant]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var chip = document.createElement('span');
+        chip.className = 'chip success';
+        chip.innerHTML = '<span class="ms" style="animation:checkPop 360ms var(--ease-out);">check_circle</span>Granted';
+        btn.replaceWith(chip);
+        refreshGate();
+      });
+    });
+  }
+
+  // Find your watch: Bluetooth off turns scanning on inside the same frame.
+  var btOn = document.getElementById('bt-on');
+  if (btOn) {
+    btOn.addEventListener('click', function(){
+      document.getElementById('bt-off').hidden = true;
+      document.getElementById('bt-scanning').hidden = false;
+    });
+  }
+
+  // Pair confirmation: the gate unlocks only after the checkbox is drawn.
+  var check = document.getElementById('confirm-check');
+  var pairBtn = document.getElementById('pair-btn');
+  if (check && pairBtn) {
+    check.addEventListener('click', function(){
+      var isChecked = check.classList.toggle('checked');
+      check.setAttribute('aria-checked', isChecked ? 'true' : 'false');
+      pairBtn.disabled = !isChecked;
+    });
+  }
+
+  // Diagnostics: export prepares a log file row; background test runs, then reports.
+  var passedRow = function(){
+    var row = document.createElement('div');
+    row.className = 'test-row';
+    row.innerHTML = '<div class="ib t-ok"><span class="ms">check_circle</span></div>' +
+      '<div><p class="t-label">Sent. Your watch should buzz now.</p>' +
+      '<p class="t-sub">Background connection confirmed.</p></div>';
+    return row;
+  };
+  var runTest = function(btn, getDone){
+    if (btn.disabled) return;
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Running…';
+    setTimeout(function(){
+      if (getDone) getDone();
+      btn.disabled = false;
+      btn.textContent = original;
+    }, reduce ? 0 : 1600);
+  };
+  var bgTest = document.getElementById('bg-test');
+  if (bgTest) {
+    bgTest.addEventListener('click', function(){
+      var logs = bgTest.closest('.surface');
+      runTest(bgTest, function(){
+        if (!logs.querySelector('.test-row')) {
+          logs.querySelector('.diag-actions').before(passedRow());
+        }
+      });
+    });
+  }
+  var exportBtn = document.getElementById('export-logs');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function(){
+      var logs = exportBtn.closest('.surface');
+      exportBtn.disabled = true;
+      exportBtn.textContent = 'Preparing…';
+      setTimeout(function(){
+        document.getElementById('log-file').hidden = false;
+        exportBtn.disabled = false;
+        exportBtn.textContent = 'Export logs';
+      }, reduce ? 0 : 900);
+    });
+  }
+  // The running frame resolves itself once, so the passed state can be seen.
+  var running = document.getElementById('test-running');
+  if (running) {
+    setTimeout(function(){
+      running.replaceWith(passedRow());
+      var again = document.getElementById('bg-test-again');
+      if (again) { again.disabled = false; again.textContent = 'Run background test'; }
+    }, reduce ? 0 : 1800);
+  }
+})();
+</script>
+</body>
+</html>

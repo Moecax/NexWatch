@@ -57,10 +57,12 @@ class WatchSync @Inject constructor(
         _status.value = WatchSyncStatus.Running(fraction = null, dataType = null)
         try {
             var completed = false
+            val dataTypes = sortedSetOf<String>()
             val attempt = try {
                 withTimeout(SYNC_GUARD_TIMEOUT) {
                     coordinator.syncAndNormalize { progress ->
                         if (progress.completed) completed = true
+                        progress.batch?.let { dataTypes += it.dataType.removeSuffix("_measure").replace('_', ' ') }
                         _status.value = WatchSyncStatus.Running(progress.fraction(), progress.batch?.dataType)
                     }
                 }
@@ -86,7 +88,7 @@ class WatchSync @Inject constructor(
                 // that is the caller stopping, not the sync failing, so it isn't recorded.
                 failure is CancellationException -> throw failure
                 failure != null -> diagnostics.recordSyncFailed(now, failureReason(failure))
-                completed -> diagnostics.recordSyncSucceeded(now)
+                completed -> diagnostics.recordSyncSucceeded(now, detail = dataTypes.joinToString(", ").ifEmpty { null })
             }
             result
         } finally {

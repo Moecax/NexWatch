@@ -1,19 +1,27 @@
 package com.nexwatch.feature.onboarding.ui
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.nexwatch.core.designsystem.component.EntranceItem
+import com.nexwatch.core.designsystem.component.NexCard
 import com.nexwatch.core.designsystem.component.NumberStepper
 import com.nexwatch.core.designsystem.component.PremiumBackground
 import com.nexwatch.core.designsystem.component.PrimaryButton
+import com.nexwatch.core.designsystem.component.SectionLabel
 import com.nexwatch.core.designsystem.component.SegmentedControl
+import com.nexwatch.core.designsystem.component.StepProgressBar
 import com.nexwatch.core.designsystem.theme.WatchTheme
 import com.nexwatch.core.watchapi.UserProfile
 import com.nexwatch.feature.onboarding.ProfileInput
@@ -28,32 +36,44 @@ fun ProfileScreen(
     onWeightChanged: (Int) -> Unit,
     onContinue: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+    ) {
         EntranceItem(index = 0) {
-            Text("Your profile", style = MaterialTheme.typography.headlineSmall)
+            StepProgressBar(total = ONBOARDING_STEPS, current = 2, modifier = Modifier.padding(bottom = 16.dp))
         }
         EntranceItem(index = 1) {
+            Text("Your profile", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+        EntranceItem(index = 2) {
             Text(
                 "Used only for calorie and distance calculations on the watch.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
             )
         }
-        EntranceItem(index = 2) {
+        EntranceItem(index = 3) {
+            SectionLabel("Sex", Modifier.padding(bottom = 8.dp))
+        }
+        EntranceItem(index = 4) {
             SegmentedControl(
                 options = listOf("Female", "Male"),
                 selectedIndex = if (profile.sex == UserProfile.Sex.FEMALE) 0 else 1,
                 onSelected = { onSexChanged(if (it == 0) UserProfile.Sex.FEMALE else UserProfile.Sex.MALE) },
             )
         }
-        EntranceItem(index = 3) {
-            NumberStepper("Age", profile.age, "yrs", onAgeChanged, range = 10..100)
-        }
-        EntranceItem(index = 4) {
-            NumberStepper("Height", profile.heightCm, "cm", onHeightChanged, range = 100..230)
-        }
-        EntranceItem(index = 5) {
-            NumberStepper("Weight", profile.weightKg, "kg", onWeightChanged, range = 30..200)
+        EntranceItem(index = 5, modifier = Modifier.padding(top = 16.dp)) {
+            NexCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+                NumberStepper("Age", profile.age, "yrs", onAgeChanged, range = 10..100)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                NumberStepper("Height", profile.heightCm, "cm", onHeightChanged, range = 100..230)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                NumberStepper("Weight", profile.weightKg, "kg", onWeightChanged, range = 30..200)
+            }
         }
         EntranceItem(index = 6, modifier = Modifier.padding(top = 24.dp)) {
             PrimaryButton(text = "Continue", onClick = onContinue)

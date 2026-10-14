@@ -1188,6 +1188,12 @@ Known work that no phase owns yet. Turn items into a phase (with a branch and ex
   **Still open, because it needs the real watch:** A0's diagnosis of what a sync actually does on hardware (no
   phone was available, so the root cause is unconfirmed; the guards hold either way), the overnight catch-up, and a
   manual on-watch reading reaching Today and Health Connect.
+- **Onboarding and Diagnostics redesign (`redesign-onboarding-diagnostics`, PR open, stacked on `sync-fixes`):**
+  the seven onboarding screens and the Diagnostics screen rebuilt to
+  `docs/design/NexWatch Onboarding and Diagnostics (redesign).html`. Diagnostics replaces the Phase 4 debug screen
+  (its controls survive in a debug-only section) and adds a bounded connection timeline in `DiagnosticsStore`.
+  Only Nearby devices is now required to finish onboarding; every other permission can be skipped. Checked with
+  build, unit tests and lint; not yet walked through on the phone.
 - **Watchfaces** are now Phase 12, planned in the same file (Part C). That work starts only after `sync-fixes`
   merges. Firmware update is still dropped.
 - **Checks that need more real data:** the Phase 6 decoder mappings, the calorie scale and resting heart rate,
