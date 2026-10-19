@@ -23,23 +23,27 @@ class FitCloudMappersTest {
 
         assertEquals(
             WatchState.Waiting(retryAt),
-            ConnectorState.DISCONNECTED.toWatchState(battery = null, nextRetryAt = retryAt),
+            ConnectorState.DISCONNECTED.toWatchState(battery = null, charging = false, nextRetryAt = retryAt),
         )
         assertEquals(
             WatchState.Waiting(retryAt),
-            ConnectorState.PRE_CONNECTING.toWatchState(battery = null, nextRetryAt = retryAt),
+            ConnectorState.PRE_CONNECTING.toWatchState(battery = null, charging = false, nextRetryAt = retryAt),
         )
         assertEquals(
             WatchState.Connecting,
-            ConnectorState.CONNECTING.toWatchState(battery = null, nextRetryAt = retryAt),
+            ConnectorState.CONNECTING.toWatchState(battery = null, charging = false, nextRetryAt = retryAt),
         )
         assertEquals(
             WatchState.Connecting,
-            ConnectorState.PRE_CONNECTED.toWatchState(battery = null, nextRetryAt = retryAt),
+            ConnectorState.PRE_CONNECTED.toWatchState(battery = null, charging = false, nextRetryAt = retryAt),
         )
         assertEquals(
             WatchState.Ready(battery = 61),
-            ConnectorState.CONNECTED.toWatchState(battery = 61, nextRetryAt = null),
+            ConnectorState.CONNECTED.toWatchState(battery = 61, charging = false, nextRetryAt = null),
+        )
+        assertEquals(
+            WatchState.Ready(battery = 61, charging = true),
+            ConnectorState.CONNECTED.toWatchState(battery = 61, charging = true, nextRetryAt = null),
         )
     }
 

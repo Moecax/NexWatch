@@ -11,6 +11,7 @@ import com.nexwatch.core.watchapi.SedentaryReminder
 import com.nexwatch.core.watchapi.WatchAlarm
 import com.nexwatch.core.watchapi.WatchContact
 import com.nexwatch.core.watchapi.WristRaise
+import com.nexwatch.core.watchapi.WristSide
 import com.topstep.fitcloud.sdk.v2.model.config.FcBloodPressureConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDNDConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDrinkWaterConfig
@@ -144,6 +145,16 @@ internal fun DisplayUnits.applyTo(current: FcFunctionConfig, timeFormatSupported
         .setFlagEnabled(FcFunctionConfig.Flag.TEMPERATURE_UNIT, fahrenheit)
         .create()
 }
+
+// Set = right wrist, as in the vendor sample's "wear on right hand" switch. Like the unit
+// flags above, confirm it against the watch's own setting rather than trusting it blindly.
+internal fun FcFunctionConfig.toWristSide() =
+    if (isFlagEnabled(FcFunctionConfig.Flag.WEAR_WAY)) WristSide.RIGHT else WristSide.LEFT
+
+internal fun WristSide.applyTo(current: FcFunctionConfig): FcFunctionConfig =
+    FcFunctionConfig.Builder(current.copyBytes())
+        .setFlagEnabled(FcFunctionConfig.Flag.WEAR_WAY, this == WristSide.RIGHT)
+        .create()
 
 /**
  * Bit `i` of `FcAlarm.repeat` is the day at index `i` here. The order is the vendor

@@ -86,6 +86,9 @@ data class DisplayUnits(
 
 data class WatchContact(val name: String, val number: String)
 
+/** Which wrist the watch is worn on; the watch tunes raise-to-wake and its sensors to it. */
+enum class WristSide { LEFT, RIGHT }
+
 /**
  * A snapshot of what the watch itself reports, read back through
  * [WatchClient.readSettings]. A group is `null` when the watch doesn't support it (§4.5),
@@ -102,6 +105,9 @@ data class WatchSettings(
     val wristRaise: WristRaise? = null,
     val displayUnits: DisplayUnits? = null,
     val contacts: List<WatchContact>? = null,
+    val wristSide: WristSide? = null,
+    /** The daily step goal the watch shows progress against. */
+    val stepGoal: Int? = null,
 )
 
 /**
@@ -120,4 +126,6 @@ sealed interface WatchSettingChange {
     data class SetWristRaise(val value: WristRaise) : WatchSettingChange
     data class SetDisplayUnits(val value: DisplayUnits) : WatchSettingChange
     data class SetContacts(val value: List<WatchContact>) : WatchSettingChange
+    data class SetWristSide(val value: WristSide) : WatchSettingChange
+    data class SetStepGoal(val steps: Int) : WatchSettingChange
 }

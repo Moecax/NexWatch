@@ -26,10 +26,10 @@ import com.topstep.fitcloud.sdk.v2.FcConnector
 import com.topstep.fitcloud.sdk.v2.features.FcConfigFeature
 import com.topstep.fitcloud.sdk.v2.model.config.FcDeviceInfo
 import com.topstep.fitcloud.sdk.v2.model.data.FcHealthDataType
+import com.topstep.fitcloud.sdk.v2.model.settings.FcBatteryStatus
 import com.topstep.wearkit.base.connector.ConnectorState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
@@ -39,14 +39,13 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
@@ -54,6 +53,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.timeout
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx3.asFlow
 import kotlinx.coroutines.rx3.await
 import kotlinx.coroutines.sync.Mutex
@@ -162,42 +162,44 @@ class FitCloudWatchClient @Inject constructor(
         ).onStart { emit(null) }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val batteryPercent: Flow<Int?> by lazy {
-        connectorStates.map { it == ConnectorState.CONNECTED }.distinctUntilChanged()
-            .flatMapLatest { connected ->
-                if (!connected) {
-                    flowOf(null)
-                } else {
-                    flow {
-                        // Before the request, not after: `connect()` holds the bus until
-                        // `state` reports Ready, and `state` can't report anything until
-                        // this flow has produced a value. Emitting first breaks that cycle.
-                        emit(null)
-                        emit(runCatching { lockedCommand("battery") { readBattery() } }.getOrNull())
-                        // Watches that push battery unprompted save us a poll (I5).
-                        val ability = FitCloudSdk.require().batteryAbility
-                        if (ability.isSupportObserve()) {
-                            emitAll(ability.observeBattery().asFlow().map { it.percentage })
-                        }
-                    }
-                }
+    /**
+     * The last level the watch gave us, pushed or asked for. Pushes alone aren't enough: on
+     * the GTR 3 Pro they track discharge but a level climbing on the charger was seen to sit
+     * unreported for a long time, so every explicit read ([readBattery]) lands here too.
+     */
+    private val battery = MutableStateFlow<FcBatteryStatus?>(null)
+
+    private suspend fun trackBattery() {
+        connectorStates.map { it == ConnectorState.CONNECTED }.distinctUntilChanged().collectLatest { connected ->
+            battery.value = null
+            if (!connected) return@collectLatest
+            // `connect()` holds the bus until `state` reports Ready, which it already can with
+            // a null level, so this read simply waits its turn behind the handshake.
+            runCatching { lockedCommand("battery") { readBattery() } }
+            // Watches that push battery unprompted save us a poll (I5).
+            val ability = FitCloudSdk.require().batteryAbility
+            if (ability.isSupportObserve()) {
+                ability.observeBattery().asFlow()
+                    .catch { /* The level goes stale until the next read; the link itself is fine. */ }
+                    .collect { battery.value = it }
             }
+        }
     }
 
     override val state: StateFlow<WatchState> by lazy {
+        scope.launch { trackBattery() }
         combine(
             connectorStates,
             bluetoothEnabledFlow(context),
             authFailure,
             connectRequested,
-            batteryPercent,
+            battery,
         ) { connectorState, bluetoothOn, authReason, requested, battery ->
             when {
                 authReason != null -> WatchState.AuthFailed(authReason)
                 !requested -> WatchState.Unbound
                 !bluetoothOn -> WatchState.BluetoothOff
-                else -> connectorState.toWatchState(battery, nextRetryAt())
+                else -> connectorState.toWatchState(battery?.percentage, battery?.isCharging == true, nextRetryAt())
             }
         }
             .distinctUntilChanged()
@@ -310,6 +312,9 @@ class FitCloudWatchClient @Inject constructor(
                             )
                         }
                 }
+                // Still holding the bus, so the level costs one short command rather than a
+                // second trip through the queue. A sync is an event, so this isn't a poll.
+                runCatching { withOperationTimeout("battery", COMMAND_TIMEOUT) { readBattery() } }
                 emit(SyncProgress(batch = null, itemsSynced = synced, totalItems = total, completed = true))
             }
         } catch (e: FcSyncBusyException) {
@@ -405,6 +410,13 @@ class FitCloudWatchClient @Inject constructor(
                     }
                     features.setAlarms(change.value.toFcAlarms()).await()
                 }
+                is WatchSettingChange.SetWristSide ->
+                    config.setFunctionConfig(change.value.applyTo(config.getFunctionConfig())).await()
+                is WatchSettingChange.SetStepGoal -> {
+                    // One command sets all three goals, so the other two go back as the watch has them.
+                    val current = features.requestExerciseGoal().await()
+                    features.setExerciseGoal(change.steps, current.distance, current.calorie).await()
+                }
                 is WatchSettingChange.SetContacts -> {
                     val contacts = FitCloudSdk.require().contactsAbility
                     require(change.value.size <= contacts.getContactsMaxNumber()) {
@@ -436,6 +448,8 @@ class FitCloudWatchClient @Inject constructor(
             displayUnits = config.getFunctionConfig().toDisplayUnits(),
             contacts = FitCloudSdk.require().contactsAbility.requestContacts().await().map { it.toDomain() }
                 .takeIf { config.supports(FcDeviceInfo.Feature.CONTACTS) },
+            wristSide = config.getFunctionConfig().toWristSide(),
+            stepGoal = features.requestExerciseGoal().await().step,
         )
     }
 
@@ -450,8 +464,11 @@ class FitCloudWatchClient @Inject constructor(
         }
     }
 
-    private suspend fun readBattery(): Int =
-        FitCloudSdk.require().batteryAbility.requestBattery().await().percentage
+    private suspend fun readBattery(): Int {
+        val status = FitCloudSdk.require().batteryAbility.requestBattery().await()
+        battery.value = status
+        return status.percentage
+    }
 
     private suspend fun readCapabilities(): WatchCapabilities = lockedCommand("capabilities") {
         val config = connector.configFeature()

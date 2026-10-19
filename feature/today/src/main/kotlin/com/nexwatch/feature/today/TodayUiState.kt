@@ -1,5 +1,6 @@
 package com.nexwatch.feature.today
 
+import com.nexwatch.core.data.goals.DEFAULT_STEP_GOAL
 import com.nexwatch.core.model.BloodPressureReading
 import com.nexwatch.core.model.HeartRateRange
 import com.nexwatch.core.model.HeartRateSample
@@ -14,7 +15,7 @@ sealed interface WatchLink {
     data object BluetoothOff : WatchLink
     data class NotNearby(val lastSeenMs: Long?) : WatchLink
     data class SignedInElsewhere(val reason: String) : WatchLink
-    data class Connected(val battery: Int?) : WatchLink
+    data class Connected(val battery: Int?, val charging: Boolean = false) : WatchLink
 }
 
 /** A sync in progress; [fraction] is null until the watch reports how much it will send. */
@@ -49,6 +50,7 @@ data class TodayUiState(
     /** False only when the connected watch says it has no such sensor. */
     val showSpo2: Boolean = true,
     val showBloodPressure: Boolean = true,
+    val stepGoal: Int = DEFAULT_STEP_GOAL,
 ) {
     val connected: Boolean get() = link is WatchLink.Connected
 

@@ -1165,8 +1165,20 @@ post-push `setDialComponent()` waits for the SDK to rebuild `WatchState.Ready` (
 
 Known work that no phase owns yet. Turn items into a phase (with a branch and exit criteria) before starting them.
 
-- **Goals and Settings:** a goals setting (steps, calories) and a Settings screen, both of which the main tabs
-  design points at.
+- **Goals and Settings:** a calorie goal and a Settings screen, both of which the main tabs design points at. The
+  step goal landed on `fix/battery-goal-wrist` (below).
+- **Battery, step goal and wrist (`fix/battery-goal-wrist`, waiting on the user to merge):** the watch pushed its
+  level while discharging but not while charging, so a charged watch kept showing its old level. Every explicit
+  read now lands in `WatchState` too, and the level is read on connect, at the end of every sync, on Today's
+  resume when it doesn't sync, and when the Watch tab reads settings; `WatchState.Ready` carries `charging`,
+  shown on Today, the Watch hero and the service notification. The daily step goal is read from and written to
+  the watch (`requestExerciseGoal`/`setExerciseGoal`, distance and calorie goals passed back unchanged) and
+  mirrored into `GoalPrefs` (DataStore) on every settings read, so Today's ring and Health's goal line use it
+  offline. Wrist side is the function config's `WEAR_WAY` flag (set = right, per the vendor sample). The service
+  now queues the catch-up sync only after a failed Ready-triggered run, so a reconnect no longer syncs twice back
+  to back. **Still open, because it needs the real watch:** that a level read while charging is current, the
+  `WEAR_WAY` polarity against the watch's own setting, that a goal set here shows on the watch, and whether
+  Today still shifts after a finished sync (the double sync was the one cause found in code).
 - **Screens with no design yet:** Workouts (Batch 4), metric detail (Batch 3), Data export and import flow
   (Batch 7), and system surfaces (Batch 8).
 - **Watch features:** camera remote (§8.6, needs a phone with a working camera), a scheduled `WeatherWorker`

@@ -198,16 +198,16 @@ private fun Tiles(state: HealthUiState, zone: ZoneId) {
                 ColumnChart(
                     columns = state.steps.mapIndexed { i, s ->
                         // Today is still filling, so it's dimmed rather than read as a short day.
-                        s?.let { ColumnDatum(null, it.toFloat(), emphasis = if (i == state.steps.lastIndex) 0.45f else if (it >= STEP_GOAL) 1f else 0.78f) }
+                        s?.let { ColumnDatum(null, it.toFloat(), emphasis = if (i == state.steps.lastIndex) 0.45f else if (it >= state.stepGoal) 1f else 0.78f) }
                     },
                     color = colors.activity,
                     style = ColumnStyle.BAR,
                     yMin = 0f,
-                    yMax = maxOf(14_000f, (state.steps.maxOfOrNull { it ?: 0 } ?: 0) * 1.1f),
-                    goal = STEP_GOAL.toFloat(),
-                    goalLabel = "Goal 10k",
+                    yMax = maxOf(14_000f, state.stepGoal * 1.2f, (state.steps.maxOfOrNull { it ?: 0 } ?: 0) * 1.1f),
+                    goal = state.stepGoal.toFloat(),
+                    goalLabel = "Goal ${shortSteps(state.stepGoal)}",
                     xLabels = labels,
-                    contentDescription = "Daily steps against a 10,000 goal",
+                    contentDescription = "Daily steps against a %,d goal".format(Locale.UK, state.stepGoal),
                 )
             }
         }

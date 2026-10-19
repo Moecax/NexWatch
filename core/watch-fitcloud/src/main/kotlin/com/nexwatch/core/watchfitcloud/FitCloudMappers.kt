@@ -35,11 +35,11 @@ import java.util.Base64
  * terminal cases — never connected, Bluetooth off, auth rejected — are decided by the
  * caller before this is reached.
  */
-internal fun ConnectorState.toWatchState(battery: Int?, nextRetryAt: Instant?): WatchState =
+internal fun ConnectorState.toWatchState(battery: Int?, charging: Boolean, nextRetryAt: Instant?): WatchState =
     when (this) {
         ConnectorState.DISCONNECTED, ConnectorState.PRE_CONNECTING -> WatchState.Waiting(nextRetryAt)
         ConnectorState.CONNECTING, ConnectorState.PRE_CONNECTED -> WatchState.Connecting
-        ConnectorState.CONNECTED -> WatchState.Ready(battery)
+        ConnectorState.CONNECTED -> WatchState.Ready(battery, charging)
     }
 
 /**

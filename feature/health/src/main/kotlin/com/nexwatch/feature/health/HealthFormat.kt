@@ -5,8 +5,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
-internal const val STEP_GOAL = 10_000
-
 private val weekday = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
 private val dayMonth = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
 
@@ -34,7 +32,11 @@ internal fun HealthUiState.averageDeepMinutes(): Int? = sleep.mapNotNull { it?.d
 
 internal fun HealthUiState.averageSteps(): Int? = steps.filterNotNull().averageOrNull()
 
-internal fun HealthUiState.daysAtGoal(): Int = steps.count { (it ?: 0) >= STEP_GOAL }
+internal fun HealthUiState.daysAtGoal(): Int = steps.count { (it ?: 0) >= stepGoal }
+
+/** "10k", "7.5k": short enough to sit on the goal line without covering a bar. */
+internal fun shortSteps(steps: Int): String =
+    if (steps % 1_000 == 0) "${steps / 1_000}k" else "%.1fk".format(Locale.UK, steps / 1_000f)
 
 internal fun HealthUiState.averageSpo2(): Int? = spo2.mapNotNull { it?.avgPercent }.averageOrNull()
 

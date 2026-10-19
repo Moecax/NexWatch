@@ -57,6 +57,7 @@ class WatchDebugViewModel @Inject constructor(
         "Waiting to retry" to WatchState.Waiting(nextRetryAt = Instant.now().plusSeconds(30)),
         "Connecting" to WatchState.Connecting,
         "Ready (72%)" to WatchState.Ready(battery = 72),
+        "Ready, charging (45%)" to WatchState.Ready(battery = 45, charging = true),
         "Auth failed" to WatchState.AuthFailed(reason = "simulated mismatch"),
     )
 

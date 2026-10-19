@@ -9,14 +9,17 @@ import com.nexwatch.core.watchapi.MinuteWindow
 import com.nexwatch.core.watchapi.SedentaryReminder
 import com.nexwatch.core.watchapi.WatchAlarm
 import com.nexwatch.core.watchapi.WristRaise
+import com.nexwatch.core.watchapi.WristSide
 import com.topstep.fitcloud.sdk.v2.model.config.FcBloodPressureConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDNDConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcDrinkWaterConfig
+import com.topstep.fitcloud.sdk.v2.model.config.FcFunctionConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcHealthMonitorConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcHeartRateAlarmConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcSedentaryConfig
 import com.topstep.fitcloud.sdk.v2.model.config.FcTurnWristLightingConfig
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.DayOfWeek
 
@@ -62,6 +65,18 @@ class FitCloudSettingsMappersTest {
         val wanted = WristRaise(enabled = true, window = MinuteWindow(7 * 60, 21 * 60))
 
         assertEquals(wanted, wanted.applyTo(FcTurnWristLightingConfig.Builder().create()).toDomain())
+    }
+
+    @Test
+    fun `wrist side round-trips without touching the unit flags beside it`() {
+        val imperial = FcFunctionConfig.Builder().setFlagEnabled(FcFunctionConfig.Flag.LENGTH_UNIT, true).create()
+
+        val right = WristSide.RIGHT.applyTo(imperial)
+        val left = WristSide.LEFT.applyTo(right)
+
+        assertEquals(WristSide.RIGHT, right.toWristSide())
+        assertEquals(WristSide.LEFT, left.toWristSide())
+        assertTrue(left.isFlagEnabled(FcFunctionConfig.Flag.LENGTH_UNIT))
     }
 
     @Test

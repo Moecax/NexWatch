@@ -22,11 +22,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.automirrored.rounded.Message
 import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.BackHand
 import androidx.compose.material.icons.rounded.Bloodtype
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.BluetoothSearching
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
@@ -76,6 +79,7 @@ import com.nexwatch.core.watchapi.WatchCapabilities
 import com.nexwatch.core.watchapi.WatchSettings
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.WristRaise
+import com.nexwatch.core.watchapi.WristSide
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -188,6 +192,20 @@ internal fun WatchOverviewScreen(
                             },
                         )
                     }
+                    add {
+                        ListRow(
+                            Icons.Rounded.BackHand, "Worn on",
+                            value = settings?.wristSide?.let { if (it == WristSide.LEFT) "Left wrist" else "Right wrist" },
+                            enabled = !disabled, onClick = { onOpen(WatchSection.WRIST_SIDE) },
+                        )
+                    }
+                    add {
+                        ListRow(
+                            Icons.AutoMirrored.Rounded.DirectionsWalk, "Daily step goal",
+                            value = settings?.stepGoal?.let { "%,d steps".format(Locale.UK, it) },
+                            enabled = !disabled, onClick = { onOpen(WatchSection.STEP_GOAL) },
+                        )
+                    }
                 },
             )
         }
@@ -242,7 +260,7 @@ private fun Hero(state: WatchSettingsUiState, status: WatchStatusUiState, ringin
                     Text(idLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                 }
                 ConnectionChip(state.watchState, Modifier.padding(top = 10.dp))
-                (state.watchState as? WatchState.Ready)?.battery?.let { BatteryBar(it) }
+                (state.watchState as? WatchState.Ready)?.let { ready -> ready.battery?.let { BatteryBar(it, ready.charging) } }
                 SyncFailureLine(status, Modifier.padding(top = 12.dp))
             }
         }
@@ -283,11 +301,19 @@ private fun SyncFailureLine(status: WatchStatusUiState, modifier: Modifier = Mod
 }
 
 @Composable
-private fun BatteryBar(level: Int) {
-    val color = if (level <= 20) WatchTheme.colors.warning else WatchTheme.colors.success
+private fun BatteryBar(level: Int, charging: Boolean) {
+    val color = if (level <= 20 && !charging) WatchTheme.colors.warning else WatchTheme.colors.success
     Column(Modifier.padding(top = 12.dp)) {
-        Row {
-            Text("Battery", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (charging) {
+                Icon(Icons.Rounded.Bolt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+            }
+            Text(
+                if (charging) "Charging" else "Battery",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
             Text("$level%", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurface)
         }
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(5.dp).background(MaterialTheme.colorScheme.surfaceVariant, WatchShapes.pill)) {

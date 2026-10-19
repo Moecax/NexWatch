@@ -143,8 +143,10 @@ class WatchConnectionService : Service() {
                 // would on a later state change) can leave daily_summary silently stale for a
                 // date whose rows are already marked processed. A running sync must finish.
                 .collect {
-                    watchSync.run()
-                    WatchSyncWorker.enqueueCatchUp(applicationContext)
+                    // Only a failed run needs the safety net. Queued after a good run too, it made
+                    // every reconnect sync twice back to back, so Today could change again after
+                    // the sync it showed had finished.
+                    if (watchSync.run().isFailure) WatchSyncWorker.enqueueCatchUp(applicationContext)
                 }
         }
     }
@@ -169,7 +171,7 @@ class WatchConnectionService : Service() {
     }
 
     private fun WatchState.toStatusText(): String = when (this) {
-        is WatchState.Ready -> battery?.let { "Connected · $it%" } ?: "Connected"
+        is WatchState.Ready -> battery?.let { "Connected · $it%" + if (charging) ", charging" else "" } ?: "Connected"
         is WatchState.Connecting -> "Connecting…"
         is WatchState.Waiting -> "Waiting to reconnect…"
         is WatchState.BluetoothOff -> "Bluetooth off"
