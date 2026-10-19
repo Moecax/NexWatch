@@ -84,7 +84,7 @@ internal fun NoticeLine(notice: Notice?) {
         is Notice.Failed -> Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Error, contentDescription = null, tint = WatchTheme.colors.error)
             Text(
-                "Couldn't save: ${notice.reason}",
+                "Couldn't ${notice.what}: ${notice.reason}",
                 modifier = Modifier.padding(start = 8.dp),
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -219,6 +219,19 @@ internal fun SaveButton(onClick: () -> Unit, enabled: Boolean, busy: Boolean) {
 internal fun NotConnectedNote(modifier: Modifier = Modifier) {
     Text(
         "Connect your watch to change its settings.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier,
+    )
+}
+
+/** The watch is connected but a settings read hasn't landed (not tried or it failed); leaving and
+    re-opening the screen retries it, as does reconnection. Distinct from [NotConnectedNote] so a
+    connected watch is never blamed for a read. */
+@Composable
+internal fun UnreadNote(modifier: Modifier = Modifier) {
+    Text(
+        "The watch is connected, but its settings couldn't be read yet. Go back and open this again to retry.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier,

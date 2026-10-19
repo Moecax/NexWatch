@@ -449,7 +449,10 @@ class FitCloudWatchClient @Inject constructor(
             contacts = FitCloudSdk.require().contactsAbility.requestContacts().await().map { it.toDomain() }
                 .takeIf { config.supports(FcDeviceInfo.Feature.CONTACTS) },
             wristSide = config.getFunctionConfig().toWristSide(),
-            stepGoal = features.requestExerciseGoal().await().step,
+            // A firmware that won't answer the goal query must not fail the whole read, which
+            // would blank every settings screen behind "connect your watch"; Today and Health
+            // keep drawing on the app's own copy (GoalPrefs) until a write answers instead.
+            stepGoal = runCatching { features.requestExerciseGoal().await().step }.getOrNull(),
         )
     }
 

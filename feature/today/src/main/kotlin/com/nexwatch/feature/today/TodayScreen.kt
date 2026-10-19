@@ -349,8 +349,8 @@ private fun SyncStatusLine(failure: String?, synced: String) {
 
 @Composable
 private fun SyncButton(syncing: Boolean, onSync: () -> Unit) {
-    // The spin is a real, ongoing state, and it replaces the connected pulse while it runs,
-    // so the screen still has only one looping animation (Part C).
+    // The spin is a real, ongoing state, and the sync button is this screen's only looping
+    // animation (Part C).
     val rotation = if (syncing) {
         val transition = rememberInfiniteTransition(label = "syncSpin")
         transition.animateFloat(0f, 360f, infiniteRepeatable(tween(SYNC_SPIN_MS, easing = LinearEasing), RepeatMode.Restart), label = "spin").value

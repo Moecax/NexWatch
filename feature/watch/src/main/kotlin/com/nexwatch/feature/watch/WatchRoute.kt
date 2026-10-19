@@ -65,8 +65,10 @@ fun WatchRoute(
     }
     var section by rememberSaveable { mutableStateOf<WatchSection?>(null) }
 
-    // Keyed on readiness so a reconnect re-reads, and a screen that isn't showing never does.
-    LaunchedEffect(state.isReady) {
+    // Keyed on readiness so a reconnect re-reads, and on the open section and an empty read so
+    // a screen is read when it becomes visible and one failed read retries on navigating —
+    // otherwise the screens would blame the connection for a read that didn't land. No polling.
+    LaunchedEffect(state.isReady, section, state.settings == null) {
         if (state.isReady) viewModel.refresh()
     }
 

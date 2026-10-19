@@ -10,6 +10,7 @@ import com.nexwatch.core.watchapi.MinuteWindow
 import com.nexwatch.core.watchapi.UserProfile
 import com.nexwatch.core.watchapi.WatchAlarm
 import com.nexwatch.core.watchapi.WatchSettingChange
+import com.nexwatch.core.watchapi.WristSide
 import com.nexwatch.core.watchfake.FakeWatchClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -137,6 +138,39 @@ class WatchSettingsViewModelTest {
 
         assertEquals(12_500, viewModel.uiState.value.settings?.stepGoal)
         assertEquals(12_500, goals.stepGoal.first())
+    }
+
+    @Test
+    fun `a failed read is reported as a read, not a save, and leaves the watch connected`() = runTest {
+        val client = readyClient()
+        val viewModel = WatchSettingsViewModel(client, goals)
+        viewModel.uiState.launchIn(backgroundScope)
+        client.nextReadError = IllegalStateException("The watch didn't answer")
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(Notice.Failed("The watch didn't answer", what = "read"), state.notice)
+        assertNull(state.settings)
+        assertEquals(false, state.isBusy)
+        assertEquals(true, state.isReady)
+    }
+
+    @Test
+    fun `a retry after a failed read lands the settings`() = runTest {
+        val client = readyClient()
+        val viewModel = WatchSettingsViewModel(client, goals)
+        viewModel.uiState.launchIn(backgroundScope)
+        client.nextReadError = IllegalStateException("The watch didn't answer")
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.notice)
+        assertEquals(WristSide.LEFT, viewModel.uiState.value.settings?.wristSide)
     }
 
     @Test
