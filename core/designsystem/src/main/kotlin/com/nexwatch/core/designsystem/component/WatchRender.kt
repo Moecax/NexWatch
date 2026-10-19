@@ -60,7 +60,7 @@ fun WatchRender(modifier: Modifier = Modifier, headSize: Dp = 112.dp, face: @Com
 
 /**
  * Hands parked at 10:10, the product-shot pose. Deliberately static: a live clock would
- * need a ticking recomposition, and the screen's one loop belongs to the status dot.
+ * need a ticking recomposition, and each screen is allowed only one purposeful loop (Part C).
  */
 @Composable
 fun BoxScope.WatchHands() {
