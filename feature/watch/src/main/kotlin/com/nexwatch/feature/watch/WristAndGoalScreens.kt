@@ -23,9 +23,12 @@ internal fun WristSideScreen(
     onSave: (List<WatchSettingChange>) -> Unit,
 ) {
     SettingsScaffold("Worn on", onBack, state.notice) {
-        val current = state.settings?.wristSide
-        if (!state.isReady || current == null) {
+        if (!state.isReady) {
             NotConnectedNote()
+            return@SettingsScaffold
+        }
+        val current = state.settings?.wristSide ?: run {
+            UnreadNote()
             return@SettingsScaffold
         }
         var draft by remember(current) { mutableStateOf(current) }
@@ -57,11 +60,17 @@ internal fun StepGoalScreen(
     onSave: (List<WatchSettingChange>) -> Unit,
 ) {
     SettingsScaffold("Daily step goal", onBack, state.notice) {
-        val current = state.settings?.stepGoal
-        if (!state.isReady || current == null) {
+        if (!state.isReady) {
             NotConnectedNote()
             return@SettingsScaffold
         }
+        val settings = state.settings ?: run {
+            UnreadNote()
+            return@SettingsScaffold
+        }
+        // Whatever the watch doesn't report (a firmware that won't answer the goal query), the
+        // app's own copy fills the stepper; a save still goes to the watch and reports a refusal.
+        val current = settings.stepGoal ?: state.appStepGoal
         var draft by remember(current) { mutableIntStateOf(current) }
 
         SettingsCard("Goal") {

@@ -198,6 +198,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     }
 
     override suspend fun readSettings(): WatchSettings = mutex.withLock {
+        nextReadError?.let { error -> nextReadError = null; throw error }
         requireReady()
         delay(COMMAND_DELAY_MS)
         storedSettings
@@ -226,6 +227,9 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     override var nextSyncHangs: Boolean = false
 
     override var nextSyncError: Throwable? = null
+
+    /** One failing read, so the settings refresh's retry can be tested without hardware. */
+    var nextReadError: Throwable? = null
 
     private fun requireReady() {
         val current = _state.value

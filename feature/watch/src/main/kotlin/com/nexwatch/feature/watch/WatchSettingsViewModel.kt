@@ -2,6 +2,7 @@ package com.nexwatch.feature.watch
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexwatch.core.data.goals.DEFAULT_STEP_GOAL
 import com.nexwatch.core.data.goals.GoalPrefs
 import com.nexwatch.core.watchapi.WatchCapabilities
 import com.nexwatch.core.watchapi.WatchClient
@@ -26,7 +27,8 @@ import javax.inject.Inject
 /** What the last watch command came back with; shown once, in words as well as colour. */
 sealed interface Notice {
     data class Saved(val what: String) : Notice
-    data class Failed(val reason: String) : Notice
+    /** [what] is the verb that failed ("save", "read"), so a refused read doesn't claim it couldn't save. */
+    data class Failed(val reason: String, val what: String = "save") : Notice
 }
 
 data class WatchSettingsUiState(
@@ -34,6 +36,8 @@ data class WatchSettingsUiState(
     val capabilities: WatchCapabilities? = null,
     /** Read back from the watch, never the app's own last write. */
     val settings: WatchSettings? = null,
+    /** The app's own copy of the step goal (GoalPrefs), what the goal screen drafts against when the watch doesn't report one. */
+    val appStepGoal: Int = DEFAULT_STEP_GOAL,
     val isLoading: Boolean = false,
     val isBusy: Boolean = false,
     val notice: Notice? = null,
@@ -59,12 +63,14 @@ class WatchSettingsViewModel @Inject constructor(
     val uiState: StateFlow<WatchSettingsUiState> = combine(
         watchClient.state,
         watchClient.capabilities,
+        goals.stepGoal,
         transient,
-    ) { state, capabilities, t ->
+    ) { state, capabilities, appGoal, t ->
         WatchSettingsUiState(
             watchState = state,
             capabilities = capabilities,
             settings = t.settings.takeIf { state is WatchState.Ready },
+            appStepGoal = appGoal,
             isLoading = t.isLoading,
             isBusy = t.isBusy,
             notice = t.notice,
@@ -75,14 +81,15 @@ class WatchSettingsViewModel @Inject constructor(
     fun refresh() {
         if (transient.value.isLoading) return
         viewModelScope.launch {
-            transient.update { it.copy(isLoading = true) }
+            // A retry must supersede the failed read it follows, the way a save clears the last notice.
+            transient.update { it.copy(isLoading = true, notice = null) }
             try {
                 val fresh = readSettings()
                 transient.update { it.copy(settings = fresh, isLoading = false) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                transient.update { it.copy(isLoading = false, notice = Notice.Failed(e.reason())) }
+                transient.update { it.copy(isLoading = false, notice = Notice.Failed(e.reason(), what = "read")) }
                 return@launch
             }
             // The hero shows the level from WatchClient.state; asking here keeps it honest on a
