@@ -171,7 +171,7 @@ class WatchConnectionService : Service() {
     }
 
     private fun WatchState.toStatusText(): String = when (this) {
-        is WatchState.Ready -> battery?.let { "Connected · $it%" } ?: "Connected"
+        is WatchState.Ready -> battery?.let { "Connected · $it%" + if (charging) ", charging" else "" } ?: "Connected"
         is WatchState.Connecting -> "Connecting…"
         is WatchState.Waiting -> "Waiting to reconnect…"
         is WatchState.BluetoothOff -> "Bluetooth off"

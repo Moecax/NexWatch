@@ -33,7 +33,7 @@ abstract class WatchModule {
         @Singleton
         fun provideWatchDebugController(): WatchDebugController = object : WatchDebugController {
             override fun forceState(state: WatchState) = Unit
-            override fun forceBattery(percent: Int) = Unit
+            override fun forceBattery(percent: Int, charging: Boolean) = Unit
             override var nextSyncHangs: Boolean = false
             override var nextSyncError: Throwable? = null
         }

@@ -55,4 +55,12 @@ object DataModule {
         PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile("sync") },
         )
+
+    @Provides
+    @Singleton
+    @GoalsDataStore
+    fun provideGoalsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create(
+            produceFile = { context.preferencesDataStoreFile("goals") },
+        )
 }

@@ -12,7 +12,7 @@ sealed interface WatchState {
     data object BluetoothOff : WatchState
     data class Waiting(val nextRetryAt: Instant?) : WatchState
     data object Connecting : WatchState
-    data class Ready(val battery: Int?) : WatchState
+    data class Ready(val battery: Int?, val charging: Boolean = false) : WatchState
     data class AuthFailed(val reason: String) : WatchState
 }
 

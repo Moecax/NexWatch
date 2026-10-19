@@ -23,6 +23,7 @@ import com.nexwatch.core.watchapi.WatchSettings
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.WeatherForecast
 import com.nexwatch.core.watchapi.WristRaise
+import com.nexwatch.core.watchapi.WristSide
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -63,6 +64,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
     private val _capabilities = MutableStateFlow<WatchCapabilities?>(null)
     private val _events = MutableSharedFlow<WatchEvent>(extraBufferCapacity = 8)
     private var fakeBattery = 82
+    private var fakeCharging = false
     private var storedSettings = defaultSettings()
 
     /**
@@ -97,7 +99,7 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         mutex.withLock {
             _state.value = WatchState.Connecting
             delay(CONNECT_DELAY_MS)
-            _state.value = WatchState.Ready(battery = fakeBattery)
+            _state.value = WatchState.Ready(battery = fakeBattery, charging = fakeCharging)
         }
         capabilitiesJob?.cancel()
         capabilitiesJob = backgroundScope.launch {
@@ -185,6 +187,8 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
             is WatchSettingChange.SetBloodPressureReference -> storedSettings.copy(bloodPressureReference = change.value)
             is WatchSettingChange.SetWristRaise -> storedSettings.copy(wristRaise = change.value)
             is WatchSettingChange.SetDisplayUnits -> storedSettings.copy(displayUnits = change.value)
+            is WatchSettingChange.SetWristSide -> storedSettings.copy(wristSide = change.value)
+            is WatchSettingChange.SetStepGoal -> storedSettings.copy(stepGoal = change.steps)
             is WatchSettingChange.SetContacts -> {
                 val limit = sampleCapabilities().contactsLimit ?: 0
                 require(change.value.size <= limit) { "watch holds at most $limit contacts" }
@@ -212,10 +216,11 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         }
     }
 
-    override fun forceBattery(percent: Int) {
+    override fun forceBattery(percent: Int, charging: Boolean) {
         fakeBattery = percent.coerceIn(0, 100)
+        fakeCharging = charging
         val current = _state.value
-        if (current is WatchState.Ready) _state.value = WatchState.Ready(battery = fakeBattery)
+        if (current is WatchState.Ready) _state.value = WatchState.Ready(battery = fakeBattery, charging = fakeCharging)
     }
 
     override var nextSyncHangs: Boolean = false
@@ -271,6 +276,8 @@ class FakeWatchClient @Inject constructor() : WatchClient, WatchDebugController 
         wristRaise = WristRaise(enabled = true, window = MinuteWindow(0, 23 * 60 + 59)),
         displayUnits = DisplayUnits(use24HourClock = true, imperialLength = false, fahrenheit = false),
         contacts = emptyList(),
+        wristSide = WristSide.LEFT,
+        stepGoal = 8_000,
     )
 
     private companion object {

@@ -27,6 +27,10 @@ interface WatchClient {
 
     fun syncHealthData(): Flow<SyncProgress>
     fun liveHeartRate(): Flow<Int>
+    /**
+     * Asks the watch rather than waiting for it to report. The answer also lands in [state],
+     * which matters because some watches stop pushing their level while on the charger.
+     */
     suspend fun batteryLevel(): Int
     suspend fun findWatch()
     /**

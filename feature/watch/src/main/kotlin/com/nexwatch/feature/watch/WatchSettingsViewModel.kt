@@ -2,6 +2,7 @@ package com.nexwatch.feature.watch
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexwatch.core.data.goals.GoalPrefs
 import com.nexwatch.core.watchapi.WatchCapabilities
 import com.nexwatch.core.watchapi.WatchClient
 import com.nexwatch.core.watchapi.WatchSettingChange
@@ -50,6 +51,7 @@ private data class Transient(
 @HiltViewModel
 class WatchSettingsViewModel @Inject constructor(
     private val watchClient: WatchClient,
+    private val goals: GoalPrefs,
 ) : ViewModel() {
 
     private val transient = MutableStateFlow(Transient())
@@ -75,12 +77,21 @@ class WatchSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             transient.update { it.copy(isLoading = true) }
             try {
-                val fresh = watchClient.readSettings()
+                val fresh = readSettings()
                 transient.update { it.copy(settings = fresh, isLoading = false) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 transient.update { it.copy(isLoading = false, notice = Notice.Failed(e.reason())) }
+                return@launch
+            }
+            // The hero shows the level from WatchClient.state; asking here keeps it honest on a
+            // watch that has been charging without reporting it. A miss keeps the last level.
+            try {
+                watchClient.batteryLevel()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
             }
         }
     }
@@ -89,7 +100,7 @@ class WatchSettingsViewModel @Inject constructor(
         runCommand(what) {
             changes.forEach { watchClient.applySettings(it) }
             // The screen shows what the watch reports, so a value it snapped or refused is visible.
-            val fresh = watchClient.readSettings()
+            val fresh = readSettings()
             transient.update { it.copy(settings = fresh) }
         }
     }
@@ -134,6 +145,10 @@ class WatchSettingsViewModel @Inject constructor(
             transient.update { it.copy(isBusy = false, notice = notice) }
         }
     }
+
+    /** Every read refreshes the app's copy of the goal, so a goal changed on the watch shows up on Today too. */
+    private suspend fun readSettings(): WatchSettings =
+        watchClient.readSettings().also { fresh -> fresh.stepGoal?.takeIf { it > 0 }?.let { goals.setStepGoal(it) } }
 
     private fun Exception.reason() = message ?: "The watch didn't answer"
 

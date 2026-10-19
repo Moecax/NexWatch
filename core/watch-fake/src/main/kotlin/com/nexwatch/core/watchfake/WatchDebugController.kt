@@ -9,7 +9,7 @@ import com.nexwatch.core.watchapi.WatchState
  */
 interface WatchDebugController {
     fun forceState(state: WatchState)
-    fun forceBattery(percent: Int)
+    fun forceBattery(percent: Int, charging: Boolean = false)
 
     /** Consumed by the next sync, which never finishes: reproduces a stalled SDK stream. */
     var nextSyncHangs: Boolean

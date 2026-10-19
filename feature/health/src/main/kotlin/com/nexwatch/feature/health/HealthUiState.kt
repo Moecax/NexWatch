@@ -1,5 +1,6 @@
 package com.nexwatch.feature.health
 
+import com.nexwatch.core.data.goals.DEFAULT_STEP_GOAL
 import com.nexwatch.core.model.DailyBloodPressure
 import com.nexwatch.core.model.DailySpo2
 import com.nexwatch.core.model.WorkoutSummary
@@ -34,4 +35,5 @@ data class HealthUiState(
     val showBloodPressure: Boolean = true,
     /** Metrics the connected watch says it has no sensor for, named instead of shown empty. */
     val unsupported: List<String> = emptyList(),
+    val stepGoal: Int = DEFAULT_STEP_GOAL,
 )

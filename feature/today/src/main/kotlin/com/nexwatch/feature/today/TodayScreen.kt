@@ -35,6 +35,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Battery5Bar
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.Error
@@ -109,8 +110,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** There is no goal setting yet, so these are the design prompt's defaults (Part A sample day). */
-private const val STEP_GOAL = 10_000
+/** There is no calorie goal setting yet, so this is the design prompt's default (Part A sample day). */
 private const val CALORIE_GOAL = 600
 private const val DAY_MS = 24 * 60 * 60_000f
 private const val SYNC_SPIN_MS = 1000
@@ -215,7 +215,7 @@ fun TodayScreen(
             }
         }
         EntranceItem(index++) { WatchStrip(state, nowMs, zone, onSync, onOpenBluetooth) }
-        EntranceItem(index++) { ActivityCard(state.activity, asOf, state.firstDay) }
+        EntranceItem(index++) { ActivityCard(state.activity, state.stepGoal, asOf, state.firstDay) }
         EntranceItem(index++) { HeartCard(state.heart, state.dayStartMs, asOf, zone) }
         EntranceItem(index++) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
@@ -275,7 +275,12 @@ private fun WatchStrip(state: TodayUiState, nowMs: Long, zone: ZoneId, onSync: (
                 when (link) {
                     is WatchLink.Connected -> Row(verticalAlignment = Alignment.CenterVertically) {
                         link.battery?.let {
-                            Icon(Icons.Rounded.Battery5Bar, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                            Icon(
+                                if (link.charging) Icons.Rounded.BatteryChargingFull else Icons.Rounded.Battery5Bar,
+                                contentDescription = if (link.charging) "Charging" else null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp),
+                            )
                             StripText("$it%  ·  ")
                         }
                         SyncStatusLine(failed, synced)
@@ -394,7 +399,7 @@ private fun CardHeader(icon: ImageVector, tint: Color, title: String, meta: Stri
 }
 
 @Composable
-private fun ActivityCard(activity: TodayActivity?, asOf: String?, firstDay: Boolean) {
+private fun ActivityCard(activity: TodayActivity?, stepGoal: Int, asOf: String?, firstDay: Boolean) {
     val steps = activity?.steps ?: 0
     val kcal = activity?.energyKcal ?: 0
     NexCard {
@@ -404,14 +409,14 @@ private fun ActivityCard(activity: TodayActivity?, asOf: String?, firstDay: Bool
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             ActivityRings(
                 rings = listOf(
-                    RingSpec(steps / STEP_GOAL.toFloat(), WatchTheme.colors.activity),
+                    RingSpec(steps / stepGoal.toFloat(), WatchTheme.colors.activity),
                     RingSpec(kcal / CALORIE_GOAL.toFloat(), WatchTheme.colors.calories),
                 ),
-                contentDescription = "Steps ${steps * 100 / STEP_GOAL} percent of goal, calories ${kcal * 100 / CALORIE_GOAL} percent of goal",
+                contentDescription = "Steps ${steps * 100 / stepGoal} percent of goal, calories ${kcal * 100 / CALORIE_GOAL} percent of goal",
                 size = 112.dp,
             )
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ActivityLine(Icons.AutoMirrored.Rounded.DirectionsWalk, WatchTheme.colors.activity, "%,d".format(Locale.UK, steps), "/ %,d".format(Locale.UK, STEP_GOAL), "Steps")
+                ActivityLine(Icons.AutoMirrored.Rounded.DirectionsWalk, WatchTheme.colors.activity, "%,d".format(Locale.UK, steps), "/ %,d".format(Locale.UK, stepGoal), "Steps")
                 ActivityLine(Icons.Rounded.LocalFireDepartment, WatchTheme.colors.calories, kcal.toString(), "/ $CALORIE_GOAL kcal", "Calories")
                 ActivityLine(Icons.Rounded.Straighten, MaterialTheme.colorScheme.primary, kilometres(activity?.distanceM ?: 0), null, "Distance")
             }
@@ -419,8 +424,8 @@ private fun ActivityCard(activity: TodayActivity?, asOf: String?, firstDay: Bool
         Box(Modifier.fillMaxWidth().padding(top = 14.dp).height(1.dp).background(WatchTheme.colors.border.copy(alpha = 0.5f)))
         val footer = when {
             firstDay -> "Wear your watch to start counting"
-            steps >= STEP_GOAL -> "Step goal reached"
-            else -> "%,d steps to goal".format(Locale.UK, STEP_GOAL - steps)
+            steps >= stepGoal -> "Step goal reached"
+            else -> "%,d steps to goal".format(Locale.UK, stepGoal - steps)
         }
         Text(footer, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
     }

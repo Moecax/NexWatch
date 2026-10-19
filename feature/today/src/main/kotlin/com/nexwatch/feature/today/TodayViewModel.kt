@@ -3,6 +3,7 @@ package com.nexwatch.feature.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexwatch.core.data.diagnostics.DiagnosticsStore
+import com.nexwatch.core.data.goals.GoalPrefs
 import com.nexwatch.core.data.health.DailySummaryRepository
 import com.nexwatch.core.data.health.HealthRepository
 import com.nexwatch.core.data.identity.WatchIdentityStore
@@ -40,6 +41,7 @@ class TodayViewModel @Inject constructor(
     private val watchSync: WatchSync,
     forwardingPrefs: NotificationForwardingPrefs,
     private val identityStore: WatchIdentityStore,
+    goals: GoalPrefs,
 ) : ViewModel() {
 
     private val zone: ZoneId = ZoneId.systemDefault()
@@ -56,13 +58,23 @@ class TodayViewModel @Inject constructor(
             val lastSyncAt = diagnostics.snapshot.first().lastSyncAt
             if (lastSyncAt == null || System.currentTimeMillis() - lastSyncAt > FIFTEEN_MIN_MS) {
                 watchSync.requestSync()
+            } else if (watchSync.status.value == WatchSyncStatus.Idle) {
+                // A sync reads the level on its way out, so this is only for the resumes that
+                // don't sync. Without it a watch charged since the last sync shows its old level.
+                try {
+                    watchClient.batteryLevel()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // The strip keeps the last level it had.
+                }
             }
         }
     }
 
     private val link = combine(watchClient.state, diagnostics.snapshot, identityStore.identity) { state, diag, identity ->
         when (state) {
-            is WatchState.Ready -> WatchLink.Connected(state.battery)
+            is WatchState.Ready -> WatchLink.Connected(state.battery, state.charging)
             WatchState.Connecting -> WatchLink.Connecting
             WatchState.BluetoothOff -> WatchLink.BluetoothOff
             is WatchState.Waiting -> WatchLink.NotNearby(diag.lastConnectedAt)
@@ -116,8 +128,9 @@ class TodayViewModel @Inject constructor(
         ) { spo2, low, bp, workout, caps -> Vitals(spo2, low, bp, workout, caps?.spo2 != false, caps?.bloodPressure != false) }
     }
 
-    val uiState: StateFlow<TodayUiState> = combine(status, dayData, vitals) { phone, day, v ->
+    val uiState: StateFlow<TodayUiState> = combine(status, dayData, vitals, goals.stepGoal) { phone, day, v, stepGoal ->
         TodayUiState(
+            stepGoal = stepGoal,
             loading = false,
             link = phone.link,
             sync = phone.sync,

@@ -2,6 +2,7 @@ package com.nexwatch.feature.health
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nexwatch.core.data.goals.GoalPrefs
 import com.nexwatch.core.data.health.DailySummaryRepository
 import com.nexwatch.core.data.health.HealthRepository
 import com.nexwatch.core.model.DailyBloodPressure
@@ -32,6 +33,7 @@ class HealthViewModel @Inject constructor(
     private val health: HealthRepository,
     private val summaries: DailySummaryRepository,
     private val watchClient: WatchClient,
+    goals: GoalPrefs,
 ) : ViewModel() {
 
     private val zone = ZoneId.systemDefault()
@@ -58,8 +60,9 @@ class HealthViewModel @Inject constructor(
             health.observeDailySpo2(from, today, zone),
             health.observeDailyBloodPressure(from, today, zone),
         ) { hr, days, nights, spo2, bp -> PerDay(hr, days, nights, spo2, bp) }
-        combine(perDay, health.observeWorkouts(fromMs, toMs), watchClient.capabilities) { d, workouts, caps ->
+        combine(perDay, health.observeWorkouts(fromMs, toMs), watchClient.capabilities, goals.stepGoal) { d, workouts, caps, goal ->
             buildHealthState(range, from, today, d.heartRate, d.summaries, d.nights, d.spo2, d.bloodPressure, workouts, caps, zone)
+                .copy(stepGoal = goal)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HealthUiState())
 

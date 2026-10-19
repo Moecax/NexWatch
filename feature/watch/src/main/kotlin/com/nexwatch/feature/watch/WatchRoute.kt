@@ -22,6 +22,8 @@ internal enum class WatchSection {
     BLOOD_PRESSURE_REFERENCE,
     ALARMS,
     WRIST_RAISE,
+    WRIST_SIDE,
+    STEP_GOAL,
     UNITS,
     CONTACTS,
     WEATHER,
@@ -98,6 +100,8 @@ fun WatchRoute(
         WatchSection.BLOOD_PRESSURE_REFERENCE -> BloodPressureReferenceScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.ALARMS -> AlarmsScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.WRIST_RAISE -> WristRaiseScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
+        WatchSection.WRIST_SIDE -> WristSideScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
+        WatchSection.STEP_GOAL -> StepGoalScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.UNITS -> UnitsScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.CONTACTS -> ContactsScreen(state, back) { viewModel.apply(*it.toTypedArray()) }
         WatchSection.WEATHER -> WeatherScreen(state, back, viewModel::pushTestWeather)
