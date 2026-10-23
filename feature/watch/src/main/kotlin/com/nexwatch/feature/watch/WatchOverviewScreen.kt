@@ -49,6 +49,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -68,6 +71,7 @@ import com.nexwatch.core.designsystem.component.SecondaryButton
 import com.nexwatch.core.designsystem.component.SectionLabel
 import com.nexwatch.core.designsystem.component.StatusChip
 import com.nexwatch.core.designsystem.component.StatusTone
+import com.nexwatch.core.designsystem.component.WatchHands
 import com.nexwatch.core.designsystem.component.WatchRender
 import com.nexwatch.core.designsystem.component.WatchSwitch
 import com.nexwatch.core.designsystem.theme.WatchMotion
@@ -80,7 +84,11 @@ import com.nexwatch.core.watchapi.WatchSettings
 import com.nexwatch.core.watchapi.WatchState
 import com.nexwatch.core.watchapi.WristRaise
 import com.nexwatch.core.watchapi.WristSide
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -242,13 +250,37 @@ internal fun WatchOverviewScreen(
     }
 }
 
+/**
+ * The phone's wall clock to the minute, for the hero's hands. Wakes once per minute boundary and
+ * only while the screen is started, so it is a display tick, not a poll; previews stay on the
+ * 10:10 product pose.
+ */
+@Composable
+private fun rememberMinuteClock(): LocalTime {
+    val inspection = LocalInspectionMode.current
+    var now by remember { mutableStateOf(if (inspection) LocalTime.of(10, 10) else LocalTime.now()) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle, inspection) {
+        if (inspection) return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                val current = LocalTime.now()
+                now = current
+                delay((60 - current.second) * 1_000L - current.nano / 1_000_000)
+            }
+        }
+    }
+    return now
+}
+
 @Composable
 private fun Hero(state: WatchSettingsUiState, status: WatchStatusUiState, ringing: Boolean) {
     NexCard(contentPadding = PaddingValues(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             Box(contentAlignment = Alignment.Center) {
                 if (ringing) RingingWaves()
-                WatchRender(headSize = 104.dp)
+                val time = rememberMinuteClock()
+                WatchRender(headSize = 104.dp) { WatchHands(time.hour, time.minute) }
             }
             Column(Modifier.weight(1f)) {
                 Text("Your watch", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurface)
