@@ -37,10 +37,14 @@ internal fun AlarmsScreen(
     onSave: (List<WatchSettingChange>) -> Unit,
 ) {
     SettingsScaffold("Alarms", onBack, state.notice) {
+        if (!state.isReady) {
+            NotConnectedNote()
+            return@SettingsScaffold
+        }
         val alarms = state.settings?.alarms
         val limit = state.capabilities?.alarmLimit
-        if (!state.isReady || alarms == null || limit == null) {
-            NotConnectedNote()
+        if (alarms == null || limit == null) {
+            UnreadNote()
             return@SettingsScaffold
         }
         var draft by remember(alarms) { mutableStateOf(alarms) }

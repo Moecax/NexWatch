@@ -1179,6 +1179,17 @@ Known work that no phase owns yet. Turn items into a phase (with a branch and ex
   to back. **Still open, because it needs the real watch:** that a level read while charging is current, the
   `WEAR_WAY` polarity against the watch's own setting, that a goal set here shows on the watch, and whether
   Today still shifts after a finished sync (the double sync was the one cause found in code).
+- **Settings read timeout (`fix/settings-read-timeout`, merged and released as v0.2.3):** with the watch connected
+  and syncing, every Watch tab screen showed "Couldn't read: watch command timed out". Only three parts of a
+  settings read go over the air (alarms, contacts, step goal); the config groups are the SDK's cached copy. The
+  contacts query was sent even when the watch doesn't support contacts, and `fix/settings-read`'s `runCatching`
+  round the goal query caught a refusal but not a hang, which still ran into the read's 10s timeout and failed
+  everything. Each over-the-air part now has its own 5s bound and turns into a null row, is asked only when
+  supported, and the read as a whole gets 20s. Alarms and Contacts say "couldn't be read" rather than "not
+  connected" when their row is missing. The Watch hero's hands now show the phone's time to the minute instead of
+  a fixed 10:10. **Still open, because it needs the real watch:** which of the three queries was hanging (the
+  matching row will read as empty, and a step goal save will still time out if it's the goal query, because the
+  write reads the other two goals first).
 - **Screens with no design yet:** Workouts (Batch 4), metric detail (Batch 3), Data export and import flow
   (Batch 7), and system surfaces (Batch 8).
 - **Watch features:** camera remote (§8.6, needs a phone with a working camera), a scheduled `WeatherWorker`

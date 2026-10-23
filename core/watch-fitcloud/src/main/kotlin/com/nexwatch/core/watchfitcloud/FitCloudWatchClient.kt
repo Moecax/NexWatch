@@ -74,6 +74,12 @@ private val COMMAND_TIMEOUT = 10.seconds
 /** ...and notifications 5s, because a late notification is noise, not information. */
 private val NOTIFICATION_TIMEOUT = 5.seconds
 
+/** Each over-the-air query inside a settings read... */
+private val READ_PART_TIMEOUT = 5.seconds
+
+/** ...and the read as a whole, which makes up to three of them back to back. */
+private val READ_SETTINGS_TIMEOUT = READ_PART_TIMEOUT * 3 + 5.seconds
+
 /** A contacts write pushes every entry over BLE, so it gets more room than a flag flip. */
 private val CONTACTS_TIMEOUT = 30.seconds
 
@@ -428,13 +434,20 @@ class FitCloudWatchClient @Inject constructor(
         }
     }
 
-    override suspend fun readSettings(): WatchSettings = command("readSettings") {
+    override suspend fun readSettings(): WatchSettings = command("readSettings", READ_SETTINGS_TIMEOUT) {
         val config = connector.configFeature()
         config.refresh()
         val features = connector.settingsFeature()
+        // The config groups are the SDK's cached copy; only alarms, contacts and the goal go over
+        // the air. Each of those is bounded on its own and asked only when supported, so one the
+        // firmware never answers costs that row, not every settings screen.
         WatchSettings(
             doNotDisturb = config.getDNDConfig().takeIf { config.supports(FcDeviceInfo.Feature.DND) }?.toDomain(),
-            alarms = features.requestAlarms().await().map { it.toDomain() }.takeIf { features.getAlarmMaxSize() > 0 },
+            alarms = if (features.getAlarmMaxSize() > 0) {
+                optionalRead { features.requestAlarms().await().map { it.toDomain() } }
+            } else {
+                null
+            },
             sedentaryReminder = config.getSedentaryConfig().toDomain(),
             drinkWaterReminder = config.getDrinkWaterConfig().toDomain(),
             healthMonitoring = config.getHealthMonitorConfig().toDomain(),
@@ -446,14 +459,30 @@ class FitCloudWatchClient @Inject constructor(
                 ?.toDomain(),
             wristRaise = config.getTurnWristLightingConfig().toDomain(),
             displayUnits = config.getFunctionConfig().toDisplayUnits(),
-            contacts = FitCloudSdk.require().contactsAbility.requestContacts().await().map { it.toDomain() }
-                .takeIf { config.supports(FcDeviceInfo.Feature.CONTACTS) },
+            contacts = if (config.supports(FcDeviceInfo.Feature.CONTACTS)) {
+                optionalRead { FitCloudSdk.require().contactsAbility.requestContacts().await().map { it.toDomain() } }
+            } else {
+                null
+            },
             wristSide = config.getFunctionConfig().toWristSide(),
-            // A firmware that won't answer the goal query must not fail the whole read, which
-            // would blank every settings screen behind "connect your watch"; Today and Health
-            // keep drawing on the app's own copy (GoalPrefs) until a write answers instead.
-            stepGoal = runCatching { features.requestExerciseGoal().await().step }.getOrNull(),
+            // Today and Health keep drawing on the app's own copy (GoalPrefs) when this is null.
+            stepGoal = optionalRead { features.requestExerciseGoal().await().step },
         )
+    }
+
+    /**
+     * Null when the watch refuses or never answers. A `runCatching` alone isn't enough: a query
+     * that hangs rather than fails runs into the whole read's timeout, and that cancellation
+     * fails the read however the inner call is wrapped.
+     */
+    private suspend fun <T> optionalRead(block: suspend () -> T): T? = try {
+        withTimeout(READ_PART_TIMEOUT) { block() }
+    } catch (e: TimeoutCancellationException) {
+        null
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 
     override suspend fun pushWeather(forecast: WeatherForecast) {

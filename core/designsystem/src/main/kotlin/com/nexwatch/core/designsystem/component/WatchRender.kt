@@ -59,11 +59,12 @@ fun WatchRender(modifier: Modifier = Modifier, headSize: Dp = 112.dp, face: @Com
 }
 
 /**
- * Hands parked at 10:10, the product-shot pose. Deliberately static: a live clock would
- * need a ticking recomposition, and each screen is allowed only one purposeful loop (Part C).
+ * Hands at [hour]:[minute], parked at 10:10 (the product-shot pose) unless a caller passes the
+ * real time. Minute resolution only: a sweeping second hand would be a loop that represents
+ * nothing the user needs (Part C).
  */
 @Composable
-fun BoxScope.WatchHands() {
+fun BoxScope.WatchHands(hour: Int = 10, minute: Int = 10) {
     val hand = MaterialTheme.colorScheme.onSurface
     val accent = MaterialTheme.colorScheme.primary
     Canvas(Modifier.fillMaxSize()) {
@@ -79,8 +80,8 @@ fun BoxScope.WatchHands() {
             val inner = tip(i * 30.0, r * if (i % 3 == 0) 0.70f else 0.77f)
             drawLine(hand.copy(alpha = if (i % 3 == 0) 0.55f else 0.25f), inner, outer, stroke * 0.6f, StrokeCap.Round)
         }
-        drawLine(hand, c, tip(305.0, r * 0.45f), stroke, StrokeCap.Round)
-        drawLine(hand, c, tip(60.0, r * 0.66f), stroke * 0.8f, StrokeCap.Round)
+        drawLine(hand, c, tip((hour % 12) * 30.0 + minute * 0.5, r * 0.45f), stroke, StrokeCap.Round)
+        drawLine(hand, c, tip(minute * 6.0, r * 0.66f), stroke * 0.8f, StrokeCap.Round)
         drawCircle(accent, radius = stroke * 0.9f, center = c)
     }
 }
