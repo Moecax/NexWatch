@@ -29,10 +29,14 @@ internal fun ContactsScreen(
     onSave: (List<WatchSettingChange>) -> Unit,
 ) {
     SettingsScaffold("Contacts", onBack, state.notice) {
+        if (!state.isReady) {
+            NotConnectedNote()
+            return@SettingsScaffold
+        }
         val contacts = state.settings?.contacts
         val limit = state.capabilities?.contactsLimit
-        if (!state.isReady || contacts == null || limit == null) {
-            NotConnectedNote()
+        if (contacts == null || limit == null) {
+            UnreadNote()
             return@SettingsScaffold
         }
         var draft by remember(contacts) { mutableStateOf(contacts) }
